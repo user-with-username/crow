@@ -5,7 +5,6 @@ use crate::build_system::cache::CacheManager;
 use crate::build_system::dependency::DependencyResolver;
 use crate::config::CrowDependencyBuild;
 use crate::config::OutputType;
-use crate::config::Target;
 use crate::utils;
 use anyhow::Context;
 use crow_utils::logger::INDENT_LEVEL_1;
@@ -65,7 +64,6 @@ impl BuildSystem {
             logger,
         })
     }
-
     pub fn resolve_config(
         config: &Config,
         profile_name: &str,
@@ -85,123 +83,134 @@ impl BuildSystem {
         let mut profile_config = profile_config_base.clone();
         let mut package_config = config.package.clone();
 
-        if let Some(hooks) = &toolchain.hooks {
-            if verbose {
-                logger.info("Executing base toolchain hooks...");
-            }
-            BuildSystem::execute_hooks(hooks, verbose, logger)?;
-        }
+        toolchain
+            .hooks
+            .as_ref()
+            .map(|hooks| BuildSystem::execute_hooks(hooks, verbose, logger))
+            .transpose()?;
 
         let current_arch = env::consts::ARCH;
         let current_os = env::consts::OS;
 
-        let mut best_match_score = -1;
-        let mut best_target_overrides: Option<Target> = None;
+        let best_target_overrides = config
+            .targets
+            .iter()
+            .filter_map(|(target_name, target)| {
+                let os_match = target.os.as_ref().map_or(true, |os| os == current_os);
+                let arch_match = target
+                    .arch
+                    .as_ref()
+                    .map_or(true, |arch| arch == current_arch);
 
-        for (target_name, target) in &config.targets {
-            let mut current_score = 0;
-            let mut matches_criteria = true;
-
-            if let Some(os_criteria) = &target.os {
-                if os_criteria == current_os {
-                    current_score += 1;
+                if os_match && arch_match {
+                    let score =
+                        target.os.as_ref().map_or(0, |_| 1) + target.arch.as_ref().map_or(0, |_| 2);
+                    Some((score, target_name, target))
                 } else {
-                    matches_criteria = false;
+                    None
                 }
-            }
-            if matches_criteria {
-                if let Some(arch_criteria) = &target.arch {
-                    if arch_criteria == current_arch {
-                        current_score += 2;
-                    } else {
-                        matches_criteria = false;
-                    }
-                }
-            }
+            })
+            .max_by_key(|(score, _, _)| *score)
+            .map(|(_, _, target)| target.clone());
 
-            if matches_criteria && current_score > best_match_score {
-                best_match_score = current_score;
-                best_target_overrides = Some(target.clone());
-                if verbose {
-                    logger.dim_level2(&format!(
-                        "Found better target match: '{}'",
-                        target_name
-                    ));
-                }
-            }
-        }
+        best_target_overrides
+            .as_ref()
+            .map(|target_override| -> anyhow::Result<()> {
+                target_override
+                    .hooks
+                    .as_ref()
+                    .map(|hooks| BuildSystem::execute_hooks(hooks, verbose, logger))
+                    .transpose()?;
 
-        if let Some(target_override) = best_target_overrides {
-            if verbose {
-                logger.info(
-                    "Applying target overrides",
-                );
-            }
+                target_override
+                    .toolchain
+                    .as_ref()
+                    .map(|toolchain_override| -> anyhow::Result<()> {
+                        toolchain_override
+                            .hooks
+                            .as_ref()
+                            .map(|hooks| BuildSystem::execute_hooks(hooks, verbose, logger))
+                            .transpose()?;
 
-            if let Some(hooks) = &target_override.hooks {
-                BuildSystem::execute_hooks(hooks, verbose, logger)?;
-            }
+                        toolchain_override
+                            .compiler
+                            .as_ref()
+                            .map(|compiler| toolchain.compiler.clone_from(compiler));
+                        toolchain_override
+                            .compiler_flags
+                            .as_ref()
+                            .map(|flags| toolchain.compiler_flags.clone_from(flags));
+                        toolchain_override
+                            .linker
+                            .as_ref()
+                            .map(|linker| toolchain.linker.clone_from(linker));
+                        toolchain_override
+                            .linker_flags
+                            .as_ref()
+                            .map(|flags| toolchain.linker_flags.clone_from(flags));
+                        toolchain_override
+                            .archiver
+                            .as_ref()
+                            .map(|archiver| toolchain.archiver.clone_from(archiver));
+                        toolchain_override
+                            .archiver_flags
+                            .as_ref()
+                            .map(|flags| toolchain.archiver_flags.clone_from(flags));
 
-            if let Some(toolchain_override) = &target_override.toolchain {
-                if let Some(hooks) = &toolchain_override.hooks {
-                    BuildSystem::execute_hooks(hooks, verbose, logger)?;
-                }
+                        Ok::<(), anyhow::Error>(())
+                    })
+                    .transpose()?;
 
-                if let Some(compiler) = &toolchain_override.compiler {
-                    toolchain.compiler = compiler.clone();
-                }
-                if let Some(compiler_flags) = &toolchain_override.compiler_flags {
-                    toolchain.compiler_flags = compiler_flags.clone();
-                }
-                if let Some(linker) = &toolchain_override.linker {
-                    toolchain.linker = linker.clone();
-                }
-                if let Some(linker_flags) = &toolchain_override.linker_flags {
-                    toolchain.linker_flags = linker_flags.clone();
-                }
-                if let Some(archiver) = &toolchain_override.archiver {
-                    toolchain.archiver = archiver.clone();
-                }
-                if let Some(archiver_flags) = &toolchain_override.archiver_flags {
-                    toolchain.archiver_flags = archiver_flags.clone();
-                }
-            }
+                target_override
+                    .name
+                    .as_ref()
+                    .map(|name| package_config.name.clone_from(name));
+                target_override
+                    .output_type
+                    .as_ref()
+                    .map(|ot| package_config.output_type.clone_from(ot));
+                target_override
+                    .sources
+                    .as_ref()
+                    .map(|sources| package_config.sources.clone_from(sources));
+                target_override
+                    .includes
+                    .as_ref()
+                    .map(|includes| package_config.includes.clone_from(includes));
+                target_override
+                    .libs
+                    .as_ref()
+                    .map(|libs| package_config.libs.clone_from(libs));
+                target_override
+                    .lib_dirs
+                    .as_ref()
+                    .map(|dirs| package_config.lib_dirs.clone_from(dirs));
 
-            if let Some(name) = &target_override.name {
-                package_config.name = name.clone();
-            }
-            if let Some(output_type) = &target_override.output_type {
-                package_config.output_type = output_type.clone();
-            }
-            if let Some(sources) = &target_override.sources {
-                package_config.sources = sources.clone();
-            }
-            if let Some(includes) = &target_override.includes {
-                package_config.includes = includes.clone();
-            }
-            if let Some(libs) = &target_override.libs {
-                package_config.libs = libs.clone();
-            }
-            if let Some(lib_dirs) = &target_override.lib_dirs {
-                package_config.lib_dirs = lib_dirs.clone();
-            }
-            if let Some(opt_level) = target_override.opt_level {
-                profile_config.opt_level = opt_level;
-            }
-            if let Some(defines) = &target_override.defines {
-                profile_config.defines = defines.clone();
-            }
-            if let Some(lto) = target_override.lto {
-                profile_config.lto = lto;
-            }
-            if let Some(flags) = &target_override.flags {
-                profile_config.flags = flags.clone();
-            }
-            if let Some(incremental) = target_override.incremental {
-                profile_config.incremental = incremental;
-            }
-        } else if verbose {
-            logger.dim_level2("No specific target overrides found or matched");
+                target_override
+                    .opt_level
+                    .map(|level| profile_config.opt_level = level);
+                target_override
+                    .defines
+                    .as_ref()
+                    .map(|defines| profile_config.defines.clone_from(defines));
+                target_override.lto.map(|lto| profile_config.lto = lto);
+                target_override
+                    .flags
+                    .as_ref()
+                    .map(|flags| profile_config.flags.clone_from(flags));
+                target_override
+                    .incremental
+                    .map(|inc| profile_config.incremental = inc);
+
+                Ok::<(), anyhow::Error>(())
+            })
+            .transpose()?;
+
+        if verbose && best_target_overrides.is_none() {
+            logger.dim_level2(&format!(
+                "Building for `{}` with default settings",
+                env::consts::ARCH
+            ));
         }
 
         Ok((package_config, toolchain, profile_config))
