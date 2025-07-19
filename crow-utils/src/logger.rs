@@ -1,8 +1,6 @@
 // I'll rewrite it soon. now it works — it works
 
-use std::{
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub static QUIET_MODE: AtomicBool = AtomicBool::new(false);
 

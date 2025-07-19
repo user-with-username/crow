@@ -50,7 +50,7 @@ impl ProjectCleaner for CleanCommand {
                     deps_dir.display()
                 ));
             }
-            
+
             let deps_dir_global = Environment::deps_dir(true);
             if deps_dir_global.exists() {
                 logger.warn(&format!(

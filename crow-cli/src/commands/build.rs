@@ -1,7 +1,7 @@
 use super::*;
-use std::path::PathBuf;
-use crow_utils::Environment;
 use crow_core::Config;
+use crow_utils::Environment;
+use std::path::PathBuf;
 
 pub trait ProjectBuilder {
     fn build_project(

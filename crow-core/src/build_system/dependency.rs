@@ -7,7 +7,7 @@ use crow_utils::logger::Logger;
 use crow_utils::logger::INDENT_LEVEL_1;
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf}
+    path::{Path, PathBuf},
 };
 
 #[derive(Debug, Clone)]
@@ -86,7 +86,9 @@ impl DependencyResolver for BuildSystem {
         let mut downloaded_paths = HashMap::new();
         let mut dep_build_outputs = HashMap::new();
 
-        let has_git_deps = dependencies.values().any(|dep| matches!(dep, Dependency::Git { .. }));
+        let has_git_deps = dependencies
+            .values()
+            .any(|dep| matches!(dep, Dependency::Git { .. }));
         if has_git_deps {
             <BuildSystem as GitManager>::check_git_available()?;
         }
@@ -108,7 +110,11 @@ impl DependencyResolver for BuildSystem {
                                 &format!("{} [UPDATING] {name} ({})", INDENT_LEVEL_1, git),
                             );
                         }
-                        <BuildSystem as GitManager>::git_pull(&git_dep_target_path, verbose, logger)?;
+                        <BuildSystem as GitManager>::git_pull(
+                            &git_dep_target_path,
+                            verbose,
+                            logger,
+                        )?;
                     } else {
                         if verbose {
                             logger.dim(&format!("Cloning new dependency '{name}' from {}", git));
@@ -233,10 +239,7 @@ impl DependencyResolver for BuildSystem {
                     global_deps,
                     logger,
                 ),
-                None => anyhow::bail!(
-                    "Build system for dependency '{}' was not inferred.",
-                    name
-                ),
+                None => anyhow::bail!("Build system for dependency '{}' was not inferred.", name),
             }?;
 
             dep_build_outputs.insert(name.clone(), build_output);

@@ -1,7 +1,7 @@
 use super::*;
-use crow_utils::Environment;
-use crow_core::Config;
 use crate::commands::build::ProjectBuilder;
+use crow_core::Config;
+use crow_utils::Environment;
 
 pub trait ProjectRunner {
     fn run_project(

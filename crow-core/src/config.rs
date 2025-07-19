@@ -58,17 +58,17 @@ impl Config {
             config.profiles = Some(Config::generate_default_profiles_map());
         } else {
             let mut profiles = config.profiles.unwrap_or_default();
-            
+
             let default_profiles = Config::generate_default_profiles_map();
             for name in ["debug", "release"] {
                 if !profiles.contains_key(name) {
                     profiles.insert(
                         name.to_string(),
-                        default_profiles.get(name).unwrap().clone()
+                        default_profiles.get(name).unwrap().clone(),
                     );
                 }
             }
-            
+
             config.profiles = Some(profiles);
         }
         Ok(config)
@@ -77,41 +77,58 @@ impl Config {
     pub fn final_config(&self, target_name: &str, profile_name: &str) -> FinalConfig {
         let package = &self.package;
         let target = self.targets.get(target_name);
-        let profile = self.profiles
+        let profile = self
+            .profiles
             .as_ref()
             .and_then(|p| p.get(profile_name))
             .cloned()
             .unwrap_or_default();
 
         FinalConfig {
-            name: target.and_then(|t| t.name.clone()).unwrap_or_else(|| package.name.clone()),
+            name: target
+                .and_then(|t| t.name.clone())
+                .unwrap_or_else(|| package.name.clone()),
             version: package.version.clone(),
-            output_type: target.and_then(|t| t.output_type.clone()).unwrap_or(package.output_type.clone()),
-            sources: target.and_then(|t| t.sources.clone()).unwrap_or_else(|| package.sources.clone()),
-            includes: target.and_then(|t| t.includes.clone()).unwrap_or_else(|| package.includes.clone()),
-            libs: target.and_then(|t| t.libs.clone()).unwrap_or_else(|| package.libs.clone()),
-            lib_dirs: target.and_then(|t| t.lib_dirs.clone()).unwrap_or_else(|| package.lib_dirs.clone()),
-            
-            opt_level: target.and_then(|t| t.opt_level).unwrap_or(profile.opt_level),
-            defines: target.and_then(|t| t.defines.clone()).unwrap_or(profile.defines),
+            output_type: target
+                .and_then(|t| t.output_type.clone())
+                .unwrap_or(package.output_type.clone()),
+            sources: target
+                .and_then(|t| t.sources.clone())
+                .unwrap_or_else(|| package.sources.clone()),
+            includes: target
+                .and_then(|t| t.includes.clone())
+                .unwrap_or_else(|| package.includes.clone()),
+            libs: target
+                .and_then(|t| t.libs.clone())
+                .unwrap_or_else(|| package.libs.clone()),
+            lib_dirs: target
+                .and_then(|t| t.lib_dirs.clone())
+                .unwrap_or_else(|| package.lib_dirs.clone()),
+
+            opt_level: target
+                .and_then(|t| t.opt_level)
+                .unwrap_or(profile.opt_level),
+            defines: target
+                .and_then(|t| t.defines.clone())
+                .unwrap_or(profile.defines),
             lto: target.and_then(|t| t.lto).unwrap_or(profile.lto),
-            flags: target.and_then(|t| t.flags.clone()).unwrap_or(profile.flags),
-            incremental: target.and_then(|t| t.incremental).unwrap_or(profile.incremental),
-            
-            toolchain: self.toolchain.merge(target.and_then(|t| t.toolchain.as_ref())),
+            flags: target
+                .and_then(|t| t.flags.clone())
+                .unwrap_or(profile.flags),
+            incremental: target
+                .and_then(|t| t.incremental)
+                .unwrap_or(profile.incremental),
+
+            toolchain: self
+                .toolchain
+                .merge(target.and_then(|t| t.toolchain.as_ref())),
         }
     }
 
     fn generate_default_profiles_map() -> HashMap<String, BuildProfile> {
         let mut profiles = HashMap::new();
-        profiles.insert(
-            "debug".to_string(),
-            BuildProfile::default_debug()
-        );
-        profiles.insert(
-            "release".to_string(),
-            BuildProfile::default_release()
-        );
+        profiles.insert("debug".to_string(), BuildProfile::default_debug());
+        profiles.insert("release".to_string(), BuildProfile::default_release());
         profiles
     }
 }
@@ -125,13 +142,13 @@ pub struct FinalConfig {
     pub includes: Vec<String>,
     pub libs: Vec<String>,
     pub lib_dirs: Vec<String>,
-    
+
     pub opt_level: u8,
     pub defines: Vec<String>,
     pub lto: bool,
     pub flags: Vec<String>,
     pub incremental: bool,
-    
+
     pub toolchain: ToolchainConfig,
 }
 
@@ -151,7 +168,7 @@ impl PackageConfig {
     fn default_sources() -> Vec<String> {
         vec!["src/**/*.cpp".to_string()]
     }
-    
+
     fn default_includes() -> Vec<String> {
         vec!["include/".to_string()]
     }
@@ -191,7 +208,7 @@ impl ToolchainConfig {
             "ar".to_string()
         }
     }
-    
+
     fn default_archiver_flags() -> Vec<String> {
         if cfg!(windows) {
             vec![]
@@ -199,15 +216,15 @@ impl ToolchainConfig {
             vec!["rcs".to_string()]
         }
     }
-    
+
     fn default_compiler_flags() -> Vec<String> {
         vec!["-std=c++17".to_string()]
     }
-    
+
     fn default_linker_flags() -> Vec<String> {
         vec!["-lstdc++".to_string()]
     }
-    
+
     fn find_default_compiler_and_linker() -> anyhow::Result<(String, String)> {
         if std::process::Command::new("clang++")
             .arg("--version")
@@ -225,19 +242,25 @@ impl ToolchainConfig {
         }
         anyhow::bail!("Cannot find compiler in PATH.");
     }
-    
+
     fn merge(&self, override_config: Option<&ToolchainOverride>) -> Self {
         let Some(ov) = override_config else {
             return self.clone();
         };
-        
+
         ToolchainConfig {
             compiler: ov.compiler.clone().unwrap_or(self.compiler.clone()),
-            compiler_flags: ov.compiler_flags.clone().unwrap_or(self.compiler_flags.clone()),
+            compiler_flags: ov
+                .compiler_flags
+                .clone()
+                .unwrap_or(self.compiler_flags.clone()),
             linker: ov.linker.clone().unwrap_or(self.linker.clone()),
             linker_flags: ov.linker_flags.clone().unwrap_or(self.linker_flags.clone()),
             archiver: ov.archiver.clone().unwrap_or(self.archiver.clone()),
-            archiver_flags: ov.archiver_flags.clone().unwrap_or(self.archiver_flags.clone()),
+            archiver_flags: ov
+                .archiver_flags
+                .clone()
+                .unwrap_or(self.archiver_flags.clone()),
             hooks: ov.hooks.clone().or(self.hooks.clone()),
         }
     }
@@ -285,7 +308,7 @@ impl BuildProfile {
             incremental: true,
         }
     }
-    
+
     fn default_release() -> Self {
         BuildProfile {
             opt_level: 3,
@@ -379,7 +402,7 @@ impl CrowDependencyBuild {
     fn default_output_type() -> OutputType {
         OutputType::StaticLib
     }
-    
+
     fn default_lib_name_placeholder() -> String {
         String::from("__INFER_LIB_NAME__")
     }

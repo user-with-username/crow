@@ -1,13 +1,13 @@
 mod builder;
 mod cache;
-mod git_manager;
 mod dependency;
+mod git_manager;
 mod toolchain;
 
 pub use builder::BuildSystem;
 pub use cache::BuildCache;
-pub use git_manager::GitManager;
 pub use dependency::DependencyBuildOutput;
+pub use git_manager::GitManager;
 pub use toolchain::ToolchainExecutor;
 
 use crate::config::{BuildProfile, Config, PackageConfig, ToolchainConfig};

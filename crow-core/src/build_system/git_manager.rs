@@ -45,9 +45,10 @@ impl GitManager for BuildSystem {
         command.stderr(Stdio::piped());
         command.stdout(Stdio::piped());
 
-        let output = command
-            .output()
-            .context(format!("Failed while executing `git clone` for '{}'", repo_url))?;
+        let output = command.output().context(format!(
+            "Failed while executing `git clone` for '{}'",
+            repo_url
+        ))?;
 
         if !output.status.success() {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
@@ -72,11 +73,7 @@ impl GitManager for BuildSystem {
         Ok(())
     }
 
-    fn git_pull(
-        repo_path: &Path,
-        verbose: bool,
-        logger: &'static Logger,
-    ) -> anyhow::Result<()> {
+    fn git_pull(repo_path: &Path, verbose: bool, logger: &'static Logger) -> anyhow::Result<()> {
         let mut cmd = Command::new("git");
         cmd.arg("-C").arg(repo_path).arg("pull");
         cmd.stderr(Stdio::piped());

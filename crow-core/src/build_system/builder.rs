@@ -86,7 +86,7 @@ impl BuildSystem {
         toolchain
             .hooks
             .as_ref()
-            .map(|hooks| BuildSystem::execute_hooks(hooks, verbose, logger))
+            .map(|hooks| BuildSystem::execute_hooks(hooks, logger))
             .transpose()?;
 
         let current_arch = env::consts::ARCH;
@@ -119,7 +119,7 @@ impl BuildSystem {
                 target_override
                     .hooks
                     .as_ref()
-                    .map(|hooks| BuildSystem::execute_hooks(hooks, verbose, logger))
+                    .map(|hooks| BuildSystem::execute_hooks(hooks, logger))
                     .transpose()?;
 
                 target_override
@@ -129,7 +129,7 @@ impl BuildSystem {
                         toolchain_override
                             .hooks
                             .as_ref()
-                            .map(|hooks| BuildSystem::execute_hooks(hooks, verbose, logger))
+                            .map(|hooks| BuildSystem::execute_hooks(hooks, logger))
                             .transpose()?;
 
                         toolchain_override
@@ -682,62 +682,29 @@ impl BuildSystem {
         Ok(())
     }
 
-    pub fn execute_hooks(
-        hooks: &[String],
-        verbose: bool,
-        logger: &'static Logger,
-    ) -> anyhow::Result<()> {
-        if hooks.is_empty() {
-            return Ok(());
-        }
+    pub fn execute_hooks(hooks: &[String], logger: &'static Logger) -> anyhow::Result<()> {
+        for hook in hooks {
+            let cmd = shlex::split(hook).with_context(|| format!("Cannot parse hook: '{hook}'"))?;
 
-        for hook_cmd_str in hooks {
-            let parsed_command = shlex::split(hook_cmd_str)
-                .with_context(|| format!("Failed to parse hook command: '{}'", hook_cmd_str))?;
-
-            if parsed_command.is_empty() {
+            if cmd.is_empty() {
                 continue;
             }
 
-            let command_name = &parsed_command[0];
-            let args = &parsed_command[1..];
-
-            if verbose {
-                logger.dim_level2(&format!("Running hook: `{}`", hook_cmd_str));
-            }
-
-            let mut cmd = std::process::Command::new(command_name);
-            cmd.args(args);
-            cmd.stdout(Stdio::piped());
-            cmd.stderr(Stdio::piped());
-
-            let output = cmd
+            let output = std::process::Command::new(&cmd[0])
+                .args(&cmd[1..])
                 .output()
-                .with_context(|| format!("Failed to execute hook command: `{}`", hook_cmd_str))?;
+                .with_context(|| format!("Failed to run: '{hook}'"))?;
+
+            if !output.stdout.is_empty() {
+                logger.raw(&String::from_utf8_lossy(&output.stdout));
+            }
+            if !output.stderr.is_empty() {
+                logger.raw(&String::from_utf8_lossy(&output.stderr));
+            }
 
             if !output.status.success() {
-                let stdout_output = String::from_utf8_lossy(&output.stdout);
-                let stderr_output = String::from_utf8_lossy(&output.stderr);
-                logger.critical_error(&format!(
-                    "Hook command `{}` failed:\n{} {}",
-                    hook_cmd_str, stdout_output, stderr_output
-                ));
-                anyhow::bail!("Hook `{}` failed.", hook_cmd_str);
-            } else if verbose {
-                let stdout_output = String::from_utf8_lossy(&output.stdout);
-                let stderr_output = String::from_utf8_lossy(&output.stderr);
-                if !stdout_output.is_empty() {
-                    logger.dim_level2(&format!("Hook stdout:"));
-                    logger.raw(&stdout_output);
-                }
-                if !stderr_output.is_empty() {
-                    logger.dim_level2(&format!("Hook stderr:"));
-                    logger.raw(&stderr_output);
-                }
+                anyhow::bail!("Hook failed: `{hook}`");
             }
-        }
-        if verbose {
-            logger.info("Hooks executed successfully.");
         }
         Ok(())
     }
