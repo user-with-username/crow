@@ -24,7 +24,7 @@ CRow is a no-nonsense build system for C++ designed for developers who want:
 - **Pre-built binaries**: Download from [Releases](https://github.com/base-of-base/crow/releases)
 - **Build from source**:
 ```bash
-git clone https://github.com/base-of-base/crow
+git clone https://github.com/user-with-username/crow
 cd crow
 cargo install --path .
 ```
