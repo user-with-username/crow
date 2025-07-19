@@ -1,7 +1,8 @@
 use super::*;
 use crate::build_system::cache::CacheManager;
-use crate::config::{OutputType};
+use crate::config::OutputType;
 use crow_utils::logger::Logger;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::{
     path::{Path, PathBuf},
