@@ -1,0 +1,26 @@
+[workspace]
+members = ["crow-core", "crow-cli", "crow-utils"]
+
+[package]
+name = "crow"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crow-core = { path = "./crow-core" }
+crow-utils = { path = "./crow-utils" }
+clap = { version = "4.4", features = ["derive"] }
+anyhow = "1.0"
+tera = "1.19"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+incremental = false
+
+[[bin]]
+name = "crow"
+path = "crow-cli/src/main.rs"
