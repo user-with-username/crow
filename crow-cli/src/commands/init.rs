@@ -1,6 +1,7 @@
 use super::*;
 use anyhow::Context;
 use std::io::Write;
+use tera::Tera;
 
 pub trait ProjectInitializer {
     fn init_project(&self, name: &str, logger: &'static Logger) -> anyhow::Result<()>;
@@ -40,8 +41,11 @@ impl ProjectInitializer for InitCommand {
         let src_dir = project_dir.join("src");
         std::fs::create_dir(&src_dir)?;
 
-        let tera = tera::Tera::new("templates/*")
-            .with_context(|| format!("No templates? oh sorry, the end."))?;
+        let mut tera = Tera::default();
+        tera.add_raw_template("main.cpp.tera", include_str!("../../templates/main.cpp.tera"))
+            .with_context(|| "No main.cpp template")?;
+        tera.add_raw_template("crow.toml.tera", include_str!("../../templates/crow.toml.tera"))
+            .with_context(|| "No config template")?;
 
         let mut context = tera::Context::new();
         context.insert("project_name", name);
