@@ -1,0 +1,75 @@
+name: Moderate 
+
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+
+env:
+  SPAMMERS: "SANS3R66"
+  BAN_MESSAGE: "Sorry, you registered as spammer. All your issues and pull requests will be closed automatically. Error, you did not something bad? Type to -> t.me/unban_mepls"
+
+jobs:
+  handle-blocked-user:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Is blocked?
+        id: check_user
+        run: |
+          USERNAME="${{ github.event.issue.user.login || github.event.pull_request.user.login || github.event.comment.user.login }}"
+          if [[ "${{ env.SPAMMERS }}" == *"$USERNAME"* ]]; then
+            echo "user_blocked=true" >> $GITHUB_OUTPUT
+          else
+            echo "user_blocked=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Close issue
+        if: github.event_name == 'issues' && steps.check_user.outputs.user_blocked == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_URL: ${{ github.event.issue.url }}
+        run: |
+          curl -X PATCH \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$ISSUE_URL" \
+            -d '{"state": "closed", "locked": true}'
+
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$ISSUE_URL/comments" \
+            -d '{"body": "${{ env.BAN_MESSAGE }}"}'
+
+      - name: Close PR
+        if: github.event_name == 'pull_request' && steps.check_user.outputs.user_blocked == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.url }}
+        run: |
+          curl -X PATCH \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$PR_URL" \
+            -d '{"state": "closed", "locked": true}'
+
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$PR_URL/comments" \
+            -d '{"body": "${{ env.BAN_MESSAGE }}"}'
+
+      - name: Delete comment
+        if: github.event_name == 'issue_comment' && steps.check_user.outputs.user_blocked == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_URL: ${{ github.event.comment.url }}
+        run: |
+          curl -X DELETE \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$COMMENT_URL"
