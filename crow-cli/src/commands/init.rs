@@ -1,5 +1,6 @@
 use super::*;
 use anyhow::Context;
+use crow_utils::Environment;
 use std::io::Write;
 use tera::Tera;
 
@@ -11,6 +12,9 @@ pub trait ProjectInitializer {
 pub struct InitCommand {
     /// Name of the project to create
     pub name: String,
+    /// Suppress output
+    #[arg(short, long, default_value_t = false)]
+    pub quiet: bool,
 }
 
 impl ProjectInitializer for InitCommand {
@@ -42,10 +46,16 @@ impl ProjectInitializer for InitCommand {
         std::fs::create_dir(&src_dir)?;
 
         let mut tera = Tera::default();
-        tera.add_raw_template("main.cpp.tera", include_str!("../../templates/main.cpp.tera"))
-            .with_context(|| "No main.cpp template")?;
-        tera.add_raw_template("crow.toml.tera", include_str!("../../templates/crow.toml.tera"))
-            .with_context(|| "No config template")?;
+        tera.add_raw_template(
+            "main.cpp.tera",
+            include_str!("../../templates/main.cpp.tera"),
+        )
+        .with_context(|| "No main.cpp template")?;
+        tera.add_raw_template(
+            "crow.toml.tera",
+            include_str!("../../templates/crow.toml.tera"),
+        )
+        .with_context(|| "No config template")?;
 
         let mut context = tera::Context::new();
         context.insert("project_name", name);
@@ -67,6 +77,10 @@ impl ProjectInitializer for InitCommand {
 
 impl Command for InitCommand {
     fn execute(&self, logger: &'static Logger) -> Result<()> {
+        crow_utils::logger::QUIET_MODE.store(
+            Environment::parse_quiet_mode_env(self.quiet),
+            std::sync::atomic::Ordering::Relaxed,
+        );
         self.init_project(&self.name, logger)
     }
 }
