@@ -2,7 +2,7 @@
 
 **Cargo, but for C/C++**
 
-![CRow Logo](assets/crow_logo.png)
+![CRow Logo](assets/crow_logo.svg)
 
 > [!IMPORTANT]
 > CRow is in the very early alpha testing. Not all features are stable
