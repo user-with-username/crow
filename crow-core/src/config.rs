@@ -166,7 +166,7 @@ pub struct PackageConfig {
 
 impl PackageConfig {
     fn default_sources() -> Vec<String> {
-        vec!["src/**/*.cpp".to_string()]
+        vec!["src/**/*.cpp".to_string(), "src/**/*.c".to_string()]
     }
 
     fn default_includes() -> Vec<String> {

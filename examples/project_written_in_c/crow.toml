@@ -1,6 +1,5 @@
 [package]
 name = "project_written_in_c"
 version = "0.1.0"
-sources = [ "src/**/*.c" ]
 
 [dependencies]
