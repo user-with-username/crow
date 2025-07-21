@@ -1,0 +1,147 @@
+name: Build
+
+on:
+  push:
+    branches: ['*']
+
+env:
+  BIN_NAME: "crow"
+
+jobs:
+  get-version:
+    name: Get version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get crate version
+        id: get-version
+        run: |
+          version=$(grep -m1 '^version =' Cargo.toml | cut -d '"' -f2)
+          echo "version=${version}" >> $GITHUB_OUTPUT
+          echo "Using version: ${version}"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: get-version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: linux-x86_64
+            
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact: linux-arm64
+            use-cross: true
+
+          # mac
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: macos-x86_64
+            
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: macos-arm64
+
+          # win
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: windows-x64.exe
+            
+          - os: windows-latest
+            target: i686-pc-windows-msvc
+            artifact: windows-x86.exe
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup cross-compile
+        if: matrix.use-cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+      
+      - name: Install rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          toolchain: stable
+          profile: minimal
+
+      - name: Build
+        shell: bash
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+          
+          mkdir -p release
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            EXT=".exe"
+          else
+            EXT=""
+          fi
+          
+          cp "target/${{ matrix.target }}/release/$BIN_NAME$EXT" "release/${{ matrix.artifact }}"
+
+      - name: Upload bins
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/${{ matrix.artifact }}
+
+  release:
+    name: Create release
+    needs: [get-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Download bins
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Get commit
+        id: commit-message
+        run: |
+          COMMIT_SUBJECT=$(git log -1 --pretty=%s)
+          echo "commit_subject=$COMMIT_SUBJECT" >> $GITHUB_OUTPUT
+          
+          COMMIT_BODY=$(git log -1 --pretty=%b)
+          if [ -n "$COMMIT_BODY" ]; then
+            echo "commit_body=$COMMIT_BODY" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: unstable
+          name: "${{ needs.get-version.outputs.version }}"
+          body: |
+            Build for version ${{ needs.get-version.outputs.version }}.
+            
+            ### Changelog
+            ** - ${{ steps.commit-message.outputs.commit_subject }}**
+            
+                ${{ steps.commit-message.outputs.commit_body }}
+            
+            Thanks you for using CRow!
+          files: |
+            artifacts/linux-x86_64
+            artifacts/linux-arm64
+            artifacts/macos-x86_64
+            artifacts/macos-arm64
+            artifacts/windows-x64.exe
+            artifacts/windows-x86.exe
+          draft: false
+          prerelease: false
