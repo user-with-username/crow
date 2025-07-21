@@ -1,0 +1,8 @@
+[package]
+name = "project_with_external_deps"
+version = "0.1.0"
+
+[dependencies]
+fmt = { git = "https://github.com/fmtlib/fmt" }
+
+# note: now fmt will compile all tests and examples. it can take time, so if you dont wanna it, you can do: `fmt = { git = "https://github.com/fmtlib/fmt", build = { cmake_options = [ "-DFMT_TEST=OFF" ] } }`

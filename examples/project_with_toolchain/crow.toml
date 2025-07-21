@@ -1,0 +1,22 @@
+[package]
+name = "project_with_toolchain"
+version = "0.1.0"
+
+[toolchain]
+compiler = "g++"
+compiler_flags = [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra"
+]
+linker = "g++"
+linker_flags = [
+    "-fuse-ld=lld",
+    "-Wl,--as-needed"
+]
+archiver = "g++"
+hooks = [
+    "python scripts/do_something_very_useful.py"
+]
+
+[dependencies]

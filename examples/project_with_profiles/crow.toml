@@ -1,0 +1,20 @@
+[package]
+name = "project_with_profiles"
+version = "0.1.0"
+
+# redefine existing profile (`debug` profile is default profile)
+[profiles.debug]
+# for example: in origin incremental is true
+incremental = false # not it isn't
+
+# your own profile
+[profiles.my_magical_profile]
+# ok. let's redefile all parameters
+opt_level = 3
+defines = ["NDEBUG"]
+lto = true
+flags = ["-O3"]
+incremental = true
+# now you can run it via: crow run --profile my_magical_profile
+
+[dependencies]
