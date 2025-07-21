@@ -10,7 +10,8 @@ on:
 
 env:
   SPAMMERS: "SANS3R66"
-  BAN_MESSAGE: "Sorry, you registered as spammer. All your issues and pull requests will be closed automatically. Error, you did not something bad? Type to -> t.me/unban_mepls"
+  BAN_MESSAGE: "Sorry, your account was flagged as a spammer. All your issues and pull requests will be closed automatically\n\nError? If you believe this was a mistake and didn’t violate any rules, contact us at:  
+→ [t.me/unban_mepls](t.me/unban_mepls)"
 
 jobs:
   handle-blocked-user:
