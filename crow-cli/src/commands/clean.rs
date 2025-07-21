@@ -78,7 +78,7 @@ impl ProjectCleaner for CleanCommand {
 impl Command for CleanCommand {
     fn execute(&self, logger: &'static Logger) -> Result<()> {
         crow_utils::logger::QUIET_MODE.store(
-            Environment::parse_quiet_mode_env(self.quiet),
+            Environment::quiet_mode(self.quiet),
             std::sync::atomic::Ordering::Relaxed,
         );
         self.clean_project(self.all, logger)

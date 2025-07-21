@@ -78,7 +78,7 @@ impl ProjectInitializer for InitCommand {
 impl Command for InitCommand {
     fn execute(&self, logger: &'static Logger) -> Result<()> {
         crow_utils::logger::QUIET_MODE.store(
-            Environment::parse_quiet_mode_env(self.quiet),
+            Environment::quiet_mode(self.quiet),
             std::sync::atomic::Ordering::Relaxed,
         );
         self.init_project(&self.name, logger)

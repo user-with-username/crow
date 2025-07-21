@@ -11,26 +11,25 @@ impl Environment {
     }
 
     pub fn deps_dir(global_deps: bool) -> PathBuf {
-        if global_deps {
-            home_dir()
-                .expect("Cannot get home dir.")
-                .join(".crow/_deps")
+        let base_path = if global_deps {
+            home_dir().expect("Cannot get home dir")
+                .join(".crow")
         } else {
-            PathBuf::from(".crow/_deps")
-        }
+            PathBuf::from(".crow")
+        };
+        
+        base_path.join("_deps")
     }
 
-    pub fn parse_global_deps_env(cli_global_deps: bool) -> bool {
-        match env::var("CROW_GLOBAL_DEPS") {
-            Ok(val) => val.eq_ignore_ascii_case("true"),
-            Err(_) => cli_global_deps,
-        }
+    pub fn global_deps(global_deps: bool) -> bool {
+        env::var("CROW_GLOBAL_DEPS")
+            .map(|val| val.eq_ignore_ascii_case("true"))
+            .unwrap_or(global_deps)
     }
 
-    pub fn parse_quiet_mode_env(cli_quiet_mode: bool) -> bool {
-        match env::var("CROW_QUIET_MODE") {
-            Ok(val) => val.eq_ignore_ascii_case("true"),
-            Err(_) => cli_quiet_mode,
-        }
+    pub fn quiet_mode(quiet_mode: bool) -> bool {
+        env::var("CROW_QUIET_MODE")
+            .map(|val| val.eq_ignore_ascii_case("true"))
+            .unwrap_or(quiet_mode)
     }
 }

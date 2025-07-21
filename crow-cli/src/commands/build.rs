@@ -57,10 +57,10 @@ impl ProjectBuilder for BuildCommand {
 impl Command for BuildCommand {
     fn execute(&self, logger: &'static Logger) -> Result<()> {
         crow_utils::logger::QUIET_MODE.store(
-            Environment::parse_quiet_mode_env(self.quiet),
+            Environment::quiet_mode(self.quiet),
             std::sync::atomic::Ordering::Relaxed,
         );
-        let global_deps = Environment::parse_global_deps_env(self.global_deps);
+        let global_deps = Environment::global_deps(self.global_deps);
         self.build_project(&self.profile, self.jobs, self.verbose, global_deps, logger)?;
         Ok(())
     }
