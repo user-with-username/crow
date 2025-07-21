@@ -306,12 +306,15 @@ impl ToolchainExecutor for BuildSystem {
         }
     }
 
+    #[cfg(unix)]
     fn set_executable_permissions(path: &Path) -> anyhow::Result<()> {
-        #[cfg(unix)]
-        {
-            let perms = std::fs::Permissions::from_mode(0o755);
-            std::fs::set_permissions(path, perms)?;
-        }
+        let perms = std::fs::Permissions::from_mode(0o755);
+        std::fs::set_permissions(path, perms)?;
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    fn set_executable_permissions(_path: &Path) -> anyhow::Result<()> {
         Ok(())
     }
 
