@@ -131,7 +131,7 @@ jobs:
             Build for version ${{ needs.get-version.outputs.version }}.
             
             ### Changelog
-            ** - ${{ steps.commit-message.outputs.commit_subject }}**
+            **${{ steps.commit-message.outputs.commit_subject }}**
             
                 ${{ steps.commit-message.outputs.commit_body }}
             
