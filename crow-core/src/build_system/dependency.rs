@@ -24,7 +24,6 @@ pub trait DependencyResolver {
         toolchain: &ToolchainConfig,
         current_profile: &str,
         profile_config: &BuildProfile,
-        verbose: bool,
         global_deps: bool,
         logger: Logger,
     ) -> anyhow::Result<(
@@ -38,7 +37,6 @@ pub trait DependencyResolver {
         config: &CrowDependencyBuild,
         profile: &str,
         profile_config: &BuildProfile,
-        verbose: bool,
         logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput>;
 
@@ -47,7 +45,6 @@ pub trait DependencyResolver {
         dep_source_path: &Path,
         crow_build_config: &CrowDependencyBuild,
         current_profile: &str,
-        verbose: bool,
         global_deps: bool,
         logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput>;
@@ -56,7 +53,6 @@ pub trait DependencyResolver {
         name: &str,
         local_path_orig: &Path,
         global_local_dep_target_path: &Path,
-        verbose: bool,
         logger: Logger,
     ) -> anyhow::Result<()>;
 }
@@ -67,7 +63,6 @@ impl DependencyResolver for BuildSystem {
         toolchain: &ToolchainConfig,
         current_profile: &str,
         profile_config: &BuildProfile,
-        verbose: bool,
         global_deps: bool,
         logger: Logger,
     ) -> anyhow::Result<(
@@ -102,7 +97,7 @@ impl DependencyResolver for BuildSystem {
                     let git_dep_target_path = deps_download_dir.join(name);
 
                     if git_dep_target_path.exists() {
-                        if verbose {
+                        if logger.verbose {
                             logger.log(
                                 LogLevel::Dim,
                                 &format!("Dependency '{name}' exists. Pulling updates..."),
@@ -113,11 +108,10 @@ impl DependencyResolver for BuildSystem {
                         }
                         <BuildSystem as GitManager>::git_pull(
                             &git_dep_target_path,
-                            verbose,
                             &logger.clone(),
                         )?;
                     } else {
-                        if verbose {
+                        if logger.verbose {
                             logger.log(
                                 LogLevel::Dim,
                                 &format!("Cloning new dependency '{name}' from {}", git),
@@ -134,7 +128,6 @@ impl DependencyResolver for BuildSystem {
                             git,
                             branch,
                             &git_dep_target_path,
-                            verbose,
                             &logger.clone(),
                         )?;
                     }
@@ -158,12 +151,11 @@ impl DependencyResolver for BuildSystem {
                             name,
                             &local_path_orig,
                             &global_local_dep_target_path,
-                            verbose,
                             logger.clone(),
                         )?;
                         dep_source_path = global_local_dep_target_path;
                     } else {
-                        if verbose {
+                        if logger.verbose {
                             logger.log(
                                 LogLevel::Dim,
                                 &format!(
@@ -203,7 +195,7 @@ impl DependencyResolver for BuildSystem {
                     &format!("[CACHED] Dependency '{name}' (profile: {current_profile})."),
                     2,
                 );
-                if verbose {
+                if logger.verbose {
                     logger.log(
                         LogLevel::Dim,
                         &format!("Library found at: {}", lib_path.display()),
@@ -240,7 +232,6 @@ impl DependencyResolver for BuildSystem {
                     &crow_build_config,
                     current_profile,
                     profile_config,
-                    verbose,
                     logger.clone(),
                 ),
                 Some(BuildSystemType::Crow) => Self::build_crow_dependency(
@@ -248,7 +239,6 @@ impl DependencyResolver for BuildSystem {
                     &dep_source_path,
                     &crow_build_config,
                     current_profile,
-                    verbose,
                     global_deps,
                     logger.clone(),
                 ),
@@ -271,11 +261,10 @@ impl DependencyResolver for BuildSystem {
         name: &str,
         local_path_orig: &Path,
         global_local_dep_target_path: &Path,
-        verbose: bool,
         logger: Logger,
     ) -> anyhow::Result<()> {
         if global_local_dep_target_path.exists() {
-            if verbose {
+            if logger.verbose {
                 logger.log(
                     LogLevel::Dim,
                     &format!(
@@ -293,7 +282,7 @@ impl DependencyResolver for BuildSystem {
             }
             std::fs::remove_dir_all(global_local_dep_target_path)?;
         } else {
-            if verbose {
+            if logger.verbose {
                 logger.log(
                     LogLevel::Dim,
                     &format!(
@@ -334,7 +323,6 @@ impl DependencyResolver for BuildSystem {
         config: &CrowDependencyBuild,
         profile: &str,
         profile_config: &BuildProfile,
-        verbose: bool,
         logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput> {
         let dep_source_dir = std::env::current_dir()?;
@@ -359,7 +347,6 @@ impl DependencyResolver for BuildSystem {
             toolchain,
             config,
             profile_config,
-            verbose,
             &build_dir,
             &mut cxx_flags,
             logger.clone(),
@@ -375,10 +362,9 @@ impl DependencyResolver for BuildSystem {
             toolchain,
             &cxx_flags_str,
             &config.cmake_options,
-            verbose,
             logger.clone(),
         )?;
-        BuildSystem::run_cmake_build(name, &build_dir, build_type, verbose, logger.clone())?;
+        BuildSystem::run_cmake_build(name, &build_dir, build_type, logger.clone())?;
 
         let library_path =
             <build_system::builder::BuildSystem as ToolchainExecutor>::find_library_file(
@@ -412,7 +398,6 @@ impl DependencyResolver for BuildSystem {
         dep_source_path: &Path,
         crow_build_config: &CrowDependencyBuild,
         current_profile: &str,
-        verbose: bool,
         global_deps: bool,
         logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput> {
@@ -428,7 +413,7 @@ impl DependencyResolver for BuildSystem {
         dep_package_config.output_type = crow_build_config.output_type.clone();
 
         let dep_build_system =
-            BuildSystem::new(dep_config, current_profile, verbose, global_deps, logger)?;
+            BuildSystem::new(dep_config, current_profile, global_deps, logger)?;
         dep_build_system.build_internal(Some(1), Some(&dep_package_config))
     }
 }

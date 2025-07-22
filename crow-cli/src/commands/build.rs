@@ -42,11 +42,13 @@ impl ProjectBuilder for BuildCommand {
         global_deps: bool,
         logger: &Logger,
     ) -> Result<PathBuf> {
+        let mut logger = logger.clone();
+        logger.verbose(verbose);
+        
         let config = Config::load("crow.toml")?;
         let build_system = crow_core::build_system::BuildSystem::new(
             config,
             profile,
-            verbose,
             global_deps,
             logger.clone(),
         )?;

@@ -12,10 +12,9 @@ pub trait GitManager {
         repo_url: &str,
         branch: &str,
         dest_path: &Path,
-        verbose: bool,
         logger: &Logger,
     ) -> anyhow::Result<()>;
-    fn git_pull(repo_path: &Path, verbose: bool, logger: &Logger) -> anyhow::Result<()>;
+    fn git_pull(repo_path: &Path, logger: &Logger) -> anyhow::Result<()>;
 }
 
 impl GitManager for BuildSystem {
@@ -31,7 +30,6 @@ impl GitManager for BuildSystem {
         repo_url: &str,
         branch: &str,
         dest_path: &Path,
-        verbose: bool,
         logger: &Logger,
     ) -> anyhow::Result<()> {
         let mut command = Command::new("git");
@@ -62,7 +60,7 @@ impl GitManager for BuildSystem {
                 0,
             );
             anyhow::bail!("Git clone failed for '{}'", repo_url);
-        } else if verbose {
+        } else if logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
             if !stdout_output.is_empty() {
@@ -77,7 +75,7 @@ impl GitManager for BuildSystem {
         Ok(())
     }
 
-    fn git_pull(repo_path: &Path, verbose: bool, logger: &Logger) -> anyhow::Result<()> {
+    fn git_pull(repo_path: &Path, logger: &Logger) -> anyhow::Result<()> {
         let mut cmd = Command::new("git");
         cmd.arg("-C").arg(repo_path).arg("pull");
         cmd.stderr(Stdio::piped());
@@ -98,7 +96,7 @@ impl GitManager for BuildSystem {
                 0,
             );
             anyhow::bail!("Failed while pulling updates for '{}'", repo_path.display());
-        } else if verbose {
+        } else if logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
             if !stdout_output.is_empty() {

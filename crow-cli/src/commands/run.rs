@@ -50,6 +50,9 @@ impl ProjectRunner for RunCommand {
         global_deps: bool,
         logger: &Logger,
     ) -> Result<()> {
+        let mut logger = logger.clone();
+        logger.verbose(verbose);
+        
         let exe_path = if !no_build {
             BuildCommand {
                 profile: profile.to_string(),
@@ -58,13 +61,12 @@ impl ProjectRunner for RunCommand {
                 global_deps,
                 quiet: self.quiet,
             }
-            .build_project(profile, jobs, verbose, global_deps, logger)?
+            .build_project(profile, jobs, verbose, global_deps, &logger)?
         } else {
             let config = Config::load("crow.toml")?;
             let (package_config, _, _) = crow_core::build_system::BuildSystem::resolve_config(
                 &config,
                 profile,
-                false,
                 logger.clone(),
             )?;
             let exe_name = package_config.name;

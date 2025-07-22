@@ -16,7 +16,6 @@ pub trait ToolchainExecutor {
         source: &Path,
         output: &Path,
         incremental: bool,
-        verbose: bool,
         logger: &Logger,
     ) -> anyhow::Result<(PathBuf, u64)>;
     fn link_executable(&self, objects: &[PathBuf], output: &Path) -> anyhow::Result<()>;
@@ -36,7 +35,6 @@ impl ToolchainExecutor for BuildSystem {
         source: &Path,
         output: &Path,
         incremental: bool,
-        verbose: bool,
         logger: &Logger,
     ) -> anyhow::Result<(PathBuf, u64)> {
         let mut cmd = Command::new(compiler);
@@ -61,7 +59,7 @@ impl ToolchainExecutor for BuildSystem {
                 0,
             );
             anyhow::bail!("Compiler error for {}", source.display());
-        } else if verbose {
+        } else if logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             if !stdout_output.is_empty() {
@@ -93,7 +91,7 @@ impl ToolchainExecutor for BuildSystem {
     }
 
     fn link_executable(&self, objects: &[PathBuf], output: &Path) -> anyhow::Result<()> {
-        if self.verbose {
+        if self.logger.verbose {
             self.logger.log(
                 LogLevel::Dim,
                 &format!("Linking executable: {}", output.display()),
@@ -114,7 +112,7 @@ impl ToolchainExecutor for BuildSystem {
         }
 
         for lib_dir in &self.package_config.lib_dirs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger.log(
                     LogLevel::Dim,
                     &format!("-L '{}' (from crow.toml)", lib_dir),
@@ -124,7 +122,7 @@ impl ToolchainExecutor for BuildSystem {
             cmd.arg(format!("-L{}", lib_dir));
         }
         for (name, build_output) in &self.dep_build_outputs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger.log(
                     LogLevel::Dim,
                     &format!(
@@ -138,14 +136,14 @@ impl ToolchainExecutor for BuildSystem {
         }
 
         for lib in &self.package_config.libs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger
                     .log(LogLevel::Dim, &format!("-l '{}' (from crow.toml)", lib), 2);
             }
             cmd.arg(format!("-l{}", lib));
         }
         for (name, build_output) in &self.dep_build_outputs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger.log(
                     LogLevel::Dim,
                     &format!("-l '{}' (from dependency '{name}')", build_output.lib_name),
@@ -170,7 +168,7 @@ impl ToolchainExecutor for BuildSystem {
                 0,
             );
             anyhow::bail!("Linking failed:\n{} {}", stdout_output, stderr_output);
-        } else if self.verbose {
+        } else if self.logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             if !stdout_output.is_empty() {
@@ -186,7 +184,7 @@ impl ToolchainExecutor for BuildSystem {
     }
 
     fn archive_static_library(&self, objects: &[PathBuf], output: &Path) -> anyhow::Result<()> {
-        if self.verbose {
+        if self.logger.verbose {
             self.logger.log(
                 LogLevel::Dim,
                 &format!("Archiving static library: {}", output.display()),
@@ -215,7 +213,7 @@ impl ToolchainExecutor for BuildSystem {
                 0,
             );
             anyhow::bail!("Archiving failed:\n{} {}", stdout_output, stderr_output);
-        } else if self.verbose {
+        } else if self.logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             if !stdout_output.is_empty() {
@@ -231,7 +229,7 @@ impl ToolchainExecutor for BuildSystem {
     }
 
     fn link_shared_library(&self, objects: &[PathBuf], output: &Path) -> anyhow::Result<()> {
-        if self.verbose {
+        if self.logger.verbose {
             self.logger.log(
                 LogLevel::Dim,
                 &format!("Linking shared library: {}", output.display()),
@@ -253,7 +251,7 @@ impl ToolchainExecutor for BuildSystem {
         }
 
         for lib_dir in &self.package_config.lib_dirs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger.log(
                     LogLevel::Dim,
                     &format!("-L '{}' (from crow.toml)", lib_dir),
@@ -263,7 +261,7 @@ impl ToolchainExecutor for BuildSystem {
             cmd.arg(format!("-L{}", lib_dir));
         }
         for (name, build_output) in &self.dep_build_outputs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger.log(
                     LogLevel::Dim,
                     &format!(
@@ -277,14 +275,14 @@ impl ToolchainExecutor for BuildSystem {
         }
 
         for lib in &self.package_config.libs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger
                     .log(LogLevel::Dim, &format!("-l '{}' (from crow.toml)", lib), 2);
             }
             cmd.arg(format!("-l{}", lib));
         }
         for (name, build_output) in &self.dep_build_outputs {
-            if self.verbose {
+            if self.logger.verbose {
                 self.logger.log(
                     LogLevel::Dim,
                     &format!("-l '{}' (from dependency '{name}')", build_output.lib_name),
@@ -316,7 +314,7 @@ impl ToolchainExecutor for BuildSystem {
                 stdout_output,
                 stderr_output
             );
-        } else if self.verbose {
+        } else if self.logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             if !stdout_output.is_empty() {
