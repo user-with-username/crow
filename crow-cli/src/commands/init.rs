@@ -1,7 +1,7 @@
 use super::*;
 use anyhow::Context;
+use crow_utils::logger::{LogLevel, Logger};
 use crow_utils::Environment;
-use crow_utils::logger::{Logger, LogLevel};
 use std::io::Write;
 use tera::Tera;
 
@@ -23,7 +23,11 @@ impl ProjectInitializer for InitCommand {
         let project_dir = std::path::PathBuf::from(name);
 
         if project_dir.exists() {
-            logger.log(LogLevel::Warn, &format!("Destination '{}' already exists.", name), 1);
+            logger.log(
+                LogLevel::Warn,
+                &format!("Destination '{}' already exists.", name),
+                1,
+            );
             if !logger.quiet {
                 print!("Do you want to overwrite it? (y/N): ");
                 std::io::stdout().flush()?;
@@ -70,7 +74,11 @@ impl ProjectInitializer for InitCommand {
         std::fs::write(src_dir.join("main.cpp"), rendered_main_cpp)?;
         std::fs::write(project_dir.join("crow.toml"), rendered_crow_toml)?;
 
-        logger.log(LogLevel::Success, &format!("Created new package `{}`", name), 1);
+        logger.log(
+            LogLevel::Success,
+            &format!("Created new package `{}`", name),
+            1,
+        );
         Ok(())
     }
 }

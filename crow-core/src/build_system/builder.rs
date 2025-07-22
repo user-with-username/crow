@@ -5,9 +5,9 @@ use crate::build_system::cache::CacheManager;
 use crate::build_system::dependency::DependencyResolver;
 use crate::config::CrowDependencyBuild;
 use crate::config::OutputType;
-use crow_utils::LogLevel;
 use crate::utils;
 use anyhow::Context;
+use crow_utils::LogLevel;
 use std::env;
 use std::process::Stdio;
 use std::{

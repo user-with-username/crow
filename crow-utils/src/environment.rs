@@ -12,12 +12,11 @@ impl Environment {
 
     pub fn deps_dir(global_deps: bool) -> PathBuf {
         let base_path = if global_deps {
-            home_dir().expect("Cannot get home dir")
-                .join(".crow")
+            home_dir().expect("Cannot get home dir").join(".crow")
         } else {
             PathBuf::from(".crow")
         };
-        
+
         base_path.join("_deps")
     }
 

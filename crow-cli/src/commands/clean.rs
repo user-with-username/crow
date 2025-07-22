@@ -1,6 +1,6 @@
 use super::*;
+use crow_utils::logger::{LogLevel, Logger};
 use crow_utils::Environment;
-use crow_utils::logger::{Logger, LogLevel};
 
 pub trait ProjectCleaner {
     fn clean_project(&self, clean_all: bool, logger: &Logger) -> anyhow::Result<()>;
@@ -61,19 +61,28 @@ impl ProjectCleaner for CleanCommand {
             if deps_dir_global.exists() {
                 logger.log(
                     LogLevel::Warn,
-                    &format!("Cleaning global dependency cache in '{}'...", deps_dir_global.display()),
+                    &format!(
+                        "Cleaning global dependency cache in '{}'...",
+                        deps_dir_global.display()
+                    ),
                     (),
                 );
                 std::fs::remove_dir_all(&deps_dir_global)?;
                 logger.log(
                     LogLevel::Success,
-                    &format!("Cleaned global dependency cache in '{}'.", deps_dir_global.display()),
+                    &format!(
+                        "Cleaned global dependency cache in '{}'.",
+                        deps_dir_global.display()
+                    ),
                     (),
                 );
             } else {
                 logger.log(
                     LogLevel::Dim,
-                    &format!("No global dependency cache found in '{}'.", deps_dir_global.display()),
+                    &format!(
+                        "No global dependency cache found in '{}'.",
+                        deps_dir_global.display()
+                    ),
                     (),
                 );
             }

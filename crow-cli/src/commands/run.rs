@@ -1,7 +1,10 @@
 use super::*;
 use crate::commands::build::ProjectBuilder;
 use crow_core::Config;
-use crow_utils::{Environment, logger::{Logger, LogLevel}};
+use crow_utils::{
+    logger::{LogLevel, Logger},
+    Environment,
+};
 
 pub trait ProjectRunner {
     fn run_project(
@@ -59,7 +62,10 @@ impl ProjectRunner for RunCommand {
         } else {
             let config = Config::load("crow.toml")?;
             let (package_config, _, _) = crow_core::build_system::BuildSystem::resolve_config(
-                &config, profile, false, logger.clone(),
+                &config,
+                profile,
+                false,
+                logger.clone(),
             )?;
             let exe_name = package_config.name;
             let path = Environment::build_dir().join(profile).join(&exe_name);
@@ -69,11 +75,11 @@ impl ProjectRunner for RunCommand {
             path
         };
 
-        logger.log(LogLevel::Success, format!(
-            "Running `{}` (profile: {})",
-            exe_path.display(),
-            profile
-        ), 1);
+        logger.log(
+            LogLevel::Success,
+            format!("Running `{}` (profile: {})", exe_path.display(), profile),
+            1,
+        );
         std::process::Command::new(&exe_path).status()?;
         Ok(())
     }

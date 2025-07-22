@@ -1,6 +1,6 @@
 use crate::build_system::BuildSystem;
 use anyhow::Context;
-use crow_utils::logger::{Logger, LogLevel};
+use crow_utils::logger::{LogLevel, Logger};
 use std::{
     path::Path,
     process::{Command, Stdio},
@@ -97,10 +97,7 @@ impl GitManager for BuildSystem {
                 ),
                 0,
             );
-            anyhow::bail!(
-                "Failed while pulling updates for '{}'",
-                repo_path.display()
-            );
+            anyhow::bail!("Failed while pulling updates for '{}'", repo_path.display());
         } else if verbose {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);

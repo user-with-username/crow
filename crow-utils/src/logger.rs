@@ -22,11 +22,15 @@ pub trait IntoIndent {
 }
 
 impl IntoIndent for () {
-    fn into_indent(self) -> Option<u8> { None }
+    fn into_indent(self) -> Option<u8> {
+        None
+    }
 }
 
 impl IntoIndent for u8 {
-    fn into_indent(self) -> Option<u8> { Some(self) }
+    fn into_indent(self) -> Option<u8> {
+        Some(self)
+    }
 }
 
 pub trait IntoLogLevel {
@@ -34,11 +38,15 @@ pub trait IntoLogLevel {
 }
 
 impl IntoLogLevel for () {
-    fn into_level(self) -> Option<LogLevel> { None }
+    fn into_level(self) -> Option<LogLevel> {
+        None
+    }
 }
 
 impl IntoLogLevel for LogLevel {
-    fn into_level(self) -> Option<LogLevel> { Some(self) }
+    fn into_level(self) -> Option<LogLevel> {
+        Some(self)
+    }
 }
 
 impl Logger {
@@ -68,7 +76,8 @@ impl Logger {
             return;
         }
 
-        let spaces = indent.into_indent()
+        let spaces = indent
+            .into_indent()
             .map_or(String::new(), |n| " ".repeat(n as usize * 2));
 
         let formatted = match level.into_level() {

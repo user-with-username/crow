@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use commands::{Command, Commands};
-use crow_utils::logger::{Logger, LogLevel};
+use crow_utils::logger::{LogLevel, Logger};
 
 mod commands;
 

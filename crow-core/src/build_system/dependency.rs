@@ -109,11 +109,7 @@ impl DependencyResolver for BuildSystem {
                                 1,
                             );
                         } else {
-                            logger.log(
-                                LogLevel::Info,
-                                &format!("[UPDATING] {name} ({})", git),
-                                2,
-                            );
+                            logger.log(LogLevel::Info, &format!("[UPDATING] {name} ({})", git), 2);
                         }
                         <BuildSystem as GitManager>::git_pull(
                             &git_dep_target_path,
@@ -230,7 +226,11 @@ impl DependencyResolver for BuildSystem {
                 continue;
             }
 
-            logger.log(LogLevel::Bold, &format!("Building dependency '{name}'..."), 1);
+            logger.log(
+                LogLevel::Bold,
+                &format!("Building dependency '{name}'..."),
+                1,
+            );
             std::env::set_current_dir(&dep_source_path)?;
 
             let build_output = match crow_build_config.build_system {
@@ -257,7 +257,11 @@ impl DependencyResolver for BuildSystem {
 
             dep_build_outputs.insert(name.clone(), build_output);
             std::env::set_current_dir(&original_cwd)?;
-            logger.log(LogLevel::Bold, &format!("Finished building dependency '{name}'."), 1);
+            logger.log(
+                LogLevel::Bold,
+                &format!("Finished building dependency '{name}'."),
+                1,
+            );
         }
         logger.log(LogLevel::Bold, "Dependencies checked.", 1);
         Ok((downloaded_paths, dep_build_outputs))

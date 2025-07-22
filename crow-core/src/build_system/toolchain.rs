@@ -1,7 +1,7 @@
 use super::*;
 use crate::build_system::cache::CacheManager;
 use crate::config::OutputType;
-use crow_utils::logger::{Logger, LogLevel};
+use crow_utils::logger::{LogLevel, Logger};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::{
@@ -65,11 +65,19 @@ impl ToolchainExecutor for BuildSystem {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             if !stdout_output.is_empty() {
-                logger.log(LogLevel::Dim, &format!("Compiler stdout for {}:", source.display()), 2);
+                logger.log(
+                    LogLevel::Dim,
+                    &format!("Compiler stdout for {}:", source.display()),
+                    2,
+                );
                 logger.log((), &stdout_output, 2);
             }
             if !stderr_output.is_empty() {
-                logger.log(LogLevel::Dim, &format!("Compiler stderr for {}:", source.display()), 2);
+                logger.log(
+                    LogLevel::Dim,
+                    &format!("Compiler stderr for {}:", source.display()),
+                    2,
+                );
                 logger.log((), &stderr_output, 2);
             }
         }
@@ -131,11 +139,8 @@ impl ToolchainExecutor for BuildSystem {
 
         for lib in &self.package_config.libs {
             if self.verbose {
-                self.logger.log(
-                    LogLevel::Dim,
-                    &format!("-l '{}' (from crow.toml)", lib),
-                    2,
-                );
+                self.logger
+                    .log(LogLevel::Dim, &format!("-l '{}' (from crow.toml)", lib), 2);
             }
             cmd.arg(format!("-l{}", lib));
         }
@@ -273,11 +278,8 @@ impl ToolchainExecutor for BuildSystem {
 
         for lib in &self.package_config.libs {
             if self.verbose {
-                self.logger.log(
-                    LogLevel::Dim,
-                    &format!("-l '{}' (from crow.toml)", lib),
-                    2,
-                );
+                self.logger
+                    .log(LogLevel::Dim, &format!("-l '{}' (from crow.toml)", lib), 2);
             }
             cmd.arg(format!("-l{}", lib));
         }
@@ -303,7 +305,10 @@ impl ToolchainExecutor for BuildSystem {
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             self.logger.log(
                 LogLevel::Error,
-                &format!("Linking shared library failed:\n{} {}", stdout_output, stderr_output),
+                &format!(
+                    "Linking shared library failed:\n{} {}",
+                    stdout_output, stderr_output
+                ),
                 0,
             );
             anyhow::bail!(
