@@ -52,7 +52,7 @@ impl ProjectRunner for RunCommand {
     ) -> Result<()> {
         let mut logger = logger.clone();
         logger.verbose(verbose);
-        
+
         let exe_path = if !no_build {
             BuildCommand {
                 profile: profile.to_string(),

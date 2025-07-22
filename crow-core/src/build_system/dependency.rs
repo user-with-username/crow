@@ -412,8 +412,7 @@ impl DependencyResolver for BuildSystem {
         let mut dep_package_config = dep_config.package.clone();
         dep_package_config.output_type = crow_build_config.output_type.clone();
 
-        let dep_build_system =
-            BuildSystem::new(dep_config, current_profile, global_deps, logger)?;
+        let dep_build_system = BuildSystem::new(dep_config, current_profile, global_deps, logger)?;
         dep_build_system.build_internal(Some(1), Some(&dep_package_config))
     }
 }
