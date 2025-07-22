@@ -1,136 +1,87 @@
-// I'll rewrite it soon. now it works — it works
+use std::fmt;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
-pub static QUIET_MODE: AtomicBool = AtomicBool::new(false);
-
-pub const INDENT_LEVEL_1: &str = "  ";
-pub const INDENT_LEVEL_2: &str = "    ";
-
-pub struct Colors {
-    pub green: &'static str,
-    pub yellow: &'static str,
-    pub cyan: &'static str,
-    pub red: &'static str,
-    pub dim: &'static str,
-    pub reset: &'static str,
-    pub bold: &'static str,
-}
-
-impl Colors {
-    pub const fn new() -> Self {
-        Colors {
-            green: "\x1b[32m",
-            yellow: "\x1b[33m",
-            cyan: "\x1b[36m",
-            red: "\x1b[31m",
-            dim: "\x1b[2m",
-            reset: "\x1b[0m",
-            bold: "\x1b[1m",
-        }
-    }
-}
-
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LogLevel {
-    Info,
-    Warn,
     Error,
+    Info,
     Dim,
+    Warn,
     Success,
     Bold,
     Custom(&'static str),
-    CriticalError,
 }
 
+#[derive(Clone)]
 pub struct Logger {
-    pub colors: Colors,
+    pub quiet: bool,
+    pub verbose: bool,
+}
+
+pub trait IntoIndent {
+    fn into_indent(self) -> Option<u8>;
+}
+
+impl IntoIndent for () {
+    fn into_indent(self) -> Option<u8> { None }
+}
+
+impl IntoIndent for u8 {
+    fn into_indent(self) -> Option<u8> { Some(self) }
+}
+
+pub trait IntoLogLevel {
+    fn into_level(self) -> Option<LogLevel>;
+}
+
+impl IntoLogLevel for () {
+    fn into_level(self) -> Option<LogLevel> { None }
+}
+
+impl IntoLogLevel for LogLevel {
+    fn into_level(self) -> Option<LogLevel> { Some(self) }
 }
 
 impl Logger {
-    pub const fn new() -> Self {
-        Logger {
-            colors: Colors::new(),
+    pub fn new() -> Self {
+        Self {
+            quiet: false,
+            verbose: false,
         }
     }
 
-    fn print_message(&self, level: LogLevel, indent_level: usize, message: &str) {
-        if QUIET_MODE.load(Ordering::Relaxed)
-            && !matches!(level, LogLevel::CriticalError | LogLevel::Error)
-        {
+    pub fn quiet(&mut self, quiet: bool) -> &mut Self {
+        self.quiet = quiet;
+        self
+    }
+
+    pub fn verbose(&mut self, verbose: bool) -> &mut Self {
+        self.verbose = verbose;
+        self
+    }
+
+    pub fn log<L, I>(&self, level: L, msg: impl fmt::Display, indent: I)
+    where
+        L: IntoLogLevel,
+        I: IntoIndent,
+    {
+        if self.quiet {
             return;
         }
 
-        let indent = match indent_level {
-            1 => INDENT_LEVEL_1,
-            2 => INDENT_LEVEL_2,
-            _ => "",
+        let spaces = indent.into_indent()
+            .map_or(String::new(), |n| " ".repeat(n as usize * 2));
+
+        let formatted = match level.into_level() {
+            None => format!("{}{}", spaces, msg),
+            Some(LogLevel::Error) => format!("\x1b[31mError: {}{}\x1b[0m", spaces, msg),
+            Some(LogLevel::Info) => format!("\x1b[36m{}{}\x1b[0m", spaces, msg),
+            Some(LogLevel::Dim) => format!("\x1b[2m{}{}\x1b[0m", spaces, msg),
+            Some(LogLevel::Warn) => format!("\x1b[33m{}Warning: {}\x1b[0m", spaces, msg),
+            Some(LogLevel::Success) => format!("\x1b[32m\x1b[1m{}{}\x1b[0m", spaces, msg),
+            Some(LogLevel::Bold) => format!("\x1b[1m{}{}\x1b[0m", spaces, msg),
+            Some(LogLevel::Custom(ansi_code)) => format!("{}{}{}\x1b[0m", ansi_code, spaces, msg),
         };
 
-        let (base_color, text_prefix) = match level {
-            LogLevel::Info => (self.colors.cyan, ""),
-            LogLevel::Warn => (self.colors.yellow, "Warning: "),
-            LogLevel::Error => (self.colors.red, "Error: "),
-            LogLevel::Dim => (self.colors.dim, ""),
-            LogLevel::Success => (self.colors.green, ""),
-            LogLevel::Bold => (self.colors.reset, ""),
-            LogLevel::Custom(code) => (code, ""),
-            LogLevel::CriticalError => (self.colors.red, "Error: "),
-        };
-
-        let final_color_start = match level {
-            LogLevel::Success => format!("{}{}", base_color, self.colors.bold),
-            LogLevel::Bold => self.colors.bold.to_string(),
-            _ => base_color.to_string(),
-        };
-
-        let output_str = format!(
-            "{}{}{}{}{}",
-            final_color_start, indent, text_prefix, message, self.colors.reset
-        );
-
-        if matches!(level, LogLevel::Error | LogLevel::CriticalError) {
-            eprintln!("{}", output_str);
-        } else {
-            println!("{}", output_str);
-        }
-    }
-
-    pub fn info(&self, message: &str) {
-        self.print_message(LogLevel::Info, 1, message);
-    }
-    pub fn warn(&self, message: &str) {
-        self.print_message(LogLevel::Warn, 1, message);
-    }
-    pub fn error(&self, message: &str) {
-        self.print_message(LogLevel::Error, 1, message);
-    }
-    pub fn dim(&self, message: &str) {
-        self.print_message(LogLevel::Dim, 1, message);
-    }
-    pub fn success(&self, message: &str) {
-        self.print_message(LogLevel::Success, 1, message);
-    }
-    pub fn bold(&self, message: &str) {
-        self.print_message(LogLevel::Bold, 1, message);
-    }
-    pub fn custom(&self, color_code: &'static str, message: &str) {
-        self.print_message(LogLevel::Custom(color_code), 1, message);
-    }
-    pub fn critical_error(&self, message: &str) {
-        self.print_message(LogLevel::CriticalError, 0, message);
-    }
-    pub fn dim_level2(&self, message: &str) {
-        self.print_message(LogLevel::Dim, 2, message);
-    }
-    pub fn info_level2(&self, message: &str) {
-        self.print_message(LogLevel::Info, 2, message);
-    }
-
-    pub fn raw(&self, message: &str) {
-        if !QUIET_MODE.load(Ordering::Relaxed) {
-            println!("{}", message);
-        }
+        println!("{}", formatted);
     }
 }
-
-pub static LOGGER_INSTANCE: Logger = Logger::new();

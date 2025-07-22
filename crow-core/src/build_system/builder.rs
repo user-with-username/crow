@@ -5,9 +5,9 @@ use crate::build_system::cache::CacheManager;
 use crate::build_system::dependency::DependencyResolver;
 use crate::config::CrowDependencyBuild;
 use crate::config::OutputType;
+use crow_utils::LogLevel;
 use crate::utils;
 use anyhow::Context;
-use crow_utils::logger::INDENT_LEVEL_1;
 use std::env;
 use std::process::Stdio;
 use std::{
@@ -27,7 +27,7 @@ pub struct BuildSystem {
     pub global_deps: bool,
     pub downloaded_deps_paths: HashMap<String, PathBuf>,
     pub dep_build_outputs: HashMap<String, DependencyBuildOutput>,
-    pub logger: &'static Logger,
+    pub logger: Logger,
 }
 
 impl BuildSystem {
@@ -36,10 +36,10 @@ impl BuildSystem {
         profile_name: &str,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<Self> {
         let (package_config, toolchain, profile_config) =
-            BuildSystem::resolve_config(&config, profile_name, verbose, logger)?;
+            BuildSystem::resolve_config(&config, profile_name, verbose, logger.clone())?;
 
         let (downloaded_deps_paths, dep_build_outputs) = BuildSystem::resolve_dependencies(
             &config.dependencies,
@@ -48,7 +48,7 @@ impl BuildSystem {
             &profile_config,
             verbose,
             global_deps,
-            logger,
+            logger.clone(),
         )?;
 
         Ok(Self {
@@ -64,11 +64,12 @@ impl BuildSystem {
             logger,
         })
     }
+
     pub fn resolve_config(
         config: &Config,
         profile_name: &str,
         verbose: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<(PackageConfig, ToolchainConfig, BuildProfile)> {
         let profile_config_base = config
             .profiles
@@ -86,7 +87,7 @@ impl BuildSystem {
         toolchain
             .hooks
             .as_ref()
-            .map(|hooks| BuildSystem::execute_hooks(hooks, logger))
+            .map(|hooks| BuildSystem::execute_hooks(hooks, logger.clone()))
             .transpose()?;
 
         let current_arch = env::consts::ARCH;
@@ -119,7 +120,7 @@ impl BuildSystem {
                 target_override
                     .hooks
                     .as_ref()
-                    .map(|hooks| BuildSystem::execute_hooks(hooks, logger))
+                    .map(|hooks| BuildSystem::execute_hooks(hooks, logger.clone()))
                     .transpose()?;
 
                 target_override
@@ -129,7 +130,7 @@ impl BuildSystem {
                         toolchain_override
                             .hooks
                             .as_ref()
-                            .map(|hooks| BuildSystem::execute_hooks(hooks, logger))
+                            .map(|hooks| BuildSystem::execute_hooks(hooks, logger.clone()))
                             .transpose()?;
 
                         toolchain_override
@@ -207,10 +208,11 @@ impl BuildSystem {
             .transpose()?;
 
         if verbose && best_target_overrides.is_none() {
-            logger.dim_level2(&format!(
-                "Building for `{}` with default settings",
-                env::consts::ARCH
-            ));
+            logger.log(
+                LogLevel::Dim,
+                &format!("Building for `{}` with default settings", env::consts::ARCH),
+                2,
+            );
         }
 
         Ok((package_config, toolchain, profile_config))
@@ -224,10 +226,14 @@ impl BuildSystem {
         let package_config = override_package_config.unwrap_or(&self.package_config);
 
         if override_package_config.is_none() {
-            self.logger.bold(&format!(
-                "Building package `{}` (profile: {}, type: {:?})...",
-                package_config.name, self.profile_name, package_config.output_type
-            ));
+            self.logger.log(
+                LogLevel::Bold,
+                &format!(
+                    "Building package `{}` (profile: {}, type: {:?})...",
+                    package_config.name, self.profile_name, package_config.output_type
+                ),
+                1,
+            );
         }
 
         let build_dir = crow_utils::environment::Environment::build_dir().join(&self.profile_name);
@@ -273,13 +279,10 @@ impl BuildSystem {
                             {
                                 Ok(current_deps_hash) if entry.deps_hash == current_deps_hash => {
                                     if self.verbose {
-                                        self.logger.custom(
-                                            self.logger.colors.cyan,
-                                            &format!(
-                                                "{} [CACHED] {}",
-                                                INDENT_LEVEL_1,
-                                                source_path.display()
-                                            ),
+                                        self.logger.log(
+                                            LogLevel::Info,
+                                            &format!("[CACHED] {}", source_path.display()),
+                                            2,
                                         );
                                     }
                                     need_compile = false;
@@ -314,7 +317,7 @@ impl BuildSystem {
             let package_config_clone = package_config.clone();
             let downloaded_deps_paths_clone = self.downloaded_deps_paths.clone();
             let dep_build_outputs_clone = self.dep_build_outputs.clone();
-            let logger_ref: &'static Logger = self.logger;
+            let logger_clone = self.logger.clone();
 
             pool.execute(move || {
                 let args_for_thread = BuildSystem::build_compile_args_static(
@@ -336,13 +339,14 @@ impl BuildSystem {
                         &obj_path_clone,
                         incremental,
                         verbose_clone,
-                        logger_ref,
+                        &logger_clone,
                     );
                 if verbose_clone {
                     match &result {
-                        Ok(_) => logger_ref.custom(
-                            logger_ref.colors.green,
-                            &format!("{} [COMPILED] {}", INDENT_LEVEL_1, source_clone.display()),
+                        Ok(_) => logger_clone.log(
+                            LogLevel::Custom("\x1b[32m"),
+                            &format!("[COMPILED] {}", source_clone.display()),
+                            2,
                         ),
                         Err(_e) => {}
                     }
@@ -411,7 +415,7 @@ impl BuildSystem {
         };
 
         if override_package_config.is_none() {
-            self.logger.success("Build successful!");
+            self.logger.log(LogLevel::Success, "Build successful!", 1);
         }
 
         let build_output = DependencyBuildOutput {
@@ -515,7 +519,7 @@ impl BuildSystem {
         verbose: bool,
         build_dir: &Path,
         cxx_flags: &mut Vec<String>,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<()> {
         if !config.pch_headers.is_empty() {
             let pch_file_path = build_dir.join("crow_pch.h");
@@ -528,7 +532,7 @@ impl BuildSystem {
             std::fs::write(&pch_file_path, pch_content)?;
 
             if verbose {
-                logger.dim(&format!("Generating PCH for '{name}'..."));
+                logger.log(LogLevel::Dim, &format!("Generating PCH for '{name}'..."), 1);
             }
 
             let mut pch_cmd = std::process::Command::new(&toolchain.compiler);
@@ -548,21 +552,25 @@ impl BuildSystem {
             if !pch_output.status.success() {
                 let stdout_output = String::from_utf8_lossy(&pch_output.stdout);
                 let stderr_output = String::from_utf8_lossy(&pch_output.stderr);
-                logger.critical_error(&format!(
-                    "Failed while generating precompiled header for '{}':\n{} {}",
-                    name, stdout_output, stderr_output
-                ));
+                logger.log(
+                    LogLevel::Error,
+                    &format!(
+                        "Failed while generating precompiled header for '{}':\n{} {}",
+                        name, stdout_output, stderr_output
+                    ),
+                    1,
+                );
                 anyhow::bail!("Failed while generating precompiled header for '{}'", name);
             } else if verbose {
                 let stdout_output = String::from_utf8_lossy(&pch_output.stdout);
                 let stderr_output = String::from_utf8_lossy(&pch_output.stderr);
                 if !stdout_output.is_empty() {
-                    logger.dim_level2(&format!("PCH Compiler stdout:"));
-                    logger.raw(&stdout_output);
+                    logger.log(LogLevel::Dim, "PCH Compiler stdout:", 2);
+                    logger.log(LogLevel::Info, &stdout_output, 2);
                 }
                 if !stderr_output.is_empty() {
-                    logger.dim_level2(&format!("PCH Compiler stderr:"));
-                    logger.raw(&stderr_output);
+                    logger.log(LogLevel::Dim, "PCH Compiler stderr:", 2);
+                    logger.log(LogLevel::Info, &stderr_output, 2);
                 }
             }
             cxx_flags.push(format!("-include {}", pch_file_path.display()));
@@ -579,12 +587,16 @@ impl BuildSystem {
         cxx_flags_str: &str,
         cmake_options: &[String],
         verbose: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<()> {
         let cmake_cache = build_dir.join("CMakeCache.txt");
         if !cmake_cache.exists() {
             if verbose {
-                logger.dim(&format!("Running initial CMake configure for '{name}'..."));
+                logger.log(
+                    LogLevel::Dim,
+                    &format!("Running initial CMake configure for '{name}'..."),
+                    1,
+                );
             }
             let mut cmake_cmd = std::process::Command::new("cmake");
             cmake_cmd
@@ -607,7 +619,11 @@ impl BuildSystem {
             }
 
             if verbose {
-                logger.dim_level2(&format!("Running CMake configure command: {:?}", cmake_cmd));
+                logger.log(
+                    LogLevel::Dim,
+                    &format!("Running CMake configure command: {:?}", cmake_cmd),
+                    2,
+                );
             }
 
             cmake_cmd.stderr(Stdio::piped());
@@ -617,21 +633,25 @@ impl BuildSystem {
             if !output.status.success() {
                 let stdout_output = String::from_utf8_lossy(&output.stdout);
                 let stderr_output = String::from_utf8_lossy(&output.stderr);
-                logger.critical_error(&format!(
-                    "CMake configure failed for dependency '{}':\n{} {}",
-                    name, stdout_output, stderr_output
-                ));
+                logger.log(
+                    LogLevel::Error,
+                    &format!(
+                        "CMake configure failed for dependency '{}':\n{} {}",
+                        name, stdout_output, stderr_output
+                    ),
+                    1,
+                );
                 anyhow::bail!("Cmake failed while configuring dependency '{}'", name);
             } else if verbose {
                 let stdout_output = String::from_utf8_lossy(&output.stdout);
                 let stderr_output = String::from_utf8_lossy(&output.stderr);
                 if !stdout_output.is_empty() {
-                    logger.dim_level2(&format!("CMake configure stdout:"));
-                    logger.raw(&stdout_output);
+                    logger.log(LogLevel::Dim, "CMake configure stdout:", 2);
+                    logger.log(LogLevel::Info, &stdout_output, 2);
                 }
                 if !stderr_output.is_empty() {
-                    logger.dim_level2(&format!("CMake configure stderr:"));
-                    logger.raw(&stderr_output);
+                    logger.log(LogLevel::Dim, "CMake configure stderr:", 2);
+                    logger.log(LogLevel::Info, &stderr_output, 2);
                 }
             }
         }
@@ -643,7 +663,7 @@ impl BuildSystem {
         build_dir: &Path,
         build_type: &str,
         verbose: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<()> {
         let mut build_cmd = std::process::Command::new("cmake");
         build_cmd
@@ -652,7 +672,11 @@ impl BuildSystem {
             .arg("--config")
             .arg(build_type);
         if verbose {
-            logger.dim_level2(&format!("Running CMake build command: {:?}", build_cmd));
+            logger.log(
+                LogLevel::Dim,
+                &format!("Running CMake build command: {:?}", build_cmd),
+                2,
+            );
         }
 
         build_cmd.stderr(Stdio::piped());
@@ -662,27 +686,31 @@ impl BuildSystem {
         if !output.status.success() {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
-            logger.critical_error(&format!(
-                "CMake build failed for dependency '{}':\n{} {}",
-                name, stdout_output, stderr_output
-            ));
+            logger.log(
+                LogLevel::Error,
+                &format!(
+                    "CMake build failed for dependency '{}':\n{} {}",
+                    name, stdout_output, stderr_output
+                ),
+                1,
+            );
             anyhow::bail!("CMake build failed for dependency '{}'", name);
         } else if verbose {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
             if !stdout_output.is_empty() {
-                logger.dim_level2(&format!("CMake build stdout:"));
-                logger.raw(&stdout_output);
+                logger.log(LogLevel::Dim, "CMake build stdout:", 2);
+                logger.log(LogLevel::Info, &stdout_output, 2);
             }
             if !stderr_output.is_empty() {
-                logger.dim_level2(&format!("CMake build stderr:"));
-                logger.raw(&stderr_output);
+                logger.log(LogLevel::Dim, "CMake build stderr:", 2);
+                logger.log(LogLevel::Info, &stderr_output, 2);
             }
         }
         Ok(())
     }
 
-    pub fn execute_hooks(hooks: &[String], logger: &'static Logger) -> anyhow::Result<()> {
+    pub fn execute_hooks(hooks: &[String], logger: Logger) -> anyhow::Result<()> {
         for hook in hooks {
             let cmd = shlex::split(hook).with_context(|| format!("Cannot parse hook: '{hook}'"))?;
 
@@ -696,10 +724,10 @@ impl BuildSystem {
                 .with_context(|| format!("Failed to run: '{hook}'"))?;
 
             if !output.stdout.is_empty() {
-                logger.raw(&String::from_utf8_lossy(&output.stdout));
+                logger.log(LogLevel::Info, &String::from_utf8_lossy(&output.stdout), 0);
             }
             if !output.stderr.is_empty() {
-                logger.raw(&String::from_utf8_lossy(&output.stderr));
+                logger.log(LogLevel::Info, &String::from_utf8_lossy(&output.stderr), 0);
             }
 
             if !output.status.success() {

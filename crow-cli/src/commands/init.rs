@@ -1,11 +1,12 @@
 use super::*;
 use anyhow::Context;
 use crow_utils::Environment;
+use crow_utils::logger::{Logger, LogLevel};
 use std::io::Write;
 use tera::Tera;
 
 pub trait ProjectInitializer {
-    fn init_project(&self, name: &str, logger: &'static Logger) -> anyhow::Result<()>;
+    fn init_project(&self, name: &str, logger: &mut Logger) -> anyhow::Result<()>;
 }
 
 #[derive(Args)]
@@ -18,12 +19,12 @@ pub struct InitCommand {
 }
 
 impl ProjectInitializer for InitCommand {
-    fn init_project(&self, name: &str, logger: &'static Logger) -> Result<()> {
+    fn init_project(&self, name: &str, logger: &mut Logger) -> Result<()> {
         let project_dir = std::path::PathBuf::from(name);
 
         if project_dir.exists() {
-            logger.warn(&format!("Destination '{}' already exists.", name));
-            if !crow_utils::logger::QUIET_MODE.load(std::sync::atomic::Ordering::Relaxed) {
+            logger.log(LogLevel::Warn, &format!("Destination '{}' already exists.", name), 1);
+            if !logger.quiet {
                 print!("Do you want to overwrite it? (y/N): ");
                 std::io::stdout().flush()?;
             }
@@ -33,10 +34,9 @@ impl ProjectInitializer for InitCommand {
             let input = input.trim();
 
             if input.eq_ignore_ascii_case("y") {
-                logger.warn(&format!("Overwriting existing directory '{}'...", name));
                 std::fs::remove_dir_all(&project_dir)?;
             } else {
-                logger.dim("Aborting project initialization");
+                logger.log(LogLevel::Dim, "Aborting project initialization", ());
                 return Ok(());
             }
         }
@@ -70,17 +70,14 @@ impl ProjectInitializer for InitCommand {
         std::fs::write(src_dir.join("main.cpp"), rendered_main_cpp)?;
         std::fs::write(project_dir.join("crow.toml"), rendered_crow_toml)?;
 
-        logger.success(&format!("Created new package `{}`", name));
+        logger.log(LogLevel::Success, &format!("Created new package `{}`", name), 1);
         Ok(())
     }
 }
 
 impl Command for InitCommand {
-    fn execute(&self, logger: &'static Logger) -> Result<()> {
-        crow_utils::logger::QUIET_MODE.store(
-            Environment::quiet_mode(self.quiet),
-            std::sync::atomic::Ordering::Relaxed,
-        );
+    fn execute(&self, logger: &mut Logger) -> Result<()> {
+        logger.quiet(Environment::quiet_mode(self.quiet));
         self.init_project(&self.name, logger)
     }
 }

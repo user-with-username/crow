@@ -1,7 +1,7 @@
 use super::*;
 use crate::commands::build::ProjectBuilder;
 use crow_core::Config;
-use crow_utils::Environment;
+use crow_utils::{Environment, logger::{Logger, LogLevel}};
 
 pub trait ProjectRunner {
     fn run_project(
@@ -11,7 +11,7 @@ pub trait ProjectRunner {
         jobs: Option<usize>,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: &Logger,
     ) -> anyhow::Result<()>;
 }
 
@@ -45,7 +45,7 @@ impl ProjectRunner for RunCommand {
         jobs: Option<usize>,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: &Logger,
     ) -> Result<()> {
         let exe_path = if !no_build {
             BuildCommand {
@@ -59,7 +59,7 @@ impl ProjectRunner for RunCommand {
         } else {
             let config = Config::load("crow.toml")?;
             let (package_config, _, _) = crow_core::build_system::BuildSystem::resolve_config(
-                &config, profile, false, logger,
+                &config, profile, false, logger.clone(),
             )?;
             let exe_name = package_config.name;
             let path = Environment::build_dir().join(profile).join(&exe_name);
@@ -69,22 +69,19 @@ impl ProjectRunner for RunCommand {
             path
         };
 
-        logger.success(&format!(
+        logger.log(LogLevel::Success, format!(
             "Running `{}` (profile: {})",
             exe_path.display(),
             profile
-        ));
+        ), 1);
         std::process::Command::new(&exe_path).status()?;
         Ok(())
     }
 }
 
 impl Command for RunCommand {
-    fn execute(&self, logger: &'static Logger) -> Result<()> {
-        crow_utils::logger::QUIET_MODE.store(
-            Environment::quiet_mode(self.quiet),
-            std::sync::atomic::Ordering::Relaxed,
-        );
+    fn execute(&self, logger: &mut Logger) -> Result<()> {
+        logger.quiet(Environment::quiet_mode(self.quiet));
         let global_deps = Environment::global_deps(self.global_deps);
         self.run_project(
             &self.profile,

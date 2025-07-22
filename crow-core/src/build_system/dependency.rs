@@ -4,7 +4,7 @@ use crate::config::BuildSystemType;
 use crate::config::{BuildProfile, CrowDependencyBuild, Dependency, ToolchainConfig};
 use anyhow::Context;
 use crow_utils::logger::Logger;
-use crow_utils::logger::INDENT_LEVEL_1;
+use crow_utils::LogLevel;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -26,7 +26,7 @@ pub trait DependencyResolver {
         profile_config: &BuildProfile,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<(
         HashMap<String, PathBuf>,
         HashMap<String, DependencyBuildOutput>,
@@ -39,7 +39,7 @@ pub trait DependencyResolver {
         profile: &str,
         profile_config: &BuildProfile,
         verbose: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput>;
 
     fn build_crow_dependency(
@@ -49,7 +49,7 @@ pub trait DependencyResolver {
         current_profile: &str,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput>;
 
     fn copy_local_dependency(
@@ -57,7 +57,7 @@ pub trait DependencyResolver {
         local_path_orig: &Path,
         global_local_dep_target_path: &Path,
         verbose: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<()>;
 }
 
@@ -69,7 +69,7 @@ impl DependencyResolver for BuildSystem {
         profile_config: &BuildProfile,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<(
         HashMap<String, PathBuf>,
         HashMap<String, DependencyBuildOutput>,
@@ -78,7 +78,7 @@ impl DependencyResolver for BuildSystem {
             return Ok((HashMap::new(), HashMap::new()));
         }
 
-        logger.bold("Checking dependencies...");
+        logger.log(LogLevel::Bold, "Checking dependencies...", 1);
         let deps_download_dir = crow_utils::environment::Environment::deps_dir(global_deps);
         std::fs::create_dir_all(&deps_download_dir)?;
 
@@ -103,25 +103,35 @@ impl DependencyResolver for BuildSystem {
 
                     if git_dep_target_path.exists() {
                         if verbose {
-                            logger.dim(&format!("Dependency '{name}' exists. Pulling updates..."));
+                            logger.log(
+                                LogLevel::Dim,
+                                &format!("Dependency '{name}' exists. Pulling updates..."),
+                                1,
+                            );
                         } else {
-                            logger.custom(
-                                logger.colors.cyan,
-                                &format!("{} [UPDATING] {name} ({})", INDENT_LEVEL_1, git),
+                            logger.log(
+                                LogLevel::Info,
+                                &format!("[UPDATING] {name} ({})", git),
+                                2,
                             );
                         }
                         <BuildSystem as GitManager>::git_pull(
                             &git_dep_target_path,
                             verbose,
-                            logger,
+                            &logger.clone(),
                         )?;
                     } else {
                         if verbose {
-                            logger.dim(&format!("Cloning new dependency '{name}' from {}", git));
+                            logger.log(
+                                LogLevel::Dim,
+                                &format!("Cloning new dependency '{name}' from {}", git),
+                                1,
+                            );
                         } else {
-                            logger.custom(
-                                logger.colors.green,
-                                &format!("{} [CLONING] {name} ({})", INDENT_LEVEL_1, git),
+                            logger.log(
+                                LogLevel::Success,
+                                &format!("[CLONING] {name} ({})", git),
+                                1,
                             );
                         }
                         <BuildSystem as GitManager>::git_clone(
@@ -129,7 +139,7 @@ impl DependencyResolver for BuildSystem {
                             branch,
                             &git_dep_target_path,
                             verbose,
-                            logger,
+                            &logger.clone(),
                         )?;
                     }
                     dep_source_path = git_dep_target_path;
@@ -153,23 +163,24 @@ impl DependencyResolver for BuildSystem {
                             &local_path_orig,
                             &global_local_dep_target_path,
                             verbose,
-                            logger,
+                            logger.clone(),
                         )?;
                         dep_source_path = global_local_dep_target_path;
                     } else {
                         if verbose {
-                            logger.dim(&format!(
-                                "Using local dependency '{name}' from {}",
-                                local_path_orig.display()
-                            ));
-                        } else {
-                            logger.custom(
-                                logger.colors.cyan,
+                            logger.log(
+                                LogLevel::Dim,
                                 &format!(
-                                    "{} [LOCAL] {name} ({})",
-                                    INDENT_LEVEL_1,
+                                    "Using local dependency '{name}' from {}",
                                     local_path_orig.display()
                                 ),
+                                1,
+                            );
+                        } else {
+                            logger.log(
+                                LogLevel::Info,
+                                &format!("[LOCAL] {name} ({})", local_path_orig.display()),
+                                2,
                             );
                         }
                         dep_source_path = local_path_orig;
@@ -191,15 +202,17 @@ impl DependencyResolver for BuildSystem {
             );
 
             if let Some(lib_path) = expected_lib_path {
-                logger.custom(
-                    logger.colors.cyan,
-                    &format!(
-                        "{} [CACHED] Dependency '{name}' (profile: {current_profile}).",
-                        INDENT_LEVEL_1
-                    ),
+                logger.log(
+                    LogLevel::Info,
+                    &format!("[CACHED] Dependency '{name}' (profile: {current_profile})."),
+                    2,
                 );
                 if verbose {
-                    logger.dim_level2(&format!("Library found at: {}", lib_path.display()));
+                    logger.log(
+                        LogLevel::Dim,
+                        &format!("Library found at: {}", lib_path.display()),
+                        2,
+                    );
                 }
 
                 let mut include_paths = vec![".".to_string()];
@@ -217,7 +230,7 @@ impl DependencyResolver for BuildSystem {
                 continue;
             }
 
-            logger.bold(&format!("Building dependency '{name}'..."));
+            logger.log(LogLevel::Bold, &format!("Building dependency '{name}'..."), 1);
             std::env::set_current_dir(&dep_source_path)?;
 
             let build_output = match crow_build_config.build_system {
@@ -228,7 +241,7 @@ impl DependencyResolver for BuildSystem {
                     current_profile,
                     profile_config,
                     verbose,
-                    logger,
+                    logger.clone(),
                 ),
                 Some(BuildSystemType::Crow) => Self::build_crow_dependency(
                     name,
@@ -237,16 +250,16 @@ impl DependencyResolver for BuildSystem {
                     current_profile,
                     verbose,
                     global_deps,
-                    logger,
+                    logger.clone(),
                 ),
                 None => anyhow::bail!("Build system for dependency '{}' was not inferred.", name),
             }?;
 
             dep_build_outputs.insert(name.clone(), build_output);
             std::env::set_current_dir(&original_cwd)?;
-            logger.bold(&format!("Finished building dependency '{name}'."));
+            logger.log(LogLevel::Bold, &format!("Finished building dependency '{name}'."), 1);
         }
-        logger.bold("Dependencies checked.");
+        logger.log(LogLevel::Bold, "Dependencies checked.", 1);
         Ok((downloaded_paths, dep_build_outputs))
     }
 
@@ -255,35 +268,42 @@ impl DependencyResolver for BuildSystem {
         local_path_orig: &Path,
         global_local_dep_target_path: &Path,
         verbose: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<()> {
         if global_local_dep_target_path.exists() {
             if verbose {
-                logger.dim(&format!(
-                    "Global local dependency '{name}' already exists at {}. Overwriting...",
-                    global_local_dep_target_path.display()
-                ));
+                logger.log(
+                    LogLevel::Dim,
+                    &format!(
+                        "Global local dependency '{name}' already exists at {}. Overwriting...",
+                        global_local_dep_target_path.display()
+                    ),
+                    1,
+                );
             } else {
-                logger.warn(&format!(
-                    "{} [OVERWRITING] Global local dependency '{name}'",
-                    INDENT_LEVEL_1
-                ));
+                logger.log(
+                    LogLevel::Warn,
+                    &format!("[OVERWRITING] Global local dependency '{name}'"),
+                    1,
+                );
             }
             std::fs::remove_dir_all(global_local_dep_target_path)?;
         } else {
             if verbose {
-                logger.dim(&format!(
-                    "Copying local dependency '{name}' from {} to {}",
-                    local_path_orig.display(),
-                    global_local_dep_target_path.display()
-                ));
-            } else {
-                logger.custom(
-                    logger.colors.green,
+                logger.log(
+                    LogLevel::Dim,
                     &format!(
-                        "{} [COPYING] Local dependency '{name}' to global cache",
-                        INDENT_LEVEL_1
+                        "Copying local dependency '{name}' from {} to {}",
+                        local_path_orig.display(),
+                        global_local_dep_target_path.display()
                     ),
+                    1,
+                );
+            } else {
+                logger.log(
+                    LogLevel::Success,
+                    &format!("[COPYING] Local dependency '{name}' to global cache"),
+                    1,
                 );
             }
         }
@@ -311,7 +331,7 @@ impl DependencyResolver for BuildSystem {
         profile: &str,
         profile_config: &BuildProfile,
         verbose: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput> {
         let dep_source_dir = std::env::current_dir()?;
         let build_dir = dep_source_dir.join("_crow_build").join(profile);
@@ -338,7 +358,7 @@ impl DependencyResolver for BuildSystem {
             verbose,
             &build_dir,
             &mut cxx_flags,
-            logger,
+            logger.clone(),
         )?;
 
         let cxx_flags_str = cxx_flags.join(" ");
@@ -352,9 +372,9 @@ impl DependencyResolver for BuildSystem {
             &cxx_flags_str,
             &config.cmake_options,
             verbose,
-            logger,
+            logger.clone(),
         )?;
-        BuildSystem::run_cmake_build(name, &build_dir, build_type, verbose, logger)?;
+        BuildSystem::run_cmake_build(name, &build_dir, build_type, verbose, logger.clone())?;
 
         let library_path =
             <build_system::builder::BuildSystem as ToolchainExecutor>::find_library_file(
@@ -390,7 +410,7 @@ impl DependencyResolver for BuildSystem {
         current_profile: &str,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: Logger,
     ) -> anyhow::Result<DependencyBuildOutput> {
         let dep_crow_toml = dep_source_path.join("crow.toml");
         if !dep_crow_toml.exists() {

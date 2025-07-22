@@ -1,6 +1,6 @@
 use crate::build_system::BuildSystem;
 use anyhow::Context;
-use crow_utils::logger::Logger;
+use crow_utils::logger::{Logger, LogLevel};
 use std::{
     path::Path,
     process::{Command, Stdio},
@@ -13,9 +13,9 @@ pub trait GitManager {
         branch: &str,
         dest_path: &Path,
         verbose: bool,
-        logger: &'static Logger,
+        logger: &Logger,
     ) -> anyhow::Result<()>;
-    fn git_pull(repo_path: &Path, verbose: bool, logger: &'static Logger) -> anyhow::Result<()>;
+    fn git_pull(repo_path: &Path, verbose: bool, logger: &Logger) -> anyhow::Result<()>;
 }
 
 impl GitManager for BuildSystem {
@@ -32,7 +32,7 @@ impl GitManager for BuildSystem {
         branch: &str,
         dest_path: &Path,
         verbose: bool,
-        logger: &'static Logger,
+        logger: &Logger,
     ) -> anyhow::Result<()> {
         let mut command = Command::new("git");
         command.arg("clone").arg("--depth").arg("1");
@@ -53,27 +53,31 @@ impl GitManager for BuildSystem {
         if !output.status.success() {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
-            logger.critical_error(&format!(
-                "Git clone failed for '{}':\n{} {}",
-                repo_url, stdout_output, stderr_output
-            ));
+            logger.log(
+                LogLevel::Error,
+                format!(
+                    "Git clone failed for '{}':\n{} {}",
+                    repo_url, stdout_output, stderr_output
+                ),
+                0,
+            );
             anyhow::bail!("Git clone failed for '{}'", repo_url);
         } else if verbose {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
             if !stdout_output.is_empty() {
-                logger.dim_level2("Git clone stdout:");
-                logger.raw(&stdout_output);
+                logger.log(LogLevel::Dim, "Git clone stdout:", 2);
+                logger.log((), stdout_output, 2);
             }
             if !stderr_output.is_empty() {
-                logger.dim_level2("Git clone stderr:");
-                logger.raw(&stderr_output);
+                logger.log(LogLevel::Dim, "Git clone stderr:", 2);
+                logger.log((), stderr_output, 2);
             }
         }
         Ok(())
     }
 
-    fn git_pull(repo_path: &Path, verbose: bool, logger: &'static Logger) -> anyhow::Result<()> {
+    fn git_pull(repo_path: &Path, verbose: bool, logger: &Logger) -> anyhow::Result<()> {
         let mut cmd = Command::new("git");
         cmd.arg("-C").arg(repo_path).arg("pull");
         cmd.stderr(Stdio::piped());
@@ -83,22 +87,30 @@ impl GitManager for BuildSystem {
         if !output.status.success() {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
+            logger.log(
+                LogLevel::Error,
+                format!(
+                    "Failed while pulling updates for '{}':\n{} {}",
+                    repo_path.display(),
+                    stdout_output,
+                    stderr_output
+                ),
+                0,
+            );
             anyhow::bail!(
-                "Failed while pulling updates for '{}':\n{} {}",
-                repo_path.display(),
-                stdout_output,
-                stderr_output
+                "Failed while pulling updates for '{}'",
+                repo_path.display()
             );
         } else if verbose {
             let stdout_output = String::from_utf8_lossy(&output.stdout);
             let stderr_output = String::from_utf8_lossy(&output.stderr);
             if !stdout_output.is_empty() {
-                logger.dim_level2("Git pull stdout:");
-                logger.raw(&stdout_output);
+                logger.log(LogLevel::Dim, "Git pull stdout:", 2);
+                logger.log((), stdout_output, 2);
             }
             if !stderr_output.is_empty() {
-                logger.dim_level2("Git pull stderr:");
-                logger.raw(&stderr_output);
+                logger.log(LogLevel::Dim, "Git pull stderr:", 2);
+                logger.log((), stderr_output, 2);
             }
         }
         Ok(())

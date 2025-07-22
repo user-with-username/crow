@@ -25,11 +25,11 @@ pub enum Commands {
 }
 
 pub trait Command {
-    fn execute(&self, logger: &'static Logger) -> Result<()>;
+    fn execute(&self, logger: &mut Logger) -> Result<()>;
 }
 
 impl Command for Commands {
-    fn execute(&self, logger: &'static Logger) -> Result<()> {
+    fn execute(&self, logger: &mut Logger) -> Result<()> {
         match self {
             Self::Init(cmd) => cmd.execute(logger),
             Self::Build(cmd) => cmd.execute(logger),

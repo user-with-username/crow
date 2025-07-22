@@ -10,7 +10,7 @@ pub trait ProjectBuilder {
         jobs: Option<usize>,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: &Logger,
     ) -> anyhow::Result<std::path::PathBuf>;
 }
 
@@ -40,7 +40,7 @@ impl ProjectBuilder for BuildCommand {
         jobs: Option<usize>,
         verbose: bool,
         global_deps: bool,
-        logger: &'static Logger,
+        logger: &Logger,
     ) -> Result<PathBuf> {
         let config = Config::load("crow.toml")?;
         let build_system = crow_core::build_system::BuildSystem::new(
@@ -48,18 +48,16 @@ impl ProjectBuilder for BuildCommand {
             profile,
             verbose,
             global_deps,
-            logger,
+            logger.clone(),
         )?;
         build_system.build(jobs)
     }
 }
 
 impl Command for BuildCommand {
-    fn execute(&self, logger: &'static Logger) -> Result<()> {
-        crow_utils::logger::QUIET_MODE.store(
-            Environment::quiet_mode(self.quiet),
-            std::sync::atomic::Ordering::Relaxed,
-        );
+    fn execute(&self, logger: &mut Logger) -> Result<()> {
+        logger.quiet(Environment::quiet_mode(self.quiet));
+        
         let global_deps = Environment::global_deps(self.global_deps);
         self.build_project(&self.profile, self.jobs, self.verbose, global_deps, logger)?;
         Ok(())

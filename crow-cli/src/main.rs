@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use commands::{Command, Commands};
-use crow_utils::logger::LOGGER_INSTANCE;
+use crow_utils::logger::{Logger, LogLevel};
 
 mod commands;
 
@@ -14,9 +14,10 @@ struct Cli {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let mut logger = Logger::new();
 
-    if let Err(e) = cli.command.execute(&LOGGER_INSTANCE) {
-        LOGGER_INSTANCE.critical_error(&format!("{:?}", e));
+    if let Err(e) = cli.command.execute(&mut logger) {
+        logger.log(LogLevel::Error, &format!("{:?}", e), 0);
         std::process::exit(1);
     }
     Ok(())
