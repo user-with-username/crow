@@ -15,6 +15,8 @@ jobs:
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Получаем полную историю коммитов
 
       - name: Get crate version
         id: get-version
@@ -22,6 +24,20 @@ jobs:
           version=$(grep -m1 '^version =' Cargo.toml | cut -d '"' -f2)
           echo "version=${version}" >> $GITHUB_OUTPUT
           echo "Using version: ${version}"
+
+      - name: Find version change commit
+        id: version-commit
+        run: |
+          # Находим коммит, где изменилась версия
+          VERSION="${{ steps.get-version.outputs.version }}"
+          COMMIT_HASH=$(git log -p -- Cargo.toml | grep -B5 "^+version = \"$VERSION\"" | grep "^commit" | head -1 | cut -d' ' -f2)
+          
+          if [ -z "$COMMIT_HASH" ]; then
+            # Если не нашли (например, первый релиз), берем все коммиты
+            COMMIT_HASH=$(git rev-list --max-parents=0 HEAD)
+          fi
+          
+          echo "commit_hash=${COMMIT_HASH}" >> $GITHUB_OUTPUT
 
   build:
     name: Build ${{ matrix.target }}
@@ -111,16 +127,21 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Get commit
-        id: commit-message
+      - name: Generate changelog for this version
+        id: changelog
         run: |
-          COMMIT_SUBJECT=$(git log -1 --pretty=%s)
-          echo "commit_subject=$COMMIT_SUBJECT" >> $GITHUB_OUTPUT
+          VERSION_COMMIT="${{ needs.get-version.outputs.commit_hash }}"
           
-          COMMIT_BODY=$(git log -1 --pretty=%b)
-          if [ -n "$COMMIT_BODY" ]; then
-            echo "commit_body=$COMMIT_BODY" >> $GITHUB_OUTPUT
+          COMMITS=$(git log --pretty=format:"- %s%n  %b" $VERSION_COMMIT..HEAD | sed '/^  $/d')
+          
+          if [ -z "$COMMITS" ]; then
+            COMMITS=$(git log -1 --pretty=format:"- %s%n  %b" | sed '/^  $/d')
           fi
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "### Changelog for v${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -128,14 +149,11 @@ jobs:
           tag_name: v${{ needs.get-version.outputs.version }}
           name: "v${{ needs.get-version.outputs.version }}"
           body: |
-            Build for version ${{ needs.get-version.outputs.version }}.
+            Release v${{ needs.get-version.outputs.version }}
             
-            ### Changelog
-            **${{ steps.commit-message.outputs.commit_subject }}**
+            ${{ steps.changelog.outputs.changelog }}
             
-                ${{ steps.commit-message.outputs.commit_body }}
-            
-            Thanks you for using CRow!
+            Thank you for using CRow!
           files: |
             artifacts/linux-x86_64
             artifacts/linux-arm64
