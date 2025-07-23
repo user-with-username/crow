@@ -119,9 +119,9 @@ impl DependencyResolver for BuildSystem {
                             );
                         } else {
                             logger.log(
-                                LogLevel::Success,
+                                LogLevel::Custom("\x1b[32m"),
                                 &format!("[CLONING] {name} ({})", git),
-                                1,
+                                2,
                             );
                         }
                         <BuildSystem as GitManager>::git_clone(
