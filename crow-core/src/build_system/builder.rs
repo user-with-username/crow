@@ -602,10 +602,8 @@ impl BuildSystem {
                 .arg("-DCMAKE_DEBUG_POSTFIX=")
                 .arg("-DFMT_DEBUG_POSTFIX=")
                 .arg("-DBUILD_TESTING=OFF")
-                .arg("-DCMAKE_DISABLE_TESTING=ON")
-                .arg("-DSPDLOG_BUILD_BENCH=OFF")
-                .arg("-DSPDLOG_BUILD_EXAMPLES=OFF");
-
+                .arg("-DCMAKE_DISABLE_TESTING=ON");
+                
             for opt in cmake_options {
                 cmake_cmd.arg(opt);
             }
