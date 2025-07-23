@@ -15,8 +15,6 @@ jobs:
       version: ${{ steps.get-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Get crate version
         id: get-version
@@ -24,19 +22,6 @@ jobs:
           version=$(grep -m1 '^version =' Cargo.toml | cut -d '"' -f2)
           echo "version=${version}" >> $GITHUB_OUTPUT
           echo "Using version: ${version}"
-
-      - name: Find version change commit
-        id: version-commit
-        run: |
-          
-          VERSION="${{ steps.get-version.outputs.version }}"
-          COMMIT_HASH=$(git log -p -- Cargo.toml | grep -B5 "^+version = \"$VERSION\"" | grep "^commit" | head -1 | cut -d' ' -f2)
-          
-          if [ -z "$COMMIT_HASH" ]; then
-            COMMIT_HASH=$(git rev-list --max-parents=0 HEAD)
-          fi
-          
-          echo "commit_hash=${COMMIT_HASH}" >> $GITHUB_OUTPUT
 
   build:
     name: Build ${{ matrix.target }}
@@ -126,21 +111,30 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Generate changelog for this version
+      - name: Get all commits
         id: changelog
         run: |
-          VERSION_COMMIT="${{ needs.get-version.outputs.commit_hash }}"
+          VERSION="${{ needs.get-version.outputs.version }}"
+
+          VERSION_COMMIT=$(git log --reverse --pretty=format:%H -S "version = \"$VERSION\"" -- Cargo.toml | head -1)
           
-          COMMITS=$(git log --pretty=format:"- %s%n  %b" $VERSION_COMMIT..HEAD | sed '/^  $/d')
-          
-          if [ -z "$COMMITS" ]; then
-            COMMITS=$(git log -1 --pretty=format:"- %s%n  %b" | sed '/^  $/d')
+          if [ -z "$VERSION_COMMIT" ]; then
+            echo "Version commit not found, using all commits"
+            COMMITS=$(git log --pretty=format:"- %s%n  %b" | sed '/^  $/d')
+          else
+            echo "Found version commit: $VERSION_COMMIT"
+            COMMITS=$(git log --pretty=format:"- %s%n  %b" $VERSION_COMMIT..HEAD | sed '/^  $/d')
           fi
-          
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "### Changelog for v${{ needs.get-version.outputs.version }}" >> $GITHUB_OUTPUT
-          echo "$COMMITS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+
+          if [ -n "$COMMITS" ]; then
+            DELIMITER=$(openssl rand -hex 16)
+            echo "changelog<<$DELIMITER" >> $GITHUB_OUTPUT
+            echo "### Changelog" >> $GITHUB_OUTPUT
+            echo "$COMMITS" >> $GITHUB_OUTPUT
+            echo "$DELIMITER" >> $GITHUB_OUTPUT
+          else
+            echo "changelog=No changes for this version" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -148,7 +142,7 @@ jobs:
           tag_name: v${{ needs.get-version.outputs.version }}
           name: "v${{ needs.get-version.outputs.version }}"
           body: |
-            Release v${{ needs.get-version.outputs.version }}
+            Build for version ${{ needs.get-version.outputs.version }}.
             
             ${{ steps.changelog.outputs.changelog }}
             
