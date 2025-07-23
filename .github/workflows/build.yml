@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Получаем полную историю коммитов
+          fetch-depth: 0
 
       - name: Get crate version
         id: get-version
@@ -28,12 +28,11 @@ jobs:
       - name: Find version change commit
         id: version-commit
         run: |
-          # Находим коммит, где изменилась версия
+          
           VERSION="${{ steps.get-version.outputs.version }}"
           COMMIT_HASH=$(git log -p -- Cargo.toml | grep -B5 "^+version = \"$VERSION\"" | grep "^commit" | head -1 | cut -d' ' -f2)
           
           if [ -z "$COMMIT_HASH" ]; then
-            # Если не нашли (например, первый релиз), берем все коммиты
             COMMIT_HASH=$(git rev-list --max-parents=0 HEAD)
           fi
           
