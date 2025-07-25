@@ -6,7 +6,7 @@ mod toolchain;
 
 pub use builder::BuildSystem;
 pub use cache::BuildCache;
-pub use dependency::DependencyBuildOutput;
+pub use dependency::{DependencyBuildOutput, DependencyResolver};
 pub use git_manager::GitManager;
 pub use toolchain::ToolchainExecutor;
 

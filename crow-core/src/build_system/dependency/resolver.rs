@@ -1,10 +1,8 @@
-use super::*;
+use super::types::{cmake, crow};
 use crate::build_system;
-use crate::config::BuildSystemType;
 use crate::config::{BuildProfile, CrowDependencyBuild, Dependency, ToolchainConfig};
 use anyhow::Context;
-use crow_utils::logger::Logger;
-use crow_utils::LogLevel;
+use crow_utils::logger::{LogLevel, Logger};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -31,24 +29,6 @@ pub trait DependencyResolver {
         HashMap<String, DependencyBuildOutput>,
     )>;
 
-    fn build_cmake_dependency(
-        name: &str,
-        toolchain: &ToolchainConfig,
-        config: &CrowDependencyBuild,
-        profile: &str,
-        profile_config: &BuildProfile,
-        logger: Logger,
-    ) -> anyhow::Result<DependencyBuildOutput>;
-
-    fn build_crow_dependency(
-        name: &str,
-        dep_source_path: &Path,
-        crow_build_config: &CrowDependencyBuild,
-        current_profile: &str,
-        global_deps: bool,
-        logger: Logger,
-    ) -> anyhow::Result<DependencyBuildOutput>;
-
     fn copy_local_dependency(
         name: &str,
         local_path_orig: &Path,
@@ -57,7 +37,7 @@ pub trait DependencyResolver {
     ) -> anyhow::Result<()>;
 }
 
-impl DependencyResolver for BuildSystem {
+impl DependencyResolver for build_system::BuildSystem {
     fn resolve_dependencies(
         dependencies: &HashMap<String, Dependency>,
         toolchain: &ToolchainConfig,
@@ -85,7 +65,7 @@ impl DependencyResolver for BuildSystem {
             .values()
             .any(|dep| matches!(dep, Dependency::Git { .. }));
         if has_git_deps {
-            <BuildSystem as GitManager>::check_git_available()?;
+            <build_system::BuildSystem as build_system::GitManager>::check_git_available()?;
         }
 
         for (name, dep) in dependencies {
@@ -106,7 +86,7 @@ impl DependencyResolver for BuildSystem {
                         } else {
                             logger.log(LogLevel::Info, &format!("[UPDATING] {name} ({})", git), 2);
                         }
-                        <BuildSystem as GitManager>::git_pull(
+                        <build_system::BuildSystem as build_system::GitManager>::git_pull(
                             &git_dep_target_path,
                             &logger.clone(),
                         )?;
@@ -124,7 +104,7 @@ impl DependencyResolver for BuildSystem {
                                 2,
                             );
                         }
-                        <BuildSystem as GitManager>::git_clone(
+                        <build_system::BuildSystem as build_system::GitManager>::git_clone(
                             git,
                             branch,
                             &git_dep_target_path,
@@ -183,7 +163,7 @@ impl DependencyResolver for BuildSystem {
             let build_output_dir = dep_source_path.join("_crow_build").join(current_profile);
             let lib_name_str = &crow_build_config.lib_name;
 
-            let expected_lib_path = <builder::BuildSystem as ToolchainExecutor>::find_library_file(
+            let expected_lib_path = <build_system::builder::BuildSystem as build_system::ToolchainExecutor>::find_library_file(
                 &build_output_dir,
                 lib_name_str,
                 &crow_build_config.output_type,
@@ -226,7 +206,7 @@ impl DependencyResolver for BuildSystem {
             std::env::set_current_dir(&dep_source_path)?;
 
             let build_output = match crow_build_config.build_system {
-                Some(BuildSystemType::Cmake) => Self::build_cmake_dependency(
+                Some(crate::config::BuildSystemType::Cmake) => cmake::CmakeDependency::build(
                     name,
                     toolchain,
                     &crow_build_config,
@@ -234,7 +214,7 @@ impl DependencyResolver for BuildSystem {
                     profile_config,
                     logger.clone(),
                 ),
-                Some(BuildSystemType::Crow) => Self::build_crow_dependency(
+                Some(crate::config::BuildSystemType::Crow) => crow::CrowDependency::build(
                     name,
                     &dep_source_path,
                     &crow_build_config,
@@ -315,104 +295,5 @@ impl DependencyResolver for BuildSystem {
             },
         )?;
         Ok(())
-    }
-
-    fn build_cmake_dependency(
-        name: &str,
-        toolchain: &ToolchainConfig,
-        config: &CrowDependencyBuild,
-        profile: &str,
-        profile_config: &BuildProfile,
-        logger: Logger,
-    ) -> anyhow::Result<DependencyBuildOutput> {
-        let dep_source_dir = std::env::current_dir()?;
-        let build_dir = dep_source_dir.join("_crow_build").join(profile);
-        let lib_name = config.lib_name.clone();
-
-        std::fs::create_dir_all(&build_dir)?;
-
-        let build_type = if profile == "release" {
-            "Release"
-        } else {
-            "Debug"
-        };
-
-        let mut cxx_flags = vec![format!("-O{}", profile_config.opt_level)];
-        if profile_config.lto {
-            cxx_flags.push("-flto".to_string());
-        }
-
-        BuildSystem::handle_pch_generation(
-            name,
-            toolchain,
-            config,
-            profile_config,
-            &build_dir,
-            &mut cxx_flags,
-            logger.clone(),
-        )?;
-
-        let cxx_flags_str = cxx_flags.join(" ");
-
-        BuildSystem::run_cmake_configure(
-            name,
-            &dep_source_dir,
-            &build_dir,
-            build_type,
-            toolchain,
-            &cxx_flags_str,
-            &config.cmake_options,
-            logger.clone(),
-        )?;
-        BuildSystem::run_cmake_build(name, &build_dir, build_type, logger.clone())?;
-
-        let library_path =
-            <build_system::builder::BuildSystem as ToolchainExecutor>::find_library_file(
-                &build_dir,
-                &lib_name,
-                &config.output_type,
-            )
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Could not find library for '{}' after build in {}",
-                    name,
-                    build_dir.display()
-                )
-            })?;
-
-        let mut include_paths = vec![".".to_string()];
-        if dep_source_dir.join("include").exists() {
-            include_paths.push("include".to_string());
-        }
-
-        Ok(DependencyBuildOutput {
-            lib_name,
-            library_path: std::fs::canonicalize(&library_path)?,
-            library_dir: std::fs::canonicalize(library_path.parent().unwrap())?,
-            include_paths,
-        })
-    }
-
-    fn build_crow_dependency(
-        name: &str,
-        dep_source_path: &Path,
-        crow_build_config: &CrowDependencyBuild,
-        current_profile: &str,
-        global_deps: bool,
-        logger: Logger,
-    ) -> anyhow::Result<DependencyBuildOutput> {
-        let dep_crow_toml = dep_source_path.join("crow.toml");
-        if !dep_crow_toml.exists() {
-            anyhow::bail!(
-                "Dependency '{name}' is configured for CRow build, but no `crow.toml` found."
-            );
-        }
-
-        let dep_config = Config::load(&dep_crow_toml)?;
-        let mut dep_package_config = dep_config.package.clone();
-        dep_package_config.output_type = crow_build_config.output_type.clone();
-
-        let dep_build_system = BuildSystem::new(dep_config, current_profile, global_deps, logger)?;
-        dep_build_system.build_internal(Some(1), Some(&dep_package_config))
     }
 }
