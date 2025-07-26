@@ -1,8 +1,4 @@
 use super::*;
-use crate::build_system;
-use crate::build_system::cache::CacheEntry;
-use crate::build_system::cache::CacheManager;
-use crate::build_system::dependency::DependencyResolver;
 use crate::config::CrowDependencyBuild;
 use crate::config::OutputType;
 use crate::utils;
@@ -235,174 +231,27 @@ impl BuildSystem {
         std::fs::create_dir_all(&build_dir)?;
         let cwd = std::env::current_dir()?;
 
-        let cache_path = build_dir.join(format!("crow-{}.cache", self.profile_name));
-        let old_cache: BuildCache =
-            BuildCache::load_cache(&cache_path, self.profile_config.incremental)?;
-
-        let mut new_cache = BuildCache::default();
-        let sources = utils::find_source_files(package_config)?;
-
-        let num_jobs = jobs.unwrap_or_else(|| {
-            thread::available_parallelism()
-                .map(|n| n.get())
-                .unwrap_or(1)
-        });
-        let pool = threadpool::ThreadPool::new(num_jobs);
-        let (tx, rx) = mpsc::channel();
-        let mut cache_updates: HashMap<String, (u64, u64, PathBuf)> = HashMap::new();
-
-        for source_path in &sources {
-            let obj_path = build_dir.join(source_path.with_extension("o").file_name().unwrap());
-            let source_hash = xxhash_rust::xxh3::xxh3_64(&std::fs::read(source_path)?);
-
-            let args = self.build_compile_args(source_path, &obj_path)?;
-            let flags_hash = BuildCache::compute_flags_hash(&self.toolchain.compiler, &args);
-
-            let source_key = source_path.to_string_lossy().to_string();
-            let mut need_compile = true;
-
-            if self.profile_config.incremental {
-                if let Some(entry) = old_cache.entries.get(&source_key) {
-                    if entry.source_hash == source_hash
-                        && entry.flags_hash == flags_hash
-                        && Path::new(&entry.obj_path).exists()
-                    {
-                        let dep_path = Path::new(&entry.obj_path).with_extension("d");
-                        if dep_path.exists() {
-                            match BuildCache::parse_dep_file(&dep_path)
-                                .and_then(|deps| BuildCache::compute_deps_hash(&deps))
-                            {
-                                Ok(current_deps_hash) if entry.deps_hash == current_deps_hash => {
-                                    if self.logger.verbose {
-                                        self.logger.log(
-                                            LogLevel::Info,
-                                            &format!("[CACHED] {}", source_path.display()),
-                                            2,
-                                        );
-                                    }
-                                    need_compile = false;
-                                    new_cache.entries.insert(source_key.clone(), entry.clone());
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-
-            if !need_compile {
-                tx.send((source_path.clone(), Ok((obj_path.clone(), 0))))
-                    .unwrap();
-                continue;
-            }
-
-            cache_updates.insert(
-                source_key.clone(),
-                (source_hash, flags_hash, obj_path.clone()),
-            );
-
-            let tx = tx.clone();
-            let compiler_path = self.toolchain.compiler.clone();
-            let source_clone = source_path.clone();
-            let obj_path_clone = obj_path.clone();
-            let incremental = self.profile_config.incremental;
-            let verbose_clone = self.logger.verbose;
-            let toolchain_clone = self.toolchain.clone();
-            let profile_config_clone = self.profile_config.clone();
-            let package_config_clone = package_config.clone();
-            let downloaded_deps_paths_clone = self.downloaded_deps_paths.clone();
-            let dep_build_outputs_clone = self.dep_build_outputs.clone();
-            let logger_clone = self.logger.clone();
-
-            pool.execute(move || {
-                let args_for_thread = BuildSystem::build_compile_args_static(
-                    &toolchain_clone,
-                    &profile_config_clone,
-                    &package_config_clone,
-                    &downloaded_deps_paths_clone,
-                    &dep_build_outputs_clone,
-                    &source_clone,
-                    &obj_path_clone,
-                )
-                .expect("Failed to build compile args in thread");
-
-                let result =
-                    <build_system::builder::BuildSystem as ToolchainExecutor>::compile_with_args(
-                        &compiler_path,
-                        &args_for_thread,
-                        &source_clone,
-                        &obj_path_clone,
-                        incremental,
-                        &logger_clone,
-                    );
-                if verbose_clone {
-                    match &result {
-                        Ok(_) => logger_clone.log(
-                            LogLevel::Custom("\x1b[32m"),
-                            &format!("[COMPILED] {}", source_clone.display()),
-                            2,
-                        ),
-                        Err(_e) => {}
-                    }
-                }
-                tx.send((source_clone, result)).unwrap();
-            });
-        }
-
-        drop(tx);
-        let mut object_files = Vec::new();
-        let mut had_errors = false;
-
-        for (source, result) in rx.iter() {
-            match result {
-                Ok((obj_path, deps_hash)) => {
-                    object_files.push(obj_path.clone());
-                    if let Some((source_hash, flags_hash, _)) =
-                        cache_updates.get(&source.to_string_lossy().to_string())
-                    {
-                        new_cache.entries.insert(
-                            source.to_string_lossy().to_string(),
-                            CacheEntry {
-                                source_hash: *source_hash,
-                                flags_hash: *flags_hash,
-                                deps_hash,
-                                obj_path: obj_path.to_string_lossy().to_string(),
-                            },
-                        );
-                    }
-                }
-                Err(_) => had_errors = true,
-            }
-        }
-
-        if had_errors {
-            anyhow::bail!("Compilation failed.");
-        }
-
-        if self.profile_config.incremental {
-            BuildCache::save_cache(&cache_path, &new_cache)?;
-        }
+        let object_files = if self.profile_config.incremental {
+            let incremental_builder = crate::build_system::incremental::IncrementalBuilder::new(self)?;
+            incremental_builder.build(jobs, package_config)?
+        } else {
+            self.build_non_incremental(jobs, package_config)?
+        };
 
         let output_path = match package_config.output_type {
             OutputType::Executable => {
                 let exe_path = build_dir.join(&package_config.name);
                 self.link_executable(&object_files, &exe_path)?;
-                <build_system::builder::BuildSystem as ToolchainExecutor>::set_executable_permissions(&exe_path)?;
+                <BuildSystem as ToolchainExecutor>::set_executable_permissions(&exe_path)?;
                 exe_path
             }
             OutputType::StaticLib => {
-                let lib_path =
-                    build_dir.join(<build_system::builder::BuildSystem as ToolchainExecutor>::format_static_lib_name(
-                        &package_config.name,
-                    ));
+                let lib_path = build_dir.join(Self::format_static_lib_name(&package_config.name));
                 self.archive_static_library(&object_files, &lib_path)?;
                 lib_path
             }
             OutputType::SharedLib => {
-                let lib_path =
-                    build_dir.join(<build_system::builder::BuildSystem as ToolchainExecutor>::format_shared_lib_name(
-                        &package_config.name,
-                    ));
+                let lib_path = build_dir.join(Self::format_shared_lib_name(&package_config.name));
                 self.link_shared_library(&object_files, &lib_path)?;
                 lib_path
             }
@@ -425,6 +274,90 @@ impl BuildSystem {
     pub fn build(&self, jobs: Option<usize>) -> anyhow::Result<PathBuf> {
         let build_output = self.build_internal(jobs, None)?;
         Ok(build_output.library_path)
+    }
+
+    fn build_non_incremental(
+        &self,
+        jobs: Option<usize>,
+        package_config: &PackageConfig,
+    ) -> anyhow::Result<Vec<PathBuf>> {
+        let build_dir = crow_utils::environment::Environment::build_dir().join(&self.profile_name);
+        std::fs::create_dir_all(&build_dir)?;
+        let sources = utils::find_source_files(package_config)?;
+
+        let num_jobs = jobs.unwrap_or_else(|| {
+            thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1)
+        });
+        let pool = threadpool::ThreadPool::new(num_jobs);
+        let (tx, rx) = mpsc::channel();
+        let mut object_files = Vec::new();
+        let mut had_errors = false;
+
+        for source_path in &sources {
+            let obj_path = build_dir.join(source_path.with_extension("o").file_name().unwrap());
+
+            let tx = tx.clone();
+            let compiler_path = self.toolchain.compiler.clone();
+            let source_clone = source_path.clone();
+            let obj_path_clone = obj_path.clone();
+            let verbose_clone = self.logger.verbose;
+            let toolchain_clone = self.toolchain.clone();
+            let profile_config_clone = self.profile_config.clone();
+            let package_config_clone = package_config.clone();
+            let downloaded_deps_paths_clone = self.downloaded_deps_paths.clone();
+            let dep_build_outputs_clone = self.dep_build_outputs.clone();
+            let logger_clone = self.logger.clone();
+
+            pool.execute(move || {
+                let args_for_thread = BuildSystem::build_compile_args_static(
+                    &toolchain_clone,
+                    &profile_config_clone,
+                    &package_config_clone,
+                    &downloaded_deps_paths_clone,
+                    &dep_build_outputs_clone,
+                    &source_clone,
+                    &obj_path_clone,
+                )
+                .expect("Failed to build compile args in thread");
+
+                let result = <BuildSystem as ToolchainExecutor>::compile_with_args(
+                    &compiler_path,
+                    &args_for_thread,
+                    &source_clone,
+                    &obj_path_clone,
+                    false,
+                    &logger_clone,
+                );
+                if verbose_clone {
+                    if let Ok(_) = &result {
+                        logger_clone.log(
+                            LogLevel::Custom("\x1b[32m"),
+                            &format!("[COMPILED] {}", source_clone.display()),
+                            2,
+                        );
+                    }
+                }
+                tx.send((source_clone, result)).unwrap();
+            });
+        }
+
+        drop(tx);
+        for (_, result) in rx.iter() {
+            match result {
+                Ok((obj_path, _)) => {
+                    object_files.push(obj_path);
+                }
+                Err(_) => had_errors = true,
+            }
+        }
+
+        if had_errors {
+            anyhow::bail!("Compilation failed.");
+        }
+
+        Ok(object_files)
     }
 
     #[allow(clippy::too_many_arguments)]
