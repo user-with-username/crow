@@ -1,12 +1,12 @@
 pub mod cache;
 
 use super::*;
-use cache::*;
 use crate::build_system::ToolchainExecutor;
-use crow_utils::LogLevel;
-use std::path::Path;
 use crate::config::PackageConfig;
 use crate::utils;
+use cache::*;
+use crow_utils::LogLevel;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::{collections::HashMap, thread};
@@ -35,21 +35,29 @@ impl<'a> IncrementalBuilder<'a> {
         jobs: Option<usize>,
         package_config: &PackageConfig,
     ) -> anyhow::Result<Vec<PathBuf>> {
-        let old_cache = cache::BuildCache::load_cache(&self.cache_path, self.base.profile_config.incremental)?;
+        let old_cache =
+            cache::BuildCache::load_cache(&self.cache_path, self.base.profile_config.incremental)?;
         let mut new_cache = cache::BuildCache::default();
         let sources = utils::find_source_files(package_config)?;
 
-        let num_jobs = jobs.unwrap_or_else(|| thread::available_parallelism().map(|n| n.get()).unwrap_or(1));
+        let num_jobs = jobs.unwrap_or_else(|| {
+            thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1)
+        });
         let pool = threadpool::ThreadPool::new(num_jobs);
         let (tx, rx) = mpsc::channel();
         let mut cache_updates: HashMap<String, (u64, u64, PathBuf)> = HashMap::new();
 
         for source_path in &sources {
-            let obj_path = self.build_dir.join(source_path.with_extension("o").file_name().unwrap());
+            let obj_path = self
+                .build_dir
+                .join(source_path.with_extension("o").file_name().unwrap());
             let source_hash = xxhash_rust::xxh3::xxh3_64(&std::fs::read(source_path)?);
 
             let args = self.base.build_compile_args(source_path, &obj_path)?;
-            let flags_hash = cache::BuildCache::compute_flags_hash(&self.base.toolchain.compiler, &args);
+            let flags_hash =
+                cache::BuildCache::compute_flags_hash(&self.base.toolchain.compiler, &args);
 
             let source_key = source_path.to_string_lossy().to_string();
             let mut need_compile = true;

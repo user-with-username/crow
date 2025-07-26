@@ -1,7 +1,7 @@
 use super::*;
+use crate::cache::BuildCache;
 use crate::cache::CacheManager;
 use crate::config::OutputType;
-use crate::cache::BuildCache;
 use crow_utils::logger::{LogLevel, Logger};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;

@@ -3,7 +3,7 @@ use crate::config::{Config, CrowDependencyBuild};
 use crate::DependencyBuildOutput;
 use anyhow::anyhow;
 use crow_utils::logger::Logger;
-use std::path::{Path};
+use std::path::Path;
 
 pub struct CrowDependency;
 

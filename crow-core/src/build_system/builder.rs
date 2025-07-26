@@ -232,7 +232,8 @@ impl BuildSystem {
         let cwd = std::env::current_dir()?;
 
         let object_files = if self.profile_config.incremental {
-            let incremental_builder = crate::build_system::incremental::IncrementalBuilder::new(self)?;
+            let incremental_builder =
+                crate::build_system::incremental::IncrementalBuilder::new(self)?;
             incremental_builder.build(jobs, package_config)?
         } else {
             self.build_non_incremental(jobs, package_config)?
@@ -536,7 +537,7 @@ impl BuildSystem {
                 .arg("-DFMT_DEBUG_POSTFIX=")
                 .arg("-DBUILD_TESTING=OFF")
                 .arg("-DCMAKE_DISABLE_TESTING=ON");
-                
+
             for opt in cmake_options {
                 cmake_cmd.arg(opt);
             }
