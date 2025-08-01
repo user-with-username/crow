@@ -1,5 +1,4 @@
 use anyhow::Context;
-use crow_utils::LogLevel;
 use crow_utils::Logger;
 
 pub fn execute_hooks(hooks: &[String], logger: Logger) -> anyhow::Result<()> {
@@ -16,10 +15,10 @@ pub fn execute_hooks(hooks: &[String], logger: Logger) -> anyhow::Result<()> {
             .with_context(|| format!("Failed to run: '{hook}'"))?;
 
         if !output.stdout.is_empty() {
-            logger.log(LogLevel::Info, &String::from_utf8_lossy(&output.stdout), 0);
+            logger.log((), &String::from_utf8_lossy(&output.stdout), 0);
         }
         if !output.stderr.is_empty() {
-            logger.log(LogLevel::Info, &String::from_utf8_lossy(&output.stderr), 0);
+            logger.log((), &String::from_utf8_lossy(&output.stderr), 0);
         }
 
         if !output.status.success() {
