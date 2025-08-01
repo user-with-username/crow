@@ -307,7 +307,7 @@ impl BuildSystem {
             let downloaded_deps_paths_clone = self.downloaded_deps_paths.clone();
             let dep_build_outputs_clone = self.dep_build_outputs.clone();
             let logger_clone = self.logger.clone();
-            
+
             let is_verbose = self.logger.verbose;
 
             pool.execute(move || {
