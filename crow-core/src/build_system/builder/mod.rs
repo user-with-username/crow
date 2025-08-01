@@ -1,8 +1,10 @@
+pub mod hooks;
+pub mod incremental;
+
 use super::*;
 use crate::config::CrowDependencyBuild;
 use crate::config::OutputType;
 use crate::utils;
-use anyhow::Context;
 use crow_utils::LogLevel;
 use std::env;
 use std::process::Stdio;
@@ -12,6 +14,7 @@ use std::{
     sync::mpsc,
     thread,
 };
+use hooks::execute_hooks;
 
 pub struct BuildSystem {
     pub config: Config,
@@ -78,7 +81,7 @@ impl BuildSystem {
         toolchain
             .hooks
             .as_ref()
-            .map(|hooks| BuildSystem::execute_hooks(hooks, logger.clone()))
+            .map(|hooks| execute_hooks(hooks, logger.clone()))
             .transpose()?;
 
         let current_arch = env::consts::ARCH;
@@ -111,7 +114,7 @@ impl BuildSystem {
                 target_override
                     .hooks
                     .as_ref()
-                    .map(|hooks| BuildSystem::execute_hooks(hooks, logger.clone()))
+                    .map(|hooks| execute_hooks(hooks, logger.clone()))
                     .transpose()?;
 
                 target_override
@@ -121,7 +124,7 @@ impl BuildSystem {
                         toolchain_override
                             .hooks
                             .as_ref()
-                            .map(|hooks| BuildSystem::execute_hooks(hooks, logger.clone()))
+                            .map(|hooks| execute_hooks(hooks, logger.clone()))
                             .transpose()?;
 
                         toolchain_override
@@ -232,8 +235,7 @@ impl BuildSystem {
         let cwd = std::env::current_dir()?;
 
         let object_files = if self.profile_config.incremental {
-            let incremental_builder =
-                crate::build_system::incremental::IncrementalBuilder::new(self)?;
+            let incremental_builder = crate::build_system::IncrementalBuilder::new(self)?;
             incremental_builder.build(jobs, package_config)?
         } else {
             self.build_non_incremental(jobs, package_config)?
@@ -628,33 +630,6 @@ impl BuildSystem {
             if !stderr_output.is_empty() {
                 logger.log(LogLevel::Dim, "CMake build stderr:", 2);
                 logger.log(LogLevel::Info, &stderr_output, 2);
-            }
-        }
-        Ok(())
-    }
-
-    pub fn execute_hooks(hooks: &[String], logger: Logger) -> anyhow::Result<()> {
-        for hook in hooks {
-            let cmd = shlex::split(hook).with_context(|| format!("Cannot parse hook: '{hook}'"))?;
-
-            if cmd.is_empty() {
-                continue;
-            }
-
-            let output = std::process::Command::new(&cmd[0])
-                .args(&cmd[1..])
-                .output()
-                .with_context(|| format!("Failed to run: '{hook}'"))?;
-
-            if !output.stdout.is_empty() {
-                logger.log(LogLevel::Info, &String::from_utf8_lossy(&output.stdout), 0);
-            }
-            if !output.stderr.is_empty() {
-                logger.log(LogLevel::Info, &String::from_utf8_lossy(&output.stderr), 0);
-            }
-
-            if !output.status.success() {
-                anyhow::bail!("Hook failed: `{hook}`");
             }
         }
         Ok(())

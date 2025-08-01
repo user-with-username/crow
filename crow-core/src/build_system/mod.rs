@@ -1,12 +1,11 @@
 mod builder;
 mod dependency;
-mod incremental;
 mod manager;
 mod toolchain;
 
+pub use builder::incremental::*;
 pub use builder::BuildSystem;
 pub use dependency::{DependencyBuildOutput, DependencyResolver};
-pub use incremental::*;
 pub use manager::GitManager;
 pub use toolchain::ToolchainExecutor;
 
