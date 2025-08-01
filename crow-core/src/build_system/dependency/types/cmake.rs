@@ -1,6 +1,5 @@
-use crate::build_system;
 use crate::config::{BuildProfile, CrowDependencyBuild, ToolchainConfig};
-use crate::DependencyBuildOutput;
+use crate::{build_system, DependencyBuildOutput};
 use anyhow::anyhow;
 use crow_utils::logger::Logger;
 

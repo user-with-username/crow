@@ -3,10 +3,8 @@ use crate::build_system;
 use crate::config::{BuildProfile, CrowDependencyBuild, Dependency, ToolchainConfig};
 use anyhow::Context;
 use crow_utils::logger::{LogLevel, Logger};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub struct DependencyBuildOutput {

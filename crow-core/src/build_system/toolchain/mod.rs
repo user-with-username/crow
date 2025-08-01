@@ -1,14 +1,11 @@
 use super::*;
-use crate::cache::BuildCache;
-use crate::cache::CacheManager;
+use crate::cache::{BuildCache, CacheManager};
 use crate::config::OutputType;
 use crow_utils::logger::{LogLevel, Logger};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::{
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 pub trait ToolchainExecutor {
     fn compile_with_args(

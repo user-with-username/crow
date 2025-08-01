@@ -1,4 +1,5 @@
-use crate::{build_system_type::BuildSystemType, output_type::OutputType};
+use crate::build_system_type::BuildSystemType;
+use crate::output_type::OutputType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

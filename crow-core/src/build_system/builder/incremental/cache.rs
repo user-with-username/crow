@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::hash::Hasher;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct BuildCache {

@@ -6,10 +6,10 @@ use crate::config::PackageConfig;
 use crate::utils;
 use cache::*;
 use crow_utils::LogLevel;
-use std::path::Path;
-use std::path::PathBuf;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use std::{collections::HashMap, thread};
+use std::thread;
 
 pub struct IncrementalBuilder<'a> {
     base: &'a BuildSystem,

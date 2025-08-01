@@ -2,19 +2,15 @@ pub mod hooks;
 pub mod incremental;
 
 use super::*;
-use crate::config::CrowDependencyBuild;
-use crate::config::OutputType;
+use crate::config::{CrowDependencyBuild, OutputType};
 use crate::utils;
 use crow_utils::LogLevel;
-use std::env;
+use hooks::Executor;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::mpsc,
-    thread,
-};
-use hooks::execute_hooks;
+use std::sync::mpsc;
+use std::{env, thread};
 
 pub struct BuildSystem {
     pub config: Config,
@@ -81,7 +77,7 @@ impl BuildSystem {
         toolchain
             .hooks
             .as_ref()
-            .map(|hooks| execute_hooks(hooks, logger.clone()))
+            .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
             .transpose()?;
 
         let current_arch = env::consts::ARCH;
@@ -114,7 +110,7 @@ impl BuildSystem {
                 target_override
                     .hooks
                     .as_ref()
-                    .map(|hooks| execute_hooks(hooks, logger.clone()))
+                    .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
                     .transpose()?;
 
                 target_override
@@ -124,7 +120,7 @@ impl BuildSystem {
                         toolchain_override
                             .hooks
                             .as_ref()
-                            .map(|hooks| execute_hooks(hooks, logger.clone()))
+                            .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
                             .transpose()?;
 
                         toolchain_override

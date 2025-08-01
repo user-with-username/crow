@@ -1,10 +1,8 @@
 use crate::build_system::BuildSystem;
 use anyhow::Context;
 use crow_utils::logger::{LogLevel, Logger};
-use std::{
-    path::Path,
-    process::{Command, Stdio},
-};
+use std::path::Path;
+use std::process::{Command, Stdio};
 
 pub trait GitManager {
     fn check_git_available() -> anyhow::Result<()>;

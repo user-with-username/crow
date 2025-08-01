@@ -3,10 +3,10 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{
-    dependency::Dependency, profile::BuildProfile, target::Target,
-    toolchain::toolchain_config::ToolchainConfig,
-};
+use crate::dependency::Dependency;
+use crate::profile::BuildProfile;
+use crate::target::Target;
+use crate::toolchain::toolchain_config::ToolchainConfig;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default)]

@@ -1,4 +1,5 @@
-use crate::{output_type::OutputType, toolchain::toolchain_override::ToolchainOverride};
+use crate::output_type::OutputType;
+use crate::toolchain::toolchain_override::ToolchainOverride;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

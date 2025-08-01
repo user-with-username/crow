@@ -1,5 +1,6 @@
 use dirs::home_dir;
-use std::{env, path::PathBuf};
+use std::env;
+use std::path::PathBuf;
 
 pub struct Environment;
 

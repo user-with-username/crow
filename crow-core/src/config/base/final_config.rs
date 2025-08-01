@@ -1,4 +1,5 @@
-use crate::{output_type::OutputType, toolchain::toolchain_config::ToolchainConfig};
+use crate::output_type::OutputType;
+use crate::toolchain::toolchain_config::ToolchainConfig;
 
 #[derive(Debug, Clone)]
 pub struct FinalConfig {
