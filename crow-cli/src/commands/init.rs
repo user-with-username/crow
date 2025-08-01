@@ -64,15 +64,15 @@ impl ProjectInitializer for InitCommand {
         let mut context = tera::Context::new();
         context.insert("project_name", name);
 
-        let rendered_main_cpp = tera
+        let main_cpp = tera
             .render("main.cpp.tera", &context)
             .context("Oops no templates")?;
-        let rendered_crow_toml = tera
+        let crow_toml = tera
             .render("crow.toml.tera", &context)
             .context("No config template? oops, download from sources")?;
 
-        std::fs::write(src_dir.join("main.cpp"), rendered_main_cpp)?;
-        std::fs::write(project_dir.join("crow.toml"), rendered_crow_toml)?;
+        std::fs::write(src_dir.join("main.cpp"), main_cpp)?;
+        std::fs::write(project_dir.join("crow.toml"), crow_toml)?;
 
         logger.log(
             LogLevel::Success,
