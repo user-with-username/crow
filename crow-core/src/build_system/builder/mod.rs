@@ -301,13 +301,14 @@ impl BuildSystem {
             let compiler_path = self.toolchain.compiler.clone();
             let source_clone = source_path.clone();
             let obj_path_clone = obj_path.clone();
-            let verbose_clone = self.logger.verbose;
             let toolchain_clone = self.toolchain.clone();
             let profile_config_clone = self.profile_config.clone();
             let package_config_clone = package_config.clone();
             let downloaded_deps_paths_clone = self.downloaded_deps_paths.clone();
             let dep_build_outputs_clone = self.dep_build_outputs.clone();
             let logger_clone = self.logger.clone();
+            
+            let is_verbose = self.logger.verbose;
 
             pool.execute(move || {
                 let args_for_thread = BuildSystem::build_compile_args_static(
@@ -319,7 +320,7 @@ impl BuildSystem {
                     &source_clone,
                     &obj_path_clone,
                 )
-                .expect("Failed to build compile args in thread");
+                .expect("Failed while building compile args in thread");
 
                 let result = <BuildSystem as ToolchainExecutor>::compile_with_args(
                     &compiler_path,
@@ -329,7 +330,7 @@ impl BuildSystem {
                     false,
                     &logger_clone,
                 );
-                if verbose_clone {
+                if is_verbose {
                     if let Ok(_) = &result {
                         logger_clone.log(
                             LogLevel::Custom("\x1b[32m"),
