@@ -380,7 +380,6 @@ impl ToolchainExecutor for BuildSystem {
                 }
             }
             OutputType::Executable => {
-                println!("exe");
                 return None;
             }
         };
