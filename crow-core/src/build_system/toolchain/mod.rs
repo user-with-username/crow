@@ -1,3 +1,6 @@
+mod flags;
+
+use self::flags::{CompilerFlavor, FlagsConverter};
 use super::*;
 use crate::cache::{BuildCache, CacheManager};
 use crate::config::OutputType;
@@ -16,6 +19,7 @@ pub trait ToolchainExecutor {
         incremental: bool,
         logger: &Logger,
     ) -> anyhow::Result<(PathBuf, u64)>;
+
     fn link_executable(&self, objects: &[PathBuf], output: &Path) -> anyhow::Result<()>;
     fn archive_static_library(&self, objects: &[PathBuf], output: &Path) -> anyhow::Result<()>;
     fn link_shared_library(&self, objects: &[PathBuf], output: &Path) -> anyhow::Result<()>;
@@ -35,8 +39,34 @@ impl ToolchainExecutor for BuildSystem {
         incremental: bool,
         logger: &Logger,
     ) -> anyhow::Result<(PathBuf, u64)> {
-        let mut cmd = Command::new(compiler);
-        cmd.args(args);
+        let compiler_path = if let Some(resolved) = BuildSystem::resolve_compiler(compiler) {
+            resolved
+        } else {
+            PathBuf::from(compiler)
+        };
+
+        let flavour = BuildSystem::detect_compiler_flavour(&compiler_path, logger);
+
+        let mut cmd = Command::new(&compiler_path);
+
+        // If compiler is MSVC-like - convert flags
+        if flavour == CompilerFlavor::MsvcLike {
+            let msvc_args = BuildSystem::convert_args_for_msvc(args, output);
+            cmd.args(&msvc_args);
+            if logger.verbose {
+                logger.log(
+                    LogLevel::Dim,
+                    &format!(
+                        "Using MSVC-like compiler `{}`, flags: {:?}",
+                        compiler_path.display(),
+                        msvc_args
+                    ),
+                    2,
+                );
+            }
+        } else {
+            cmd.args(args);
+        }
 
         cmd.stderr(Stdio::piped());
         cmd.stdout(Stdio::piped());
@@ -49,14 +79,14 @@ impl ToolchainExecutor for BuildSystem {
             logger.log(
                 LogLevel::Error,
                 &format!(
-                    "Compiler error for {}:\n{} {}",
+                    "Compilation error for {}:\n{} {}",
                     source.display(),
                     stdout_output,
                     stderr_output
                 ),
                 0,
             );
-            anyhow::bail!("Compiler error for {}", source.display());
+            anyhow::bail!("Compilation error for {}", source.display());
         } else if logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
@@ -162,10 +192,10 @@ impl ToolchainExecutor for BuildSystem {
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             self.logger.log(
                 LogLevel::Error,
-                &format!("Linking failed:\n{} {}", stdout_output, stderr_output),
+                &format!("Linking error:\n{} {}", stdout_output, stderr_output),
                 0,
             );
-            anyhow::bail!("Linking failed:\n{} {}", stdout_output, stderr_output);
+            anyhow::bail!("Linking error:\n{} {}", stdout_output, stderr_output);
         } else if self.logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
@@ -207,10 +237,10 @@ impl ToolchainExecutor for BuildSystem {
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
             self.logger.log(
                 LogLevel::Error,
-                &format!("Archiving failed:\n{} {}", stdout_output, stderr_output),
+                &format!("Archiving error:\n{} {}", stdout_output, stderr_output),
                 0,
             );
-            anyhow::bail!("Archiving failed:\n{} {}", stdout_output, stderr_output);
+            anyhow::bail!("Archiving error:\n{} {}", stdout_output, stderr_output);
         } else if self.logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
@@ -302,13 +332,13 @@ impl ToolchainExecutor for BuildSystem {
             self.logger.log(
                 LogLevel::Error,
                 &format!(
-                    "Linking shared library failed:\n{} {}",
+                    "Shared library linking error:\n{} {}",
                     stdout_output, stderr_output
                 ),
                 0,
             );
             anyhow::bail!(
-                "Linking shared library failed:\n{} {}",
+                "Shared library linking error:\n{} {}",
                 stdout_output,
                 stderr_output
             );
@@ -384,7 +414,7 @@ impl ToolchainExecutor for BuildSystem {
             }
         };
 
-        Self::find_library_file_recursive(dir, &patterns)
+        BuildSystem::find_library_file_recursive(dir, &patterns)
     }
 
     fn find_library_file_recursive(dir: &Path, patterns: &[String]) -> Option<PathBuf> {
@@ -408,7 +438,7 @@ impl ToolchainExecutor for BuildSystem {
                     {
                         continue;
                     }
-                    if let Some(found) = Self::find_library_file_recursive(&path, patterns) {
+                    if let Some(found) = BuildSystem::find_library_file_recursive(&path, patterns) {
                         return Some(found);
                     }
                 } else if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
