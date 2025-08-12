@@ -41,7 +41,7 @@ impl Environment {
         env::var_os("PATH")
     }
 
-    pub fn split_path_var(path_var: &OsString) -> env::SplitPaths {
+    pub fn split_path_var(path_var: &OsString) -> env::SplitPaths<'_> {
         env::split_paths(path_var)
     }
 
