@@ -123,7 +123,7 @@ jobs:
             COMMITS=$(git log --pretty=format:"- %s%n  %b" | sed '/^  $/d')
           else
             echo "Found version commit: $VERSION_COMMIT"
-            COMMITS=$(git log --pretty=format:"- %s%n  %b" $VERSION_COMMIT..HEAD | sed '/^  $/d')
+            COMMITS=$(git log --pretty=format:"- %s%n  %b" $VERSION_COMMIT^..HEAD | sed '/^  $/d')
           fi
 
           if [ -n "$COMMITS" ]; then
