@@ -1,3 +1,4 @@
+use crate::toolchain::toolchain_hooks::ToolchainHooks;
 use crate::toolchain::toolchain_override::ToolchainOverride;
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +11,7 @@ pub struct ToolchainConfig {
     pub linker_flags: Vec<String>,
     pub archiver: String,
     pub archiver_flags: Vec<String>,
-    pub hooks: Option<Vec<String>>,
+    pub hooks: ToolchainHooks,
 }
 
 impl ToolchainConfig {
@@ -39,12 +40,12 @@ impl ToolchainConfig {
     }
 
     fn find_default_compiler_and_linker() -> anyhow::Result<(String, String)> {
-        if std::process::Command::new("clang++")
+        if std::process::Command::new("clang")
             .arg("--version")
             .output()
             .is_ok()
         {
-            return Ok(("clang++".to_string(), "clang++".to_string()));
+            return Ok(("clang".to_string(), "clang".to_string()));
         }
         if std::process::Command::new("g++")
             .arg("--version")
@@ -74,7 +75,10 @@ impl ToolchainConfig {
                 .archiver_flags
                 .clone()
                 .unwrap_or(self.archiver_flags.clone()),
-            hooks: ov.hooks.clone().or(self.hooks.clone()),
+            hooks: ToolchainHooks {
+                pre_execute: ov.hooks.pre_execute.clone().or(self.hooks.pre_execute.clone()),
+                post_execute: ov.hooks.post_execute.clone().or(self.hooks.post_execute.clone()),
+            },
         }
     }
 }
@@ -90,7 +94,10 @@ impl Default for ToolchainConfig {
             linker_flags: ToolchainConfig::default_linker_flags(),
             archiver: ToolchainConfig::default_archiver(),
             archiver_flags: ToolchainConfig::default_archiver_flags(),
-            hooks: None,
+            hooks: ToolchainHooks {
+                pre_execute: None,
+                post_execute: None,
+            },
         }
     }
 }

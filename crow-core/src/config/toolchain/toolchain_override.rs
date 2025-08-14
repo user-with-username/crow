@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::ToolchainHooks;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
@@ -9,5 +10,5 @@ pub struct ToolchainOverride {
     pub linker_flags: Option<Vec<String>>,
     pub archiver: Option<String>,
     pub archiver_flags: Option<Vec<String>>,
-    pub hooks: Option<Vec<String>>,
+    pub hooks: ToolchainHooks,
 }

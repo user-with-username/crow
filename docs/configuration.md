@@ -42,7 +42,14 @@ lib_dirs = ["/usr/local/lib", "vendor/lib"]
 | `linker_flags` | string[] | `["-lstdc++"]` | Base linker flags |
 | `archiver` | string | `ar`/`lib.exe` | Static library archiver |
 | `archiver_flags` | string[] | Platform-specific | Archive creation flags |
-| `hooks` | string[] | `[]` | Pre-build commands |
+
+### Hooks Subtable
+The `[toolchain.hooks]` subtable defines commands to run before and after the configuration resolution phase, prior to compilation and linking.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `pre_execute` | string[] | `[]` | Commands to run before configuration resolution |
+| `post_execute` | string[] | `[]` | Commands to run after configuration resolution |
 
 ### Example
 ```toml
@@ -60,9 +67,15 @@ linker_flags = [
     "-Wl,--as-needed"
 ]
 archiver = "llvm-ar"
-hooks = [
-    "python scripts/generate_version.py",
-    "cmake -P generate_headers.cmake"
+
+[toolchain.hooks]
+pre_execute = [
+    "python scripts/pre_build_setup.py",
+    "echo Preparing build environment"
+]
+post_execute = [
+    "python scripts/post_build_cleanup.py",
+    "echo Build completed, cleaning up"
 ]
 ```
 
@@ -79,6 +92,14 @@ hooks = [
 | `flags` | string[] | `["-g"]` | `["-O3"]` |
 | `incremental` | bool | `true` | `false` |
 
+### Hooks Subtable
+The `[profiles.<name>.hooks]` subtable defines commands to run before and after the configuration resolution phase for a specific profile.
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `pre_execute` | string[] | `[]` | Commands to run before configuration resolution |
+| `post_execute` | string[] | `[]` | Commands to run after configuration resolution |
+
 ### Example
 ```toml
 [profiles]
@@ -94,6 +115,13 @@ flags = [
     "-fsanitize=address",
     "-D_GLIBCXX_DEBUG"
 ]
+[profiles.debug.hooks]
+pre_execute = [
+    "python scripts/setup_debug_logging.py"
+]
+post_execute = [
+    "echo Debug profile configured"
+]
 
 [profiles.release]
 opt_level = 3
@@ -104,6 +132,13 @@ flags = [
     "-march=native",
     "-flto=thin"
 ]
+[profiles.release.hooks]
+pre_execute = [
+    "echo Preparing release build"
+]
+post_execute = [
+    "echo Release profile configured"
+]
 
 [profiles.production]
 defines = [
@@ -111,8 +146,13 @@ defines = [
     "PRODUCTION",
     "DISABLE_LOGGING"
 ]
-hooks = [
-    "strip --strip-all ${OUTPUT}"
+[profiles.production.hooks]
+pre_execute = [
+    "python scripts/pre_production_setup.py"
+]
+post_execute = [
+    "strip --strip-all ${OUTPUT}",
+    "echo Production artifacts stripped"
 ]
 ```
 
@@ -157,7 +197,13 @@ opencv = { git = "https://github.com/opencv/opencv", build = { build_system = "c
 | `os_version` | OS version | `win10`, `ubuntu22.04` |
 
 ### Overridable Settings
-Any field from `[package]`, `[toolchain]`, or `[profiles]` can be overridden.
+Any field from `[package]`, `[toolchain]`, or `[profiles]` can be overridden. Additionally, a `[targets.<name>.hooks]` subtable can specify `pre_execute` and `post_execute` commands.
+
+### Hooks Subtable
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `pre_execute` | string[] | `[]` | Commands to run before configuration resolution |
+| `post_execute` | string[] | `[]` | Commands to run after configuration resolution |
 
 ### Example
 ```toml
@@ -166,7 +212,13 @@ os = "windows"
 compiler = "x86_64-w64-mingw32-g++"
 linker_flags = ["-static", "-lws2_32"]
 defines = ["WIN32_LEAN_AND_MEAN"]
-hooks = ["rc.exe /fo ${PROJECT}.res ${PROJECT}.rc"]
+[targets.windows.hooks]
+pre_execute = [
+    "rc.exe /fo ${PROJECT}.res ${PROJECT}.rc"
+]
+post_execute = [
+    "echo Windows configuration completed"
+]
 
 [targets.linux_server]
 os = "linux"
@@ -174,12 +226,26 @@ arch = "x86_64"
 os_version = "ubuntu22.04"
 compiler_flags = ["-march=x86-64-v3"]
 libs = ["rt", "dl"]
+[targets.linux_server.hooks]
+pre_execute = [
+    "echo Preparing Linux server build"
+]
+post_execute = [
+    "echo Linux server configuration completed"
+]
 
 [targets.macos_arm]
 os = "macos"
 arch = "arm64"
 linker_flags = ["-framework CoreFoundation"]
 output_type = "shared-lib"
+[targets.macos_arm.hooks]
+pre_execute = [
+    "python scripts/setup_macos_env.py"
+]
+post_execute = [
+    "echo macOS ARM configuration completed"
+]
 ```
 
 ---
@@ -200,15 +266,38 @@ lib_dirs = ["/usr/local/opt/openssl/lib"]
 compiler = "clang++"
 compiler_flags = ["-std=c++20", "-fcoroutines"]
 linker = "lld"
-hooks = ["python generate_protos.py"]
+
+[toolchain.hooks]
+pre_execute = [
+    "python scripts/pre_build_setup.py",
+    "echo Preparing build environment"
+]
+post_execute = [
+    "python scripts/post_build_cleanup.py",
+    "echo Build configuration completed"
+]
 
 [profiles.debug]
 defines = ["DEBUG_LOGGING"]
 flags = ["-g", "-fsanitize=thread"]
+[profiles.debug.hooks]
+pre_execute = [
+    "python scripts/setup_debug_logging.py"
+]
+post_execute = [
+    "echo Debug configuration completed"
+]
 
 [profiles.release]
 lto = true
 flags = ["-O3", "-march=native"]
+[profiles.release.hooks]
+pre_execute = [
+    "echo Preparing release build"
+]
+post_execute = [
+    "echo Release configuration completed"
+]
 
 [dependencies]
 asio = { git = "https://github.com/chriskohlhoff/asio" }
@@ -216,8 +305,22 @@ asio = { git = "https://github.com/chriskohlhoff/asio" }
 [targets.windows]
 compiler = "x86_64-w64-mingw32-g++"
 libs = ["ws2_32", "crypt32"]
+[targets.windows.hooks]
+pre_execute = [
+    "python scripts/setup_windows_env.py"
+]
+post_execute = [
+    "echo Windows configuration completed"
+]
 
 [targets.arm]
 arch = "arm64"
 compiler_flags = ["-march=armv8-a+simd"]
+[targets.arm.hooks]
+pre_execute = [
+    "python scripts/setup_arm_env.py"
+]
+post_execute = [
+    "echo ARM configuration completed"
+]
 ```

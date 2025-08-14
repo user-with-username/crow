@@ -15,8 +15,11 @@ linker_flags = [
     "-Wl,--as-needed"
 ]
 archiver = "g++"
-hooks = [
-    "python scripts/do_something_very_useful.py"
+
+[toolchain.hooks]
+pre_execute = [ "python scripts/do_something_very_useful.py" ]
+post_execute = [
+    "echo 'Done!'"
 ]
 
 [dependencies]

@@ -76,6 +76,7 @@ impl BuildSystem {
 
         toolchain
             .hooks
+            .pre_execute
             .as_ref()
             .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
             .transpose()?;
@@ -109,6 +110,7 @@ impl BuildSystem {
             .map(|target_override| -> anyhow::Result<()> {
                 target_override
                     .hooks
+                    .pre_execute
                     .as_ref()
                     .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
                     .transpose()?;
@@ -119,6 +121,7 @@ impl BuildSystem {
                     .map(|toolchain_override| -> anyhow::Result<()> {
                         toolchain_override
                             .hooks
+                            .pre_execute
                             .as_ref()
                             .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
                             .transpose()?;
@@ -147,6 +150,13 @@ impl BuildSystem {
                             .archiver_flags
                             .as_ref()
                             .map(|flags| toolchain.archiver_flags.clone_from(flags));
+
+                        toolchain_override
+                            .hooks
+                            .post_execute
+                            .as_ref()
+                            .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
+                            .transpose()?;
 
                         Ok::<(), anyhow::Error>(())
                     })
@@ -193,8 +203,22 @@ impl BuildSystem {
                     .incremental
                     .map(|inc| profile_config.incremental = inc);
 
+                target_override
+                    .hooks
+                    .post_execute
+                    .as_ref()
+                    .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
+                    .transpose()?;
+
                 Ok::<(), anyhow::Error>(())
             })
+            .transpose()?;
+
+        toolchain
+            .hooks
+            .post_execute
+            .as_ref()
+            .map(|hooks| Executor::execute_hooks(hooks, logger.clone()))
             .transpose()?;
 
         if logger.verbose && best_target_overrides.is_none() {
@@ -383,6 +407,7 @@ impl BuildSystem {
             .for_each(|f| args.push(f.into()));
         if profile.lto {
             args.push("-flto".into());
+            args.push("-fuse-ld=lld".into());
         }
         profile.flags.iter().for_each(|f| args.push(f.into()));
         profile
@@ -533,8 +558,8 @@ impl BuildSystem {
                 .arg(format!("-DCMAKE_CXX_COMPILER={}", &toolchain.compiler))
                 .arg(format!("-DCMAKE_CXX_FLAGS={}", cxx_flags_str))
                 .arg("-DCMAKE_DEBUG_POSTFIX=")
-                .arg("-DFMT_DEBUG_POSTFIX=")
                 .arg("-DBUILD_TESTING=OFF")
+                .arg("-DCMAKE_MSVC_RUNTIME_LIBRARY='MultiThreaded'")
                 .arg("-DCMAKE_DISABLE_TESTING=ON");
 
             for opt in cmake_options {

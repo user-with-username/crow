@@ -190,11 +190,6 @@ impl ToolchainExecutor for BuildSystem {
         if !output_res.status.success() {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
-            self.logger.log(
-                LogLevel::Error,
-                &format!("Linking error:\n{} {}", stdout_output, stderr_output),
-                0,
-            );
             anyhow::bail!("Linking error:\n{} {}", stdout_output, stderr_output);
         } else if self.logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
@@ -235,11 +230,6 @@ impl ToolchainExecutor for BuildSystem {
         if !output_res.status.success() {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);
             let stderr_output = String::from_utf8_lossy(&output_res.stderr);
-            self.logger.log(
-                LogLevel::Error,
-                &format!("Archiving error:\n{} {}", stdout_output, stderr_output),
-                0,
-            );
             anyhow::bail!("Archiving error:\n{} {}", stdout_output, stderr_output);
         } else if self.logger.verbose {
             let stdout_output = String::from_utf8_lossy(&output_res.stdout);

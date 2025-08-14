@@ -66,7 +66,7 @@ impl FlagsConverter for BuildSystem {
             if let Some(fname) = fname_os.to_str() {
                 let f = fname.to_lowercase();
 
-                if f.contains("clang-cl") || f == "cl.exe" {
+                if f.contains("clang-cl") || f == "cl.exe" || f == "clang++" {
                     logger.log(
                         LogLevel::Dim,
                         &format!("Detected MSVC-like flavor ('{}')", f),
@@ -151,6 +151,7 @@ impl FlagsConverter for BuildSystem {
                 }
             } else if s == "-flto" {
                 out.push(OsString::from("/GL"));
+                out.push(OsString::from("-fuse-ld=lld"));
             } else {
                 out.push(arg.clone());
             }

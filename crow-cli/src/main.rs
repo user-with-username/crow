@@ -6,7 +6,7 @@ use crow_utils::logger::{LogLevel, Logger};
 mod commands;
 
 #[derive(Parser)]
-#[command(name = "crow", version = "0.1.4")]
+#[command(name = "crow", version = "0.1.5")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
