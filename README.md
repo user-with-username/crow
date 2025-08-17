@@ -36,7 +36,7 @@ crow init my_project && cd my_project
 
 ### Run
 ```bash
-crow --profile release
+crow run --profile release
 ```
 
 ---
