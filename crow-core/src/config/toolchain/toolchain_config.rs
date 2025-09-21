@@ -76,8 +76,16 @@ impl ToolchainConfig {
                 .clone()
                 .unwrap_or(self.archiver_flags.clone()),
             hooks: ToolchainHooks {
-                pre_execute: ov.hooks.pre_execute.clone().or(self.hooks.pre_execute.clone()),
-                post_execute: ov.hooks.post_execute.clone().or(self.hooks.post_execute.clone()),
+                pre_execute: ov
+                    .hooks
+                    .pre_execute
+                    .clone()
+                    .or(self.hooks.pre_execute.clone()),
+                post_execute: ov
+                    .hooks
+                    .post_execute
+                    .clone()
+                    .or(self.hooks.post_execute.clone()),
             },
         }
     }

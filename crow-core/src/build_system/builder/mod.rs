@@ -56,6 +56,63 @@ impl BuildSystem {
         })
     }
 
+    pub fn build_target(&self, target_name: &str, jobs: Option<usize>) -> anyhow::Result<PathBuf> {
+        let target =
+            self.config.targets.get(target_name).ok_or_else(|| {
+                anyhow::anyhow!("Target '{}' not found in crow.toml", target_name)
+            })?;
+
+        let target_name_to_use = target.name.as_deref().unwrap_or(target_name);
+
+        let output_type = target
+            .output_type
+            .as_ref()
+            .unwrap_or(&self.package_config.output_type)
+            .clone();
+
+        let sources = target
+            .sources
+            .as_ref()
+            .unwrap_or(&self.package_config.sources)
+            .clone();
+
+        let includes = target
+            .includes
+            .as_ref()
+            .unwrap_or(&self.package_config.includes)
+            .clone();
+
+        let libs = target
+            .libs
+            .as_ref()
+            .unwrap_or(&self.package_config.libs)
+            .clone();
+
+        let lib_dirs = target
+            .lib_dirs
+            .as_ref()
+            .unwrap_or(&self.package_config.lib_dirs)
+            .clone();
+
+        let target_pkg = PackageConfig {
+            name: target_name_to_use.to_string(),
+            version: "0.1.0".to_string(),
+            output_type,
+            sources,
+            includes,
+            libs,
+            lib_dirs,
+        };
+
+        self.logger.log(
+            LogLevel::Info,
+            &format!("Building target '{}'...", target_name),
+            1,
+        );
+
+        let build_output = self.build_internal(jobs, Some(&target_pkg))?;
+        Ok(build_output.library_path)
+    }
     pub fn resolve_config(
         config: &Config,
         profile_name: &str,

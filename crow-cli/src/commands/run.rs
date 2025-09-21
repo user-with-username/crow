@@ -12,6 +12,7 @@ pub trait ProjectRunner {
         jobs: Option<usize>,
         verbose: bool,
         global_deps: bool,
+        target: Option<&str>,
         logger: &Logger,
     ) -> anyhow::Result<()>;
 }
@@ -36,6 +37,9 @@ pub struct RunCommand {
     /// Suppress output
     #[arg(short, long, default_value_t = false)]
     pub quiet: bool,
+    /// Run specific target (binary name)
+    #[arg(long)]
+    pub target: Option<String>,
 }
 
 impl ProjectRunner for RunCommand {
@@ -46,6 +50,7 @@ impl ProjectRunner for RunCommand {
         jobs: Option<usize>,
         verbose: bool,
         global_deps: bool,
+        target: Option<&str>,
         logger: &Logger,
     ) -> Result<()> {
         let mut logger = logger.clone();
@@ -58,8 +63,9 @@ impl ProjectRunner for RunCommand {
                 verbose,
                 global_deps,
                 quiet: self.quiet,
+                target: target.map(|s| s.to_string()),
             }
-            .build_project(profile, jobs, verbose, global_deps, &logger)?
+            .build_project(profile, jobs, verbose, global_deps, target, &logger)?
         } else {
             let config = Config::load("crow.toml")?;
             let (package_config, _, _) = crow_core::build_system::BuildSystem::resolve_config(
@@ -67,7 +73,15 @@ impl ProjectRunner for RunCommand {
                 profile,
                 logger.clone(),
             )?;
-            let exe_name = package_config.name;
+
+            let exe_name = if let Some(t) = target {
+                // Если указан таргет, используем его имя
+                t.to_string()
+            } else {
+                // Иначе используем имя пакета
+                package_config.name
+            };
+
             let path = Environment::build_dir().join(profile).join(&exe_name);
             if !path.exists() {
                 anyhow::bail!("Executable not found at '{}'. Run `crow build --profile {}` first or remove --no-build.", path.display(), profile);
@@ -95,6 +109,7 @@ impl Command for RunCommand {
             self.jobs,
             self.verbose,
             global_deps,
+            self.target.as_deref(),
             logger,
         )
     }

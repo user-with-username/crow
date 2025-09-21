@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
-use crate::ToolchainOverride;
 use crate::ToolchainHooks;
+use crate::ToolchainOverride;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]

@@ -2,24 +2,6 @@
 name = "project_with_targets"
 version = "0.1.0"
 
-[targets.windows]
-os = "windows"
-compiler = "x86_64-w64-mingw32-g++"
-linker_flags = ["-static", "-lws2_32"]
-defines = ["WIN32_LEAN_AND_MEAN"]
-hooks = ["rc.exe /fo ${PROJECT}.res ${PROJECT}.rc"]
-
-[targets.linux]
-os = "linux"
-arch = "x86_64"
-os_version = "ubuntu22.04"
-compiler_flags = ["-march=x86-64-v3"]
-libs = ["rt", "dl"]
-
-[targets.macos]
-os = "macos"
-arch = "arm64"
-linker_flags = ["-framework CoreFoundation"]
-output_type = "shared-lib"
+[targets.main_app]
 
 [dependencies]
