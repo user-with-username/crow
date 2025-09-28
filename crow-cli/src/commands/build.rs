@@ -63,7 +63,6 @@ impl ProjectBuilder for BuildCommand {
             logger.clone(),
         )?;
 
-        // Если указан конкретный таргет, собираем его
         if let Some(t) = target {
             build_system.build_target(t, jobs)
         } else {
