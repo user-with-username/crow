@@ -75,10 +75,8 @@ impl ProjectRunner for RunCommand {
             )?;
 
             let exe_name = if let Some(t) = target {
-                // Если указан таргет, используем его имя
                 t.to_string()
             } else {
-                // Иначе используем имя пакета
                 package_config.name
             };
 
