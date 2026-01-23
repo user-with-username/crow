@@ -44,7 +44,6 @@ impl BuildCommand {
         let config = CrowConfig::load()?;
         let project = Project::new(config, self.args.release)?;
 
-        // ===== compiler detect =====
         let compiler_kind = CompilerKind::detect(&project.config.build.compiler);
         let compiler_exe = project
             .config
@@ -53,7 +52,6 @@ impl BuildCommand {
             .clone()
             .unwrap_or_else(|| compiler_kind.default_executable().to_string());
 
-        // ===== cargo-like status =====
         status!(
             "Compiling",
             "{} v{} ({})",
@@ -64,15 +62,12 @@ impl BuildCommand {
 
         let start = Instant::now();
 
-        // ===== compilation =====
         let objects =
-            CompilationBuilder::new(compiler_kind, &compiler_exe, &project, self.args.verbose)
+            CompilationBuilder::new(&compiler_exe, &project, self.args.verbose)
                 .compile()?;
 
-        // ===== linking =====
         LinkingBuilder::new(&compiler_exe, &project, &objects, self.args.verbose).link()?;
 
-        // ===== finished =====
         let duration = start.elapsed();
         let profile_name = if self.args.release { "release" } else { "dev" };
         let opt_level = if self.args.release {

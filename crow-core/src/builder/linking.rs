@@ -25,16 +25,34 @@ impl<'a> LinkingBuilder<'a> {
     }
 
     pub fn link(&self) -> Result<()> {
-        let profile = self.project.get_profile();
-        let flags = Flags::new(profile, &self.project.config.build, self.project.compiler_kind());
-        let output = self.project.output_path();
+        let mut flags = Flags::new();
+        
+        flags.output_file(self.project.output_path().to_string_lossy().to_string());
+        
+        let config = &self.project.config;
+        let build = &config.build;
+        
+        for raw_flag in &build.flags {
+            flags.add_raw(raw_flag);
+        }
+        
+        for lib in &build.libs {
+            flags.link_library(lib);
+        }
 
+        for dir in &build.lib_dirs {
+            flags.library_path(dir.to_string_lossy().to_string());
+        }
+        
+        let args = flags.build();
+        
         let mut cmd = Command::new(self.compiler_exe);
-        cmd.args(flags.link_flags())
-           .args(self.objects)
-           .arg("-o")
-           .arg(&output);
-
+        cmd.args(&args);
+        
+        for obj in self.objects {
+            cmd.arg(obj.to_string_lossy().to_string());
+        }
+        
         if self.verbose > 1 {
             crow_utils::status!("Command", "{:?}", cmd);
         }
