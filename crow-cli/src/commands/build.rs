@@ -1,8 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use crow_core::{
-    builder::{CompilationBuilder, LinkingBuilder},
-    compiler_kind::CompilerKind,
+    builder::{CompilationBuilder, LinkingBuilder, CompilerKind},
     CrowConfig, Project,
 };
 use crow_utils::status;
@@ -62,9 +61,7 @@ impl BuildCommand {
 
         let start = Instant::now();
 
-        let objects =
-            CompilationBuilder::new(&compiler_exe, &project, self.args.verbose)
-                .compile()?;
+        let objects = CompilationBuilder::new(&compiler_exe, &project).compile()?;
 
         LinkingBuilder::new(&compiler_exe, &project, &objects, self.args.verbose).link()?;
 

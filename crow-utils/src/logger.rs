@@ -17,7 +17,9 @@ impl Logger {
     }
 
     pub fn status(&self, status: &str, msg: &str) {
-        if self.quiet { return; }
+        if self.quiet {
+            return;
+        }
         println!("\x1b[1;92m{:>12}\x1b[0m {}", status, msg);
     }
 

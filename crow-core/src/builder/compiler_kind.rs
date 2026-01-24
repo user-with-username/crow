@@ -14,8 +14,7 @@ impl CompilerKind {
         let exe = preferred.as_deref().unwrap_or("g++");
 
         if let Ok(out) = Command::new(exe).output() {
-            let info = String::from_utf8_lossy(&out.stdout)
-                + String::from_utf8_lossy(&out.stderr);
+            let info = String::from_utf8_lossy(&out.stdout) + String::from_utf8_lossy(&out.stderr);
             if info.contains("Microsoft (R) C/C++") {
                 return Self::Msvc;
             }
@@ -28,10 +27,18 @@ impl CompilerKind {
         {
             let stdout = String::from_utf8_lossy(&out.stdout);
             if stdout.contains("__clang__") {
-                return if exe.contains("++") { Self::ClangPP } else { Self::Clang };
+                return if exe.contains("++") {
+                    Self::ClangPP
+                } else {
+                    Self::Clang
+                };
             }
             if stdout.contains("__GNUC__") {
-                return if exe.contains("++") { Self::Gpp } else { Self::Gcc };
+                return if exe.contains("++") {
+                    Self::Gpp
+                } else {
+                    Self::Gcc
+                };
             }
         }
 

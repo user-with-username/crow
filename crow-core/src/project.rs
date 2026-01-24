@@ -11,10 +11,13 @@ pub struct Project {
 
 impl Project {
     pub fn new(config: CrowConfig, release: bool) -> anyhow::Result<Self> {
-        let root = std::env::current_dir()
-            .context("failed to get current directory")?;
-        
-        Ok(Self { config, root, release })
+        let root = std::env::current_dir().context("failed to get current directory")?;
+
+        Ok(Self {
+            config,
+            root,
+            release,
+        })
     }
 
     pub fn find_sources(&self) -> Vec<PathBuf> {
@@ -22,8 +25,9 @@ impl Project {
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|entry| {
-                entry.path().extension()
-                    .map_or(false, |ext| matches!(ext.to_str(), Some("cpp" | "c" | "cc")))
+                entry.path().extension().map_or(false, |ext| {
+                    matches!(ext.to_str(), Some("cpp" | "c" | "cc"))
+                })
             })
             .map(|entry| entry.path().to_path_buf())
             .collect()
@@ -34,7 +38,8 @@ impl Project {
     }
 
     pub fn profile_dir(&self) -> PathBuf {
-        self.target_dir().join(if self.release { "release" } else { "debug" })
+        self.target_dir()
+            .join(if self.release { "release" } else { "debug" })
     }
 
     pub fn build_dir(&self) -> PathBuf {
@@ -62,17 +67,14 @@ impl Project {
     }
 
     pub fn create_dirs(&self) -> Result<(), std::io::Error> {
-        let dirs = vec![
-            self.target_dir(),
-            self.profile_dir(),
-        ];
-        
+        let dirs = vec![self.target_dir(), self.profile_dir()];
+
         for dir in dirs {
             if !dir.exists() {
                 std::fs::create_dir_all(&dir)?;
             }
         }
-        
+
         Ok(())
     }
 
@@ -84,7 +86,7 @@ impl Project {
         Ok(())
     }
 
-    pub fn compiler_kind(&self) -> crate::compiler_kind::CompilerKind {
-        crate::compiler_kind::CompilerKind::detect(&self.config.build.compiler)
+    pub fn compiler_kind(&self) -> crate::builder::CompilerKind {
+        crate::builder::CompilerKind::detect(&self.config.build.compiler)
     }
 }
