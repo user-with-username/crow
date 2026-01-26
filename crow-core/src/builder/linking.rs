@@ -7,7 +7,6 @@ pub struct LinkingBuilder<'a> {
     compiler_exe: &'a str,
     project: &'a Project,
     objects: &'a [ObjectFilePath],
-    verbose: u8,
 }
 
 impl<'a> LinkingBuilder<'a> {
@@ -15,13 +14,11 @@ impl<'a> LinkingBuilder<'a> {
         compiler_exe: &'a str,
         project: &'a Project,
         objects: &'a [ObjectFilePath],
-        verbose: u8,
     ) -> Self {
         Self {
             compiler_exe,
             project,
             objects,
-            verbose,
         }
     }
 
@@ -66,10 +63,6 @@ impl<'a> LinkingBuilder<'a> {
 
         for obj in self.objects {
             cmd.arg(obj.as_path());
-        }
-
-        if self.verbose > 1 {
-            crow_utils::status!("Linking command", "{:?}", cmd);
         }
 
         let status = cmd.status().context("failed to execute linker")?;

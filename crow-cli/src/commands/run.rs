@@ -13,10 +13,6 @@ pub struct RunArgs {
     /// Arguments to pass to the executable
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
-
-    /// Verbose output
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    pub verbose: u8,
 }
 
 pub struct RunCommand {
@@ -34,7 +30,6 @@ impl RunCommand {
             target: None,
             jobs: None,
             bin: None,
-            verbose: self.args.verbose,
         };
 
         crate::commands::build::BuildCommand::new(build_args).execute()?;

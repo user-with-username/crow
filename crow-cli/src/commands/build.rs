@@ -24,10 +24,6 @@ pub struct BuildArgs {
     /// Specific binary to build
     #[arg(long)]
     pub bin: Option<String>,
-
-    /// Verbose output
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    pub verbose: u8,
 }
 
 pub struct BuildCommand {
@@ -63,7 +59,7 @@ impl BuildCommand {
 
         let objects = CompilationBuilder::new(&compiler_exe, &project).compile()?;
 
-        LinkingBuilder::new(&compiler_exe, &project, &objects, self.args.verbose).link()?;
+        LinkingBuilder::new(&compiler_exe, &project, &objects).link()?;
 
         let duration = start.elapsed();
         let profile_name = if self.args.release { "release" } else { "dev" };
