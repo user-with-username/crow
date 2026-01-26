@@ -1,10 +1,10 @@
 use crate::builder::{
-    paths::ObjectFileNaming,
-    incremental::CacheEntry,
-    paths::{ObjectFilePath, SourceFilePath},
     flags::Flags,
+    incremental::CacheEntry,
+    paths::ObjectFileNaming,
+    paths::{ObjectFilePath, SourceFilePath},
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::{
     path::{Path, PathBuf},
     process::Command,
@@ -24,40 +24,59 @@ impl SourceCompilationTask {
         compiler_exe: &str,
         build_config: &crate::config::BuildConfig,
         deps_dir: &Path,
-        release: bool,
+        project: &crate::project::Project,
     ) -> Result<Self> {
-        let mut flags = Flags::new();
+        let compiler_kind = project.compiler_kind();
+
+        let mut flags = Flags::new(compiler_kind);
+
         flags.compile_only();
 
+        flags.setup_standard_flags(project.release);
+
         for inc in &build_config.include_dirs {
-            flags.include_path(inc.to_string_lossy().into_owned());
+            let inc_path = inc.to_string_lossy();
+            flags.include_path(inc_path.into_owned());
         }
 
         for raw_flag in &build_config.flags {
             flags.add_raw(raw_flag.clone());
         }
 
-        let dep_file = deps_dir.join(
-            source
-                .as_path()
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-                + ".d",
-        );
+        let source_file_stem = source
+            .as_path()
+            .file_stem()
+            .context("Invalid file name")?
+            .to_string_lossy();
 
+        let dep_file = deps_dir.join(format!("{}.d", source_file_stem));
         flags.dependency_info(dep_file.to_string_lossy().into_owned());
 
-        let object_path =
-            ObjectFileNaming::generate(deps_dir, source, None, release);
+        let obj_dir = if deps_dir.ends_with("deps") {
+            deps_dir.parent().unwrap_or(deps_dir)
+        } else {
+            deps_dir
+        };
 
-        flags.object_output(object_path.to_string_lossy().into_owned());
+        let object_path = ObjectFileNaming::generate(obj_dir, source, compiler_kind);
+
+        flags.object_output(object_path.to_string_lossy().replace("\\", "/"));
+
+        if compiler_kind.is_msvc() {
+            let pdb_dir = obj_dir.join("pdb");
+            std::fs::create_dir_all(&pdb_dir)?;
+            let pdb_path = pdb_dir.join(format!("{}.pdb", source_file_stem));
+            flags.program_database(pdb_path.to_string_lossy().replace("\\", "/"));
+        }
 
         let mut cmd = Command::new(compiler_exe);
-        cmd.args(flags.build());
-        cmd.arg(source.as_path());
 
+        let mut all_args = flags.build();
+
+        let source_path = source.as_path().to_string_lossy().replace("\\", "/");
+        all_args.push(source_path.clone());
+
+        cmd.args(&all_args);
         Ok(Self {
             source: source.clone(),
             object: ObjectFilePath(object_path),

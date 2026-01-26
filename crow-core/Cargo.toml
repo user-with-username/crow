@@ -14,3 +14,5 @@ serde_json = "1.0.149"
 blake3 = "1.8.3"
 hex = "0.4.3"
 seahash = "4.1.0"
+indicatif = { version = "0.18.3" }
+colored = "3.1.1"

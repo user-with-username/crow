@@ -13,7 +13,11 @@ pub struct IncrementalManager {
 impl IncrementalManager {
     pub fn new(cache_path: &Path, is_release: bool) -> Self {
         let cache = IncrementalCache::load_or_default(cache_path);
-        Self { cache, path: cache_path.to_path_buf(), is_release }
+        Self {
+            cache,
+            path: cache_path.to_path_buf(),
+            is_release,
+        }
     }
 
     pub fn should_compile(
@@ -22,21 +26,25 @@ impl IncrementalManager {
         hash: &Option<String>,
         obj: &ObjectFilePath,
     ) -> bool {
-        if self.is_release { return true; }
+        if self.is_release {
+            return true;
+        }
 
         let key = Self::normalize_path(src.as_path());
         match (self.cache.files.get(&key), hash) {
             (None, _) | (_, None) => true,
             (Some(entry), Some(current_hash)) => {
-                current_hash != &entry.hash || 
-                !obj.exists() || 
-                Self::normalize_path(obj.as_path()) != Self::normalize_path(&entry.object)
+                current_hash != &entry.hash
+                    || !obj.exists()
+                    || Self::normalize_path(obj.as_path()) != Self::normalize_path(&entry.object)
             }
         }
     }
 
     pub fn record_success(&mut self, src: &SourceFilePath, entry: CacheEntry) {
-        if self.is_release { return; }
+        if self.is_release {
+            return;
+        }
         let key = Self::normalize_path(src.as_path());
         self.cache.files.insert(key, entry);
     }

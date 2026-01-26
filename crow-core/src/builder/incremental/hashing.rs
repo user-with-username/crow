@@ -1,5 +1,8 @@
 use blake3::Hasher;
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub fn hash_source(
     src: &Path,
@@ -9,18 +12,14 @@ pub fn hash_source(
 ) -> anyhow::Result<String> {
     let mut hasher = Hasher::new();
 
-    // compiler identity
     hasher.update(compiler.as_bytes());
 
-    // flags
     for f in flags {
         hasher.update(f.as_bytes());
     }
 
-    // source
     hasher.update(&fs::read(src)?);
 
-    // headers (sorted for stability)
     let mut headers = headers.to_vec();
     headers.sort();
 

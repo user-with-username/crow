@@ -1,5 +1,5 @@
-pub mod source;
 pub mod include;
+pub mod source;
 
-pub use source::SourceCompilationTask;
 pub use include::IncludeTask;
+pub use source::SourceCompilationTask;

@@ -1,6 +1,7 @@
 [package]
-name = "kek"
+name = "test_rust_proj"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+cranelift = "0.128.0"

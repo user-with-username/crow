@@ -60,47 +60,6 @@ fn default_include_dirs() -> Vec<PathBuf> {
     vec![PathBuf::from("include")]
 }
 
-impl Profile {
-    pub fn flags(&self) -> Vec<String> {
-        let mut flags = Vec::new();
-
-        match self.opt_level.as_str() {
-            "0" => {}
-            "1" => flags.push("-O1".to_string()),
-            "2" => flags.push("-O2".to_string()),
-            "3" => flags.push("-O3".to_string()),
-            "s" | "z" => flags.push(format!("-O{}", self.opt_level)),
-            _ => flags.push(format!("-O{}", self.opt_level)),
-        }
-
-        if self.debug {
-            flags.push("-g".to_string());
-        }
-
-        if self.lto {
-            flags.push("-flto".to_string());
-        }
-
-        flags
-    }
-
-    pub fn description(&self) -> String {
-        let opt_desc = match self.opt_level.as_str() {
-            "0" => "unoptimized",
-            "s" | "z" => "optimized for size",
-            _ => "optimized",
-        };
-
-        let debug_desc = if self.debug { "+ debuginfo" } else { "" };
-
-        if debug_desc.is_empty() {
-            format!("[{}]", opt_desc)
-        } else {
-            format!("[{} {}]", opt_desc, debug_desc)
-        }
-    }
-}
-
 impl CrowConfig {
     pub fn load() -> anyhow::Result<Self> {
         use anyhow::Context;

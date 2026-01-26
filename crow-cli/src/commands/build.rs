@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use crow_core::{
-    builder::{CompilationBuilder, LinkingBuilder, CompilerKind},
+    builder::{CompilationBuilder, CompilerKind, LinkingBuilder},
     CrowConfig, Project,
 };
 use crow_utils::status;
@@ -75,7 +75,7 @@ impl BuildCommand {
 
         status!(
             "Finished",
-            "`{}` profile [{}] in {:.2}s",
+            "`{}` profile [{}] target(s) in {:.2}s",
             profile_name,
             opt_level,
             duration.as_secs_f32()

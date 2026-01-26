@@ -1,5 +1,5 @@
+use crate::builder::{compiler_kind::CompilerKind, paths::SourceFilePath};
 use std::path::{Path, PathBuf};
-use crate::builder::paths::SourceFilePath;
 
 #[derive(Debug, Clone)]
 pub struct ObjectFilePath(pub PathBuf);
@@ -13,23 +13,20 @@ impl ObjectFilePath {
         self.0.exists()
     }
 }
+
 pub struct ObjectFileNaming;
 
 impl ObjectFileNaming {
     pub fn generate(
         deps_dir: &Path,
         source: &SourceFilePath,
-        hash: Option<&str>,
-        release: bool,
+        compiler_kind: CompilerKind,
     ) -> PathBuf {
         let stem = source.stem().unwrap_or_else(|| "unknown".to_string());
 
-        let filename = if release {
-            format!("{}.o", stem)
-        } else {
-            let short_hash = hash.map_or("nohash".to_string(), |h| h.chars().take(8).collect());
-            format!("{}-{}.o", stem, short_hash)
-        };
+        let extension = if compiler_kind.is_msvc() { "obj" } else { "o" };
+
+        let filename = format!("{}.{}", stem, extension);
 
         deps_dir.join(filename)
     }

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct IncludeTask {

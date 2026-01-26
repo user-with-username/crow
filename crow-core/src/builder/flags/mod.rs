@@ -1,4 +1,5 @@
 use crate::builder::compiler_kind::CompilerKind;
+use crow_utils::{fix_msvc_path, normalize_path};
 
 #[derive(Debug, Clone)]
 pub enum Flag {
@@ -41,10 +42,20 @@ pub enum Flag {
 
     NoLogo,
     MultiThreadedDLL,
+    MultiThreadedDLLDebug,
     ExceptionHandling,
 
     MachineDependent(String),
     FeatureFlag(String),
+
+    ShowIncludes,
+    SourceDependencies(String),
+
+    ProgramDatabase(String),
+    LinkProgramDatabase(String),
+    DebugType(String),
+
+    Raw(String),
 }
 
 #[derive(Debug, Clone)]
@@ -54,11 +65,70 @@ pub struct Flags {
 }
 
 impl Flags {
-    pub fn new() -> Self {
+    pub fn new(compiler_kind: CompilerKind) -> Self {
         Self {
-            compiler_kind: CompilerKind::detect(&None),
+            compiler_kind,
             flags: Vec::new(),
         }
+    }
+
+    pub fn setup_standard_flags(&mut self, release: bool) -> &mut Self {
+        let is_msvc = self.compiler_kind.is_msvc();
+
+        if is_msvc {
+            self.no_logo();
+            self.exception_handling();
+            self.all_warnings();
+
+            self.define("WIN32", None::<String>);
+            self.define("_WINDOWS", None::<String>);
+
+            if release {
+                self.optimization_level(2);
+                self.define("NDEBUG", None::<String>);
+                self.multi_threaded_dll();
+                self.debug_type("Zi".to_string());
+            } else {
+                self.debug_info();
+                self.no_optimization();
+                self.define("_DEBUG", None::<String>);
+                self.multi_threaded_dll_debug();
+                self.debug_type("Zi".to_string());
+            }
+        } else {
+            if release {
+                self.optimization_level(2);
+            } else {
+                self.debug_info();
+                self.no_optimization();
+            }
+        }
+
+        self
+    }
+
+    pub fn program_database(&mut self, pdb_path: impl Into<String>) -> &mut Self {
+        self.flags.push(Flag::ProgramDatabase(pdb_path.into()));
+        self
+    }
+
+    pub fn link_program_database(&mut self, pdb_path: impl Into<String>) -> &mut Self {
+        self.flags.push(Flag::LinkProgramDatabase(pdb_path.into()));
+        self
+    }
+
+    pub fn debug_type(&mut self, debug_type: impl Into<String>) -> &mut Self {
+        self.flags.push(Flag::DebugType(debug_type.into()));
+        self
+    }
+
+    pub fn with_compiler(mut self, compiler_kind: CompilerKind) -> Self {
+        self.compiler_kind = compiler_kind;
+        self
+    }
+
+    pub fn get_compiler_kind(&self) -> &CompilerKind {
+        &self.compiler_kind
     }
 
     pub fn optimization_level(&mut self, level: u8) -> &mut Self {
@@ -152,7 +222,23 @@ impl Flags {
     }
 
     pub fn dependency_info(&mut self, dep_file: impl Into<String>) -> &mut Self {
-        self.flags.push(Flag::DependencyInfo(dep_file.into()));
+        let dep_file = dep_file.into();
+        if self.compiler_kind.is_msvc() {
+            self.show_includes();
+            self.flags.push(Flag::SourceDependencies(dep_file));
+        } else {
+            self.flags.push(Flag::DependencyInfo(dep_file));
+        }
+        self
+    }
+
+    pub fn show_includes(&mut self) -> &mut Self {
+        self.flags.push(Flag::ShowIncludes);
+        self
+    }
+
+    pub fn source_dependencies(&mut self, dep_file: impl Into<String>) -> &mut Self {
+        self.flags.push(Flag::SourceDependencies(dep_file.into()));
         self
     }
 
@@ -167,7 +253,13 @@ impl Flags {
     }
 
     pub fn object_output(&mut self, path: impl Into<String>) -> &mut Self {
-        self.flags.push(Flag::ObjectOutput(path.into()));
+        let mut path = path.into();
+        if self.compiler_kind.is_msvc() {
+            if path.ends_with(".o") {
+                path = path.replacen(".o", ".obj", 1);
+            }
+        }
+        self.flags.push(Flag::ObjectOutput(path));
         self
     }
 
@@ -211,6 +303,11 @@ impl Flags {
         self
     }
 
+    pub fn multi_threaded_dll_debug(&mut self) -> &mut Self {
+        self.flags.push(Flag::MultiThreadedDLLDebug);
+        self
+    }
+
     pub fn exception_handling(&mut self) -> &mut Self {
         self.flags.push(Flag::ExceptionHandling);
         self
@@ -221,21 +318,37 @@ impl Flags {
         if let Some(parsed) = Self::parse_raw(flag_str) {
             self.flags.push(parsed);
         } else {
-            self.flags
-                .push(Flag::MachineDependent(flag_str.to_string()));
+            self.flags.push(Flag::Raw(flag_str.to_string()));
         }
         self
     }
 
     pub fn build(&self) -> Vec<String> {
-        self.flags
+        let mut flags: Vec<String> = self
+            .flags
             .iter()
             .flat_map(|f| Self::convert_flag(f, &self.compiler_kind))
-            .collect()
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        if self.compiler_kind.is_msvc() {
+            if let Some(pos) = flags.iter().position(|f| f == "/c") {
+                if pos != 0 {
+                    let c_flag = flags.remove(pos);
+                    flags.insert(0, c_flag);
+                }
+            }
+        }
+
+        flags
     }
 
     fn parse_raw(flag: &str) -> Option<Flag> {
         let flag = flag.trim();
+
+        if flag == "-o" || flag == "/Fe" || flag == "/Fo" || flag == "/Fd" || flag == "/PDB:" {
+            return None;
+        }
 
         if flag.starts_with("-O") || flag.starts_with("/O") {
             let level = flag.trim_start_matches("-O").trim_start_matches("/O");
@@ -287,6 +400,16 @@ impl Flags {
             return Some(Flag::ObjectOutput(flag[3..].to_string()));
         }
 
+        if flag.starts_with("/Fd") {
+            return Some(Flag::ProgramDatabase(flag[3..].to_string()));
+        }
+        if flag.starts_with("/PDB:") {
+            return Some(Flag::LinkProgramDatabase(flag[5..].to_string()));
+        }
+        if flag.starts_with("/Z") {
+            return Some(Flag::DebugType(flag[1..].to_string()));
+        }
+
         match flag {
             "-c" | "/c" => Some(Flag::CompileOnly),
             "-g" | "/Zi" | "/Z7" => Some(Flag::DebugInfo),
@@ -300,7 +423,9 @@ impl Flags {
             "-shared" | "/LD" => Some(Flag::SharedLink),
             "/nologo" => Some(Flag::NoLogo),
             "/MD" => Some(Flag::MultiThreadedDLL),
+            "/MDd" => Some(Flag::MultiThreadedDLLDebug),
             "/EHsc" => Some(Flag::ExceptionHandling),
+            "/showIncludes" => Some(Flag::ShowIncludes),
             _ => {
                 if flag.starts_with("-std=") {
                     return Some(Flag::CxxStandard(flag[5..].to_string()));
@@ -308,10 +433,16 @@ impl Flags {
                 if flag.starts_with("/std:") {
                     return Some(Flag::CxxStandard(flag[5..].to_string()));
                 }
-                if flag.starts_with("-m") {
+                if flag.starts_with("-march=") {
+                    return Some(Flag::TargetArch(flag[7..].to_string()));
+                }
+                if flag.starts_with("/arch:") {
+                    return Some(Flag::TargetArch(flag[6..].to_string()));
+                }
+                if flag.starts_with("-m") && flag.len() > 2 {
                     return Some(Flag::MachineDependent(flag[2..].to_string()));
                 }
-                if flag.starts_with("-f") {
+                if flag.starts_with("-f") && flag.len() > 2 {
                     return Some(Flag::FeatureFlag(flag[2..].to_string()));
                 }
                 None
@@ -348,8 +479,8 @@ impl Flags {
             Flag::CxxStandard(std) => vec![format!("-std={}", std)],
             Flag::CStandard(std) => vec![format!("-std={}", std)],
 
-            Flag::IncludePath(path) => vec![format!("-I{}", path)],
-            Flag::SystemIncludePath(path) => vec!["-isystem".to_string(), path.clone()],
+            Flag::IncludePath(path) => vec![format!("-I{}", normalize_path(path))],
+            Flag::SystemIncludePath(path) => vec!["-isystem".to_string(), normalize_path(path)],
 
             Flag::Define(name, val) => match val {
                 Some(v) => vec![format!("-D{}={}", name, v)],
@@ -357,11 +488,23 @@ impl Flags {
             },
 
             Flag::CompileOnly => vec!["-c".to_string()],
-            Flag::OutputFile(path) => vec!["-o".to_string(), path.clone()],
-            Flag::ObjectOutput(path) => vec!["-o".to_string(), path.clone()],
+            Flag::OutputFile(path) => {
+                if path.is_empty() {
+                    vec!["-o".to_string()]
+                } else {
+                    vec!["-o".to_string(), normalize_path(path)]
+                }
+            }
+            Flag::ObjectOutput(path) => {
+                if path.is_empty() {
+                    vec!["-o".to_string()]
+                } else {
+                    vec!["-o".to_string(), normalize_path(path)]
+                }
+            }
 
             Flag::LinkLibrary(lib) => vec![format!("-l{}", lib)],
-            Flag::LibraryPath(path) => vec![format!("-L{}", path)],
+            Flag::LibraryPath(path) => vec![format!("-L{}", normalize_path(path))],
             Flag::StaticLink => vec!["-static".to_string()],
             Flag::SharedLink => vec!["-shared".to_string()],
 
@@ -370,6 +513,7 @@ impl Flags {
 
             Flag::NoLogo => vec![],
             Flag::MultiThreadedDLL => vec!["-pthread".to_string()],
+            Flag::MultiThreadedDLLDebug => vec!["-pthread".to_string()],
             Flag::ExceptionHandling => vec![],
 
             Flag::MachineDependent(f) => {
@@ -378,10 +522,19 @@ impl Flags {
                 } else if f.starts_with('-') {
                     vec![f.clone()]
                 } else {
-                    vec![format!("-{}", f)]
+                    vec![format!("-m{}", f)]
                 }
             }
             Flag::FeatureFlag(f) => vec![format!("-f{}", f)],
+
+            Flag::ShowIncludes => vec![],
+            Flag::SourceDependencies(_) => vec![],
+
+            Flag::ProgramDatabase(_) => vec![],
+            Flag::LinkProgramDatabase(_) => vec![],
+            Flag::DebugType(_) => vec![],
+
+            Flag::Raw(f) => vec![f.clone()],
         }
     }
 
@@ -397,10 +550,13 @@ impl Flags {
             Flag::OptimizeSize => vec!["/O1".to_string()],
             Flag::OptimizeSpeed => vec!["/O2".to_string()],
             Flag::NoOptimization => vec!["/Od".to_string()],
-            Flag::DependencyInfo(path) => vec!["/showIncludes".to_string(), format!("/FD{}", path)],
+
+            Flag::DependencyInfo(_) => {
+                vec![]
+            }
 
             Flag::DebugInfo => vec!["/Zi".to_string()],
-            Flag::DebugInfoFull => vec!["/Zi".to_string()],
+            Flag::DebugInfoFull => vec!["/Z7".to_string()],
             Flag::NoDebugInfo => vec![],
 
             Flag::AllWarnings => vec!["/W4".to_string()],
@@ -412,8 +568,12 @@ impl Flags {
             Flag::CxxStandard(std) => vec![format!("/std:{}", std)],
             Flag::CStandard(std) => vec![format!("/std:{}", std)],
 
-            Flag::IncludePath(path) => vec![format!("/I{}", path)],
-            Flag::SystemIncludePath(path) => vec![format!("/I{}", path)],
+            Flag::IncludePath(path) => {
+                vec![format!("/I{}", normalize_path(path))]
+            }
+            Flag::SystemIncludePath(path) => {
+                vec![format!("/I{}", normalize_path(path))]
+            }
 
             Flag::Define(name, val) => match val {
                 Some(v) => vec![format!("/D{}={}", name, v)],
@@ -421,8 +581,17 @@ impl Flags {
             },
 
             Flag::CompileOnly => vec!["/c".to_string()],
-            Flag::OutputFile(path) => vec![format!("/Fe{}", path)],
-            Flag::ObjectOutput(path) => vec![format!("/Fo{}", path)],
+            Flag::OutputFile(path) => {
+                if path.is_empty() {
+                    vec!["/Fe".to_string()]
+                } else {
+                    vec![format!("/Fe:{}", normalize_path(path))]
+                }
+            }
+            Flag::ObjectOutput(path) => {
+                let normalized_path = fix_msvc_path(path, Some(".obj"));
+                vec![format!("/Fo:{}", normalized_path)]
+            }
 
             Flag::LinkLibrary(lib) => {
                 if lib.ends_with(".lib") {
@@ -431,7 +600,7 @@ impl Flags {
                     vec![format!("{}.lib", lib)]
                 }
             }
-            Flag::LibraryPath(path) => vec![format!("/LIBPATH:{}", path)],
+            Flag::LibraryPath(path) => vec![format!("/LIBPATH:{}", normalize_path(path))],
             Flag::StaticLink => vec!["/MT".to_string()],
             Flag::SharedLink => vec!["/LD".to_string()],
 
@@ -440,7 +609,11 @@ impl Flags {
 
             Flag::NoLogo => vec!["/nologo".to_string()],
             Flag::MultiThreadedDLL => vec!["/MD".to_string()],
+            Flag::MultiThreadedDLLDebug => vec!["/MDd".to_string()],
             Flag::ExceptionHandling => vec!["/EHsc".to_string()],
+
+            Flag::ShowIncludes => vec!["/showIncludes".to_string()],
+            Flag::SourceDependencies(_) => vec![],
 
             Flag::MachineDependent(f) => {
                 if f.starts_with('-') {
@@ -452,6 +625,22 @@ impl Flags {
                 }
             }
             Flag::FeatureFlag(_) => vec![],
+
+            Flag::ProgramDatabase(pdb_path) => {
+                vec![format!("/Fd{}", normalize_path(pdb_path))]
+            }
+            Flag::LinkProgramDatabase(pdb_path) => {
+                vec![format!("/Fd{}", normalize_path(pdb_path))]
+            }
+            Flag::DebugType(debug_type) => match debug_type.as_str() {
+                "7" | "Z7" => vec!["/Z7".to_string()],
+                "i" | "Zi" => vec!["/Zi".to_string()],
+                "I" | "ZI" => vec!["/ZI".to_string()],
+                "1" | "Z1" => vec!["/Z1".to_string()],
+                _ => vec![format!("/Z{}", debug_type)],
+            },
+
+            Flag::Raw(f) => vec![f.clone()],
         }
     }
 }
