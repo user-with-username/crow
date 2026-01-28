@@ -72,7 +72,7 @@ impl Flags {
         }
     }
 
-    pub fn setup_standard_flags(&mut self, release: bool) -> &mut Self {
+    pub fn standard_flags(&mut self, release: bool) -> &mut Self {
         let is_msvc = self.compiler_kind.is_msvc();
 
         if is_msvc {

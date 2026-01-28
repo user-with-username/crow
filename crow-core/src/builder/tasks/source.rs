@@ -28,7 +28,7 @@ impl SourceCompilationTask {
 
         flags.compile_only();
 
-        flags.setup_standard_flags(project.release);
+        flags.standard_flags(project.release);
 
         for inc in &build_config.include_dirs {
             let inc_path = inc.to_string_lossy();
