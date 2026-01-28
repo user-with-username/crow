@@ -55,7 +55,7 @@ impl<'a> CompilationBuilder<'a> {
             let object_path = task.object.clone();
 
             let headers = if !is_msvc && task.dep_file.exists() {
-                IncludeTask::new(task.dep_file.clone())
+                IncludeTask::new(task.dep_file.clone().into())
                     .collect_headers()
                     .unwrap_or_default()
             } else {
@@ -76,7 +76,7 @@ impl<'a> CompilationBuilder<'a> {
                 let final_hash = if is_msvc {
                     current_hash
                 } else {
-                    let include_task = IncludeTask::new(task.dep_file.clone());
+                    let include_task = IncludeTask::new(task.dep_file.clone().into());
                     let headers = include_task.collect_headers()?;
                     hash_source(task.source.as_path(), &headers, self.compiler_exe, &flags)?
                 };

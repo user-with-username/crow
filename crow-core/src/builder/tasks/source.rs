@@ -1,12 +1,8 @@
-use crate::builder::{
-    flags::Flags,
-    incremental::CacheEntry,
-    paths::ObjectFileNaming,
-    paths::{ObjectFilePath, SourceFilePath},
-};
+use crate::builder::{flags::Flags, incremental::CacheEntry, paths::ObjectFileNaming};
+use crate::builder::paths::{DependencyFilePath, DependencyFileNaming, ObjectFilePath, SourceFilePath};
 use anyhow::{Context, Result};
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     process::Command,
 };
 
@@ -14,7 +10,7 @@ use std::{
 pub struct SourceCompilationTask {
     pub source: SourceFilePath,
     pub object: ObjectFilePath,
-    pub dep_file: PathBuf,
+    pub dep_file: DependencyFilePath,
     pub command: Command,
 }
 
@@ -49,8 +45,8 @@ impl SourceCompilationTask {
             .context("Invalid file name")?
             .to_string_lossy();
 
-        let dep_file = deps_dir.join(format!("{}.d", source_file_stem));
-        flags.dependency_info(dep_file.to_string_lossy().into_owned());
+        let dep_file = DependencyFileNaming::generate(deps_dir, source);
+        flags.dependency_info(dep_file.as_path().to_string_lossy().into_owned());
 
         let obj_dir = if deps_dir.ends_with("deps") {
             deps_dir.parent().unwrap_or(deps_dir)

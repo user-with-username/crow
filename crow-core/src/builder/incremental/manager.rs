@@ -1,4 +1,5 @@
 use anyhow::Result;
+use crow_utils::normalize_path;
 use std::path::{Path, PathBuf};
 
 use crate::builder::incremental::{CacheEntry, IncrementalCache};
@@ -30,13 +31,13 @@ impl IncrementalManager {
             return true;
         }
 
-        let key = Self::normalize_path(src.as_path());
+        let key = normalize_path(&src.as_path().to_string_lossy());
         match (self.cache.files.get(&key), hash) {
             (None, _) | (_, None) => true,
             (Some(entry), Some(current_hash)) => {
                 current_hash != &entry.hash
                     || !obj.exists()
-                    || Self::normalize_path(obj.as_path()) != Self::normalize_path(&entry.object)
+                    || normalize_path(&obj.as_path().to_string_lossy()) != normalize_path(&entry.object.to_string_lossy())
             }
         }
     }
@@ -45,7 +46,7 @@ impl IncrementalManager {
         if self.is_release {
             return;
         }
-        let key = Self::normalize_path(src.as_path());
+        let key = normalize_path(&src.as_path().to_string_lossy());
         self.cache.files.insert(key, entry);
     }
 
@@ -56,9 +57,5 @@ impl IncrementalManager {
         } else {
             self.cache.save(&self.path)
         }
-    }
-
-    fn normalize_path(path: &Path) -> String {
-        path.to_string_lossy().replace('\\', "/").to_string()
     }
 }
