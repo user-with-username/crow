@@ -46,7 +46,7 @@ pub struct BuildConfig {
     #[serde(default)]
     pub linker: LinkerConfig,
     #[serde(default)]
-    pub include_dirs: Option<Vec<PathBuf>>,  // Опционально
+    pub include_dirs: Option<Vec<PathBuf>>,
     #[serde(default)]
     pub lib_dirs: Vec<PathBuf>,
     #[serde(default)]

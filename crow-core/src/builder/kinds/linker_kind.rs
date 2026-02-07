@@ -21,7 +21,6 @@ impl LinkerKind {
         preferred_kind: Option<LinkerKind>,
         compiler_kind: CompilerKind,
     ) -> Self {
-        // Если указан явный предпочтительный тип линкера, возвращаем его сразу
         if let Some(kind) = preferred_kind {
             return kind;
         }
