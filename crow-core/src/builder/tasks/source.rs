@@ -1,5 +1,6 @@
 use crate::builder::{flags::Flags, incremental::CacheEntry, paths::ObjectFileNaming};
 use crate::builder::paths::{DependencyFilePath, DependencyFileNaming, ObjectFilePath, SourceFilePath};
+use crow_utils::normalize_path;
 use anyhow::{Context, Result};
 use std::{
     path::Path,
@@ -28,7 +29,6 @@ impl SourceCompilationTask {
         flags.compile_only();
         flags.standard_flags(project.release);
 
-        // ИСПРАВЛЕНИЕ: используем геттер вместо прямого доступа
         for inc in build_config.get_include_dirs() {
             let inc_path = inc.to_string_lossy();
             flags.include_path(inc_path.into_owned());
@@ -54,18 +54,18 @@ impl SourceCompilationTask {
         };
 
         let object_path = ObjectFileNaming::generate(obj_dir, source, compiler_kind);
-        flags.object_output(object_path.to_string_lossy().replace("\\", "/"));
+        flags.object_output(&normalize_path(&object_path.to_string_lossy()));
 
         if compiler_kind.is_msvc() {
             let pdb_dir = obj_dir.join("pdb");
             std::fs::create_dir_all(&pdb_dir)?;
             let pdb_path = pdb_dir.join(format!("{}.pdb", source_file_stem));
-            flags.program_database(pdb_path.to_string_lossy().replace("\\", "/"));
+            flags.program_database(&normalize_path(&pdb_path.to_string_lossy()));
         }
 
         let mut cmd = Command::new(compiler_exe);
         let mut all_args = flags.build();
-        let source_path = source.as_path().to_string_lossy().replace("\\", "/");
+        let source_path = normalize_path(&source.as_path().to_string_lossy());
         all_args.push(source_path.clone());
 
         cmd.args(&all_args);
