@@ -27,7 +27,9 @@ impl<'a> CompilationBuilder<'a> {
         self.project.create_dirs()?;
         let profile_dir = self.project.profile_dir();
         let deps_dir = profile_dir.join("deps");
-        std::fs::create_dir_all(&deps_dir)?;
+        if !self.project.compiler_kind().is_msvc() {
+            std::fs::create_dir_all(&deps_dir)?;
+        }
 
         let cache_path = profile_dir.join(".fingerprint.json");
         let mut cache_manager: IncrementalManager =
@@ -62,7 +64,7 @@ impl<'a> CompilationBuilder<'a> {
                 Vec::new()
             };
 
-            let flags = self.project.config.build.flags.clone();
+            let flags = self.project.config.build.compiler.flags.clone();
             let current_hash =
                 hash_source(task.source.as_path(), &headers, self.compiler_exe, &flags)?;
 

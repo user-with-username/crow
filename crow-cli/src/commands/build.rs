@@ -1,8 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use crow_core::{
-    builder::{CompilationBuilder, CompilerKind, LinkingBuilder},
-    CrowConfig, Project,
+    CrowConfig, Project, builder::{CompilationBuilder, LinkingBuilder}
 };
 use crow_utils::status;
 use std::time::Instant;
@@ -39,13 +38,22 @@ impl BuildCommand {
         let config = CrowConfig::load()?;
         let project = Project::new(config, self.args.release)?;
 
-        let compiler_kind = CompilerKind::detect(&project.config.build.compiler);
-        let compiler_exe = project
-            .config
-            .build
-            .compiler
-            .clone()
-            .unwrap_or_else(|| compiler_kind.default_executable().to_string());
+        let compiler_exe = project.config.build.compiler.path
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or_else(|| {
+                project.compiler_kind().default_executable()
+            });
+
+        let linker_kind = project.linker_kind();
+        
+        let linker_exe = if let Some(ref path) = project.config.build.linker.path {
+            path.as_str()
+        } else if linker_kind.is_msvc() {
+            linker_kind.default_executable()
+        } else {
+            compiler_exe
+        };
 
         status!(
             "Compiling",
@@ -57,9 +65,9 @@ impl BuildCommand {
 
         let start = Instant::now();
 
-        let objects = CompilationBuilder::new(&compiler_exe, &project).compile()?;
+        let objects = CompilationBuilder::new(compiler_exe, &project).compile()?;
 
-        LinkingBuilder::new(&compiler_exe, &project, &objects).link()?;
+        LinkingBuilder::new(linker_exe, &project, &objects).link()?;
 
         let duration = start.elapsed();
         let profile_name = if self.args.release { "release" } else { "dev" };

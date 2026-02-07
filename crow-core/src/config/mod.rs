@@ -1,6 +1,9 @@
 use serde::Deserialize;
 use std::path::PathBuf;
 
+use crate::builder::compiler_kind::CompilerKind;
+use crate::builder::linker_kind::LinkerKind;
+
 #[derive(Deserialize)]
 pub struct CrowConfig {
     pub package: Package,
@@ -17,13 +20,33 @@ pub struct Package {
 }
 
 #[derive(Deserialize, Default, Clone)]
-pub struct BuildConfig {
+pub struct LinkerConfig {
     #[serde(default)]
-    pub compiler: Option<String>,
+    pub path: Option<String>,
     #[serde(default)]
     pub flags: Vec<String>,
-    #[serde(default = "default_include_dirs")]
-    pub include_dirs: Vec<PathBuf>,
+    #[serde(default)]
+    pub kind: Option<LinkerKind>,
+}
+
+#[derive(Deserialize, Default, Clone)]
+pub struct CompilerConfig {
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub flags: Vec<String>,
+    #[serde(default)]
+    pub kind: Option<CompilerKind>,
+}
+
+#[derive(Deserialize, Default, Clone)]
+pub struct BuildConfig {
+    #[serde(default)]
+    pub compiler: CompilerConfig,
+    #[serde(default)]
+    pub linker: LinkerConfig,
+    #[serde(default)]
+    pub include_dirs: Option<Vec<PathBuf>>,  // Опционально
     #[serde(default)]
     pub lib_dirs: Vec<PathBuf>,
     #[serde(default)]
@@ -58,6 +81,12 @@ fn default_debug() -> bool {
 
 fn default_include_dirs() -> Vec<PathBuf> {
     vec![PathBuf::from("include")]
+}
+
+impl BuildConfig {
+    pub fn get_include_dirs(&self) -> Vec<PathBuf> {
+        self.include_dirs.clone().unwrap_or_else(default_include_dirs)
+    }
 }
 
 impl CrowConfig {

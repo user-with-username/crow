@@ -25,17 +25,16 @@ impl SourceCompilationTask {
         let compiler_kind = project.compiler_kind();
 
         let mut flags = Flags::new(compiler_kind);
-
         flags.compile_only();
-
         flags.standard_flags(project.release);
 
-        for inc in &build_config.include_dirs {
+        // ИСПРАВЛЕНИЕ: используем геттер вместо прямого доступа
+        for inc in build_config.get_include_dirs() {
             let inc_path = inc.to_string_lossy();
             flags.include_path(inc_path.into_owned());
         }
 
-        for raw_flag in &build_config.flags {
+        for raw_flag in &build_config.compiler.flags {
             flags.add_raw(raw_flag.clone());
         }
 
@@ -55,7 +54,6 @@ impl SourceCompilationTask {
         };
 
         let object_path = ObjectFileNaming::generate(obj_dir, source, compiler_kind);
-
         flags.object_output(object_path.to_string_lossy().replace("\\", "/"));
 
         if compiler_kind.is_msvc() {
@@ -66,13 +64,12 @@ impl SourceCompilationTask {
         }
 
         let mut cmd = Command::new(compiler_exe);
-
         let mut all_args = flags.build();
-
         let source_path = source.as_path().to_string_lossy().replace("\\", "/");
         all_args.push(source_path.clone());
 
         cmd.args(&all_args);
+        
         Ok(Self {
             source: source.clone(),
             object: ObjectFilePath(object_path),

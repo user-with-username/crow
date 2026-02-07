@@ -1,17 +1,32 @@
+use serde::{Deserialize, Serialize};
 use std::process::{Command, Stdio};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum CompilerKind {
     Gcc,
     Gpp,
     Clang,
+    #[serde(alias = "clang++", alias = "clangpp", alias = "clang_p_p")]
     ClangPP,
+    #[serde(alias = "cl", alias = "msvc-cl")]
     Msvc,
 }
 
 impl CompilerKind {
-    pub fn detect(preferred: &Option<String>) -> Self {
-        let exe = preferred.as_deref().unwrap_or("g++");
+    pub fn detect(preferred: &Option<String>, preferred_kind: Option<CompilerKind>) -> Self {
+        if let Some(kind) = preferred_kind {
+            return kind;
+        }
+        
+        #[cfg(target_os = "windows")]
+        let default = "cl";
+        #[cfg(target_os = "macos")]
+        let default = "clang++";
+        #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+        let default = "g++";
+
+        let exe = preferred.as_deref().unwrap_or(default);
 
         if let Ok(out) = Command::new(exe).output() {
             let info = String::from_utf8_lossy(&out.stdout) + String::from_utf8_lossy(&out.stderr);

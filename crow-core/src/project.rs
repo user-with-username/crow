@@ -85,8 +85,12 @@ impl Project {
         }
         Ok(())
     }
-
+    
     pub fn compiler_kind(&self) -> crate::builder::CompilerKind {
-        crate::builder::CompilerKind::detect(&self.config.build.compiler)
+        crate::builder::CompilerKind::detect(&self.config.build.compiler.path, self.config.build.compiler.kind)
+    }
+    
+    pub fn linker_kind(&self) -> crate::builder::LinkerKind {
+        crate::builder::LinkerKind::detect(&self.config.build.linker.path, self.config.build.linker.kind, self.compiler_kind())
     }
 }

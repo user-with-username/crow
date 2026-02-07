@@ -59,8 +59,15 @@ pub enum Flag {
 }
 
 #[derive(Debug, Clone)]
+pub enum Operation {
+    Compile,
+    Link,
+}
+
+#[derive(Debug, Clone)]
 pub struct Flags {
     compiler_kind: CompilerKind,
+    operation: Operation,
     flags: Vec<Flag>,
 }
 
@@ -68,6 +75,15 @@ impl Flags {
     pub fn new(compiler_kind: CompilerKind) -> Self {
         Self {
             compiler_kind,
+            operation: Operation::Compile,
+            flags: Vec::new(),
+        }
+    }
+
+    pub fn for_linking(compiler_kind: CompilerKind) -> Self {
+        Self {
+            compiler_kind,
+            operation: Operation::Link,
             flags: Vec::new(),
         }
     }
@@ -314,12 +330,7 @@ impl Flags {
     }
 
     pub fn add_raw(&mut self, raw_flag: impl AsRef<str>) -> &mut Self {
-        let flag_str = raw_flag.as_ref();
-        if let Some(parsed) = Self::parse_raw(flag_str) {
-            self.flags.push(parsed);
-        } else {
-            self.flags.push(Flag::Raw(flag_str.to_string()));
-        }
+        self.flags.push(Flag::Raw(raw_flag.as_ref().to_string()));
         self
     }
 
@@ -327,7 +338,7 @@ impl Flags {
         let mut flags: Vec<String> = self
             .flags
             .iter()
-            .flat_map(|f| Self::convert_flag(f, &self.compiler_kind))
+            .flat_map(|f| Self::convert_flag(f, &self.compiler_kind, &self.operation))
             .filter(|s| !s.is_empty())
             .collect();
 
@@ -343,123 +354,22 @@ impl Flags {
         flags
     }
 
-    fn parse_raw(flag: &str) -> Option<Flag> {
-        let flag = flag.trim();
-
-        if flag == "-o" || flag == "/Fe" || flag == "/Fo" || flag == "/Fd" || flag == "/PDB:" {
-            return None;
-        }
-
-        if flag.starts_with("-O") || flag.starts_with("/O") {
-            let level = flag.trim_start_matches("-O").trim_start_matches("/O");
-            return match level {
-                "0" | "d" => Some(Flag::NoOptimization),
-                "1" | "s" => Some(Flag::OptimizationLevel(1)),
-                "2" => Some(Flag::OptimizationLevel(2)),
-                "3" | "x" | "fast" => Some(Flag::OptimizationLevel(3)),
-                _ => None,
-            };
-        }
-
-        if flag.starts_with("-I") {
-            return Some(Flag::IncludePath(flag[2..].to_string()));
-        }
-        if flag.starts_with("/I") {
-            return Some(Flag::IncludePath(flag[2..].to_string()));
-        }
-
-        if flag.starts_with("-D") || flag.starts_with("/D") {
-            let def = flag[2..].to_string();
-            if let Some(pos) = def.find('=') {
-                return Some(Flag::Define(
-                    def[..pos].to_string(),
-                    Some(def[pos + 1..].to_string()),
-                ));
-            } else {
-                return Some(Flag::Define(def, None));
-            }
-        }
-
-        if flag.starts_with("-l") {
-            return Some(Flag::LinkLibrary(flag[2..].to_string()));
-        }
-        if flag.starts_with("-L") {
-            return Some(Flag::LibraryPath(flag[2..].to_string()));
-        }
-        if flag.starts_with("/LIBPATH:") {
-            return Some(Flag::LibraryPath(flag[9..].to_string()));
-        }
-
-        if flag.starts_with("-o") && flag.len() > 2 {
-            return Some(Flag::OutputFile(flag[2..].to_string()));
-        }
-        if flag.starts_with("/Fe") {
-            return Some(Flag::OutputFile(flag[3..].to_string()));
-        }
-        if flag.starts_with("/Fo") {
-            return Some(Flag::ObjectOutput(flag[3..].to_string()));
-        }
-
-        if flag.starts_with("/Fd") {
-            return Some(Flag::ProgramDatabase(flag[3..].to_string()));
-        }
-        if flag.starts_with("/PDB:") {
-            return Some(Flag::LinkProgramDatabase(flag[5..].to_string()));
-        }
-        if flag.starts_with("/Z") {
-            return Some(Flag::DebugType(flag[1..].to_string()));
-        }
-
+    fn convert_flag(flag: &Flag, compiler_kind: &CompilerKind, operation: &Operation) -> Vec<String> {
         match flag {
-            "-c" | "/c" => Some(Flag::CompileOnly),
-            "-g" | "/Zi" | "/Z7" => Some(Flag::DebugInfo),
-            "-g3" => Some(Flag::DebugInfoFull),
-            "-Wall" | "/W4" => Some(Flag::AllWarnings),
-            "-Werror" | "/WX" => Some(Flag::WarningsAsErrors),
-            "-Wextra" => Some(Flag::ExtraWarnings),
-            "-w" | "/w" => Some(Flag::NoWarnings),
-            "-fPIC" => Some(Flag::PositionIndependentCode),
-            "-static" | "/MT" => Some(Flag::StaticLink),
-            "-shared" | "/LD" => Some(Flag::SharedLink),
-            "/nologo" => Some(Flag::NoLogo),
-            "/MD" => Some(Flag::MultiThreadedDLL),
-            "/MDd" => Some(Flag::MultiThreadedDLLDebug),
-            "/EHsc" => Some(Flag::ExceptionHandling),
-            "/showIncludes" => Some(Flag::ShowIncludes),
+            Flag::Raw(f) => vec![f.clone()],
             _ => {
-                if flag.starts_with("-std=") {
-                    return Some(Flag::CxxStandard(flag[5..].to_string()));
+                if compiler_kind.is_msvc() {
+                    Self::to_msvc(flag, operation)
+                } else {
+                    Self::to_gcc_like(flag, operation)
                 }
-                if flag.starts_with("/std:") {
-                    return Some(Flag::CxxStandard(flag[5..].to_string()));
-                }
-                if flag.starts_with("-march=") {
-                    return Some(Flag::TargetArch(flag[7..].to_string()));
-                }
-                if flag.starts_with("/arch:") {
-                    return Some(Flag::TargetArch(flag[6..].to_string()));
-                }
-                if flag.starts_with("-m") && flag.len() > 2 {
-                    return Some(Flag::MachineDependent(flag[2..].to_string()));
-                }
-                if flag.starts_with("-f") && flag.len() > 2 {
-                    return Some(Flag::FeatureFlag(flag[2..].to_string()));
-                }
-                None
             }
         }
     }
 
-    fn convert_flag(flag: &Flag, compiler_kind: &CompilerKind) -> Vec<String> {
-        if compiler_kind.is_msvc() {
-            Self::to_msvc(flag)
-        } else {
-            Self::to_gcc_like(flag)
-        }
-    }
-
-    fn to_gcc_like(flag: &Flag) -> Vec<String> {
+    fn to_gcc_like(flag: &Flag, operation: &Operation) -> Vec<String> {
         match flag {
+            Flag::Raw(_) => unreachable!(),
             Flag::OptimizationLevel(n) => vec![format!("-O{}", n)],
             Flag::OptimizeSize => vec!["-Os".to_string()],
             Flag::OptimizeSpeed => vec!["-O3".to_string()],
@@ -488,20 +398,11 @@ impl Flags {
             },
 
             Flag::CompileOnly => vec!["-c".to_string()],
-            Flag::OutputFile(path) => {
-                if path.is_empty() {
-                    vec!["-o".to_string()]
-                } else {
-                    vec!["-o".to_string(), normalize_path(path)]
-                }
-            }
-            Flag::ObjectOutput(path) => {
-                if path.is_empty() {
-                    vec!["-o".to_string()]
-                } else {
-                    vec!["-o".to_string(), normalize_path(path)]
-                }
-            }
+            Flag::OutputFile(path) => match operation {
+                Operation::Compile => vec![format!("/Fe{}", normalize_path(path))],
+                Operation::Link => vec!["-o".to_string(), normalize_path(path)],
+            },
+            Flag::ObjectOutput(path) => vec!["-o".to_string(), normalize_path(path)],
 
             Flag::LinkLibrary(lib) => vec![format!("-l{}", lib)],
             Flag::LibraryPath(path) => vec![format!("-L{}", normalize_path(path))],
@@ -533,13 +434,12 @@ impl Flags {
             Flag::ProgramDatabase(_) => vec![],
             Flag::LinkProgramDatabase(_) => vec![],
             Flag::DebugType(_) => vec![],
-
-            Flag::Raw(f) => vec![f.clone()],
         }
     }
 
-    fn to_msvc(flag: &Flag) -> Vec<String> {
+    fn to_msvc(flag: &Flag, operation: &Operation) -> Vec<String> {
         match flag {
+            Flag::Raw(_) => unreachable!(),
             Flag::OptimizationLevel(n) => match n {
                 0 => vec!["/Od".to_string()],
                 1 => vec!["/O1".to_string()],
@@ -551,9 +451,7 @@ impl Flags {
             Flag::OptimizeSpeed => vec!["/O2".to_string()],
             Flag::NoOptimization => vec!["/Od".to_string()],
 
-            Flag::DependencyInfo(_) => {
-                vec![]
-            }
+            Flag::DependencyInfo(_) => vec![],
 
             Flag::DebugInfo => vec!["/Zi".to_string()],
             Flag::DebugInfoFull => vec!["/Z7".to_string()],
@@ -568,12 +466,8 @@ impl Flags {
             Flag::CxxStandard(std) => vec![format!("/std:{}", std)],
             Flag::CStandard(std) => vec![format!("/std:{}", std)],
 
-            Flag::IncludePath(path) => {
-                vec![format!("/I{}", normalize_path(path))]
-            }
-            Flag::SystemIncludePath(path) => {
-                vec![format!("/I{}", normalize_path(path))]
-            }
+            Flag::IncludePath(path) => vec![format!("/I{}", normalize_path(path))],
+            Flag::SystemIncludePath(path) => vec![format!("/I{}", normalize_path(path))],
 
             Flag::Define(name, val) => match val {
                 Some(v) => vec![format!("/D{}={}", name, v)],
@@ -581,13 +475,10 @@ impl Flags {
             },
 
             Flag::CompileOnly => vec!["/c".to_string()],
-            Flag::OutputFile(path) => {
-                if path.is_empty() {
-                    vec!["/Fe".to_string()]
-                } else {
-                    vec![format!("/Fe:{}", normalize_path(path))]
-                }
-            }
+            Flag::OutputFile(path) => match operation {
+                Operation::Compile => vec![format!("/Fe{}", normalize_path(path))],
+                Operation::Link => vec![format!("/OUT:{}", normalize_path(path))],
+            },
             Flag::ObjectOutput(path) => {
                 let normalized_path = fix_msvc_path(path, Some(".obj"));
                 vec![format!("/Fo:{}", normalized_path)]
@@ -626,12 +517,8 @@ impl Flags {
             }
             Flag::FeatureFlag(_) => vec![],
 
-            Flag::ProgramDatabase(pdb_path) => {
-                vec![format!("/Fd{}", normalize_path(pdb_path))]
-            }
-            Flag::LinkProgramDatabase(pdb_path) => {
-                vec![format!("/Fd{}", normalize_path(pdb_path))]
-            }
+            Flag::ProgramDatabase(pdb_path) => vec![format!("/Fd{}", normalize_path(pdb_path))],
+            Flag::LinkProgramDatabase(pdb_path) => vec![format!("/PDB:{}", normalize_path(pdb_path))],
             Flag::DebugType(debug_type) => match debug_type.as_str() {
                 "7" | "Z7" => vec!["/Z7".to_string()],
                 "i" | "Zi" => vec!["/Zi".to_string()],
@@ -639,8 +526,6 @@ impl Flags {
                 "1" | "Z1" => vec!["/Z1".to_string()],
                 _ => vec![format!("/Z{}", debug_type)],
             },
-
-            Flag::Raw(f) => vec![f.clone()],
         }
     }
 }
