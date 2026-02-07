@@ -86,11 +86,11 @@ impl Project {
         Ok(())
     }
     
-    pub fn compiler_kind(&self) -> crate::builder::CompilerKind {
-        crate::builder::CompilerKind::detect(&self.config.build.compiler.path, self.config.build.compiler.kind)
+    pub fn compiler_kind(&self) -> crate::builder::kinds::compiler_kind::CompilerKind {
+        crate::builder::kinds::compiler_kind::CompilerKind::detect(&self.config.build.compiler.path, self.config.build.compiler.kind)
     }
     
-    pub fn linker_kind(&self) -> crate::builder::LinkerKind {
-        crate::builder::LinkerKind::detect(&self.config.build.linker.path, self.config.build.linker.kind, self.compiler_kind())
+    pub fn linker_kind(&self) -> crate::builder::kinds::linker_kind::LinkerKind {
+        crate::builder::kinds::linker_kind::LinkerKind::detect(&self.config.build.linker.path, self.config.build.linker.kind, self.compiler_kind())
     }
 }

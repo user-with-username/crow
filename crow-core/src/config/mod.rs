@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use std::path::PathBuf;
 
-use crate::builder::compiler_kind::CompilerKind;
-use crate::builder::linker_kind::LinkerKind;
+use crate::builder::kinds::compiler_kind::CompilerKind;
+use crate::builder::kinds::linker_kind::LinkerKind;
 
 #[derive(Deserialize)]
 pub struct CrowConfig {

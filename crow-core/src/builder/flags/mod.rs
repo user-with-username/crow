@@ -1,4 +1,4 @@
-use crate::builder::compiler_kind::CompilerKind;
+use crate::builder::kinds::compiler_kind::CompilerKind;
 use crow_utils::{fix_msvc_path, normalize_path};
 
 #[derive(Debug, Clone)]

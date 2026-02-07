@@ -1,4 +1,4 @@
-use crate::builder::{compiler_kind::CompilerKind, paths::SourceFilePath};
+use crate::builder::{kinds::compiler_kind::CompilerKind, paths::SourceFilePath};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]

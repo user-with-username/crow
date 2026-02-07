@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::Args;
 use crow_core::{
-    CrowConfig, Project, builder::{CompilationBuilder, LinkingBuilder}
+    builder::{CompilationBuilder, LinkingBuilder},
+    CrowConfig, Project,
 };
 use crow_utils::status;
 use std::time::Instant;
@@ -38,15 +39,17 @@ impl BuildCommand {
         let config = CrowConfig::load()?;
         let project = Project::new(config, self.args.release)?;
 
-        let compiler_exe = project.config.build.compiler.path
+        let compiler_exe = project
+            .config
+            .build
+            .compiler
+            .path
             .as_ref()
             .map(|s| s.as_str())
-            .unwrap_or_else(|| {
-                project.compiler_kind().default_executable()
-            });
+            .unwrap_or_else(|| project.compiler_kind().default_executable());
 
         let linker_kind = project.linker_kind();
-        
+
         let linker_exe = if let Some(ref path) = project.config.build.linker.path {
             path.as_str()
         } else if linker_kind.is_msvc() {
