@@ -18,7 +18,7 @@ impl CompilerKind {
         if let Some(kind) = preferred_kind {
             return kind;
         }
-        
+
         #[cfg(target_os = "windows")]
         let default = "cl";
         #[cfg(target_os = "macos")]

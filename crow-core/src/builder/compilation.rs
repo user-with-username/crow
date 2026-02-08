@@ -33,7 +33,7 @@ impl<'a> CompilationBuilder<'a> {
 
         let cache_path = profile_dir.join(".fingerprint.json");
         let mut cache_manager: IncrementalManager =
-            IncrementalManager::new(&cache_path, self.project.release);
+            IncrementalManager::new(&cache_path, self.project.profile.opt_level != "0");
 
         let sources: Vec<_> = self.project.find_sources().into_iter().collect();
         let total = sources.len();
@@ -52,6 +52,7 @@ impl<'a> CompilationBuilder<'a> {
                 &self.project.config.build,
                 &deps_dir,
                 self.project,
+                &self.project.profile,
             )?;
 
             let object_path = task.object.clone();
@@ -73,7 +74,10 @@ impl<'a> CompilationBuilder<'a> {
 
             if needs_compile {
                 let mut task = task;
-                self.execute_compilation(&mut task, &progress)?;
+                if let Err(e) = self.execute_compilation(&mut task, &progress) {
+                    progress.finish();
+                    return Err(e);
+                }
 
                 let final_hash = if is_msvc {
                     current_hash
@@ -96,15 +100,10 @@ impl<'a> CompilationBuilder<'a> {
         Ok(objects)
     }
 
-    fn execute_compilation(
-        &self,
-        task: &mut SourceCompilationTask,
-        progress: &ProgressBar,
-    ) -> Result<()> {
-        progress.finish();
+    fn execute_compilation(&self, task: &mut SourceCompilationTask, progress: &ProgressBar) -> Result<()> {
         let output = task
             .command
-            .stdout(Stdio::null())
+            .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
             .with_context(|| {
@@ -114,18 +113,35 @@ impl<'a> CompilationBuilder<'a> {
                 )
             })?;
 
-        if !output.stderr.is_empty() {
+        if !output.status.success() {
+            progress.finish();
+
+            let is_msvc = self.project.compiler_kind().is_msvc();
+            
             let stderr = String::from_utf8_lossy(&output.stderr);
             for line in stderr.lines() {
-                if !line.trim().is_empty() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
                     eprintln!("{}", DiagnosticHighlighter::colorize(line));
                 }
             }
-        }
 
-        if !output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    if is_msvc {
+                        let upper = trimmed.to_uppercase();
+                        if upper.contains("WARNING") || upper.contains("ERROR") {
+                            eprintln!("{}", DiagnosticHighlighter::colorize(line));
+                        }
+                    } else {
+                        eprintln!("{}", DiagnosticHighlighter::colorize(line));
+                    }
+                }
+            }
+
             let exit_code = output.status.code().unwrap_or(-1);
-
             anyhow::bail!(
                 "Compilation failed for {} (exit code: {})",
                 task.source.as_path().display(),

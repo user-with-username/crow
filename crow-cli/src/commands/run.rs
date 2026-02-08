@@ -10,6 +10,10 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub release: bool,
 
+    /// Build profile (dev, release, test, bench)
+    #[arg(short = 'p', long, default_value = "dev")]
+    pub profile: String,
+
     /// Arguments to pass to the executable
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
@@ -25,21 +29,28 @@ impl RunCommand {
     }
 
     pub fn execute(self) -> Result<()> {
+        let profile_name: &str = if self.args.release {
+            "release"
+        } else {
+            &self.args.profile
+        };
+
         let build_args = crate::commands::build::BuildArgs {
             release: self.args.release,
             target: None,
             jobs: None,
             bin: None,
+            profile: self.args.profile.clone(),
         };
 
         crate::commands::build::BuildCommand::new(build_args).execute()?;
 
-        self.run_executable()
+        self.run_executable(profile_name)
     }
 
-    fn run_executable(&self) -> Result<()> {
+    fn run_executable(&self, profile_name: &str) -> Result<()> {
         let config = CrowConfig::load()?;
-        let project = Project::new(config, self.args.release)?;
+        let project = Project::new(config, profile_name)?;
         let executable = project.output_path();
 
         if !std::path::Path::new(&executable).exists() {

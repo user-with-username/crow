@@ -10,11 +10,7 @@ pub struct LinkingBuilder<'a> {
 }
 
 impl<'a> LinkingBuilder<'a> {
-    pub fn new(
-        linker_exe: &'a str,
-        project: &'a Project,
-        objects: &'a [ObjectFilePath],
-    ) -> Self {
+    pub fn new(linker_exe: &'a str, project: &'a Project, objects: &'a [ObjectFilePath]) -> Self {
         Self {
             linker_exe,
             project,
@@ -27,8 +23,10 @@ impl<'a> LinkingBuilder<'a> {
         let config = &self.project.config;
         let build = &config.build;
 
-        flags.no_logo();
         flags.output_file(self.project.output_path().to_string_lossy().into_owned());
+
+        flags.standard_flags();
+        self.project.profile.apply_to_link_flags(&mut flags);
 
         if self.project.compiler_kind().is_msvc() {
             let profile_dir = self.project.profile_dir();

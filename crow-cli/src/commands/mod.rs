@@ -1,4 +1,5 @@
 pub mod build;
+pub mod clean;
 pub mod run;
 
 use anyhow::Result;
@@ -10,6 +11,8 @@ pub enum Command {
     Build(build::BuildArgs),
     /// Run the current project
     Run(run::RunArgs),
+    /// Clean target directory of the current project
+    Clean(clean::CleanArgs),
 }
 
 impl Command {
@@ -17,6 +20,7 @@ impl Command {
         match self {
             Self::Build(args) => build::BuildCommand::new(args).execute(),
             Self::Run(args) => run::RunCommand::new(args).execute(),
+            Self::Clean(args) => clean::CleanCommand::new(args).execute(),
         }
     }
 }

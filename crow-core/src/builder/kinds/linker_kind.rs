@@ -1,6 +1,6 @@
+use crate::builder::kinds::compiler_kind::CompilerKind;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
-use crate::builder::kinds::compiler_kind::CompilerKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -24,11 +24,14 @@ impl LinkerKind {
         if let Some(kind) = preferred_kind {
             return kind;
         }
-        
+
         if let Some(exe) = preferred.as_deref() {
             if let Ok(out) = Command::new(exe).output() {
-                let info = String::from_utf8_lossy(&out.stdout) + String::from_utf8_lossy(&out.stderr);
-                if info.contains("Microsoft (R) Incremental Linker") || info.contains("Microsoft (R) Linker") {
+                let info =
+                    String::from_utf8_lossy(&out.stdout) + String::from_utf8_lossy(&out.stderr);
+                if info.contains("Microsoft (R) Incremental Linker")
+                    || info.contains("Microsoft (R) Linker")
+                {
                     return Self::Link;
                 }
             }
@@ -37,7 +40,7 @@ impl LinkerKind {
                 let stdout = String::from_utf8_lossy(&out.stdout);
                 let stderr = String::from_utf8_lossy(&out.stderr);
                 let info = stdout.to_string() + &stderr;
-                
+
                 if info.contains("LLD") {
                     return Self::Lld;
                 }
@@ -57,10 +60,10 @@ impl LinkerKind {
                     return Self::BpfLink;
                 }
             }
-            
+
             return Self::Unknown;
         }
-        
+
         match compiler_kind {
             CompilerKind::Msvc => Self::Link,
             _ => Self::Unknown,

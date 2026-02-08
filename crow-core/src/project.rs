@@ -6,17 +6,20 @@ use walkdir::WalkDir;
 pub struct Project {
     pub config: CrowConfig,
     pub root: PathBuf,
-    pub release: bool,
+    pub profile: crate::config::Profile,
+    pub profile_name: String,
 }
 
 impl Project {
-    pub fn new(config: CrowConfig, release: bool) -> anyhow::Result<Self> {
+    pub fn new(config: CrowConfig, profile_name: &str) -> anyhow::Result<Self> {
         let root = std::env::current_dir().context("failed to get current directory")?;
+        let profile = config.get_profile(profile_name).clone();
 
         Ok(Self {
             config,
             root,
-            release,
+            profile,
+            profile_name: profile_name.to_string(),
         })
     }
 
@@ -38,8 +41,7 @@ impl Project {
     }
 
     pub fn profile_dir(&self) -> PathBuf {
-        self.target_dir()
-            .join(if self.release { "release" } else { "debug" })
+        self.target_dir().join(&self.profile_name)
     }
 
     pub fn build_dir(&self) -> PathBuf {
@@ -55,14 +57,6 @@ impl Project {
             format!("{}.exe", self.config.package.name)
         } else {
             self.config.package.name.clone()
-        }
-    }
-
-    pub fn get_profile(&self) -> &crate::config::Profile {
-        if self.release {
-            &self.config.profile.release
-        } else {
-            &self.config.profile.dev
         }
     }
 
@@ -85,12 +79,19 @@ impl Project {
         }
         Ok(())
     }
-    
+
     pub fn compiler_kind(&self) -> crate::builder::kinds::compiler_kind::CompilerKind {
-        crate::builder::kinds::compiler_kind::CompilerKind::detect(&self.config.build.compiler.path, self.config.build.compiler.kind)
+        crate::builder::kinds::compiler_kind::CompilerKind::detect(
+            &self.config.build.compiler.path,
+            self.config.build.compiler.kind,
+        )
     }
-    
+
     pub fn linker_kind(&self) -> crate::builder::kinds::linker_kind::LinkerKind {
-        crate::builder::kinds::linker_kind::LinkerKind::detect(&self.config.build.linker.path, self.config.build.linker.kind, self.compiler_kind())
+        crate::builder::kinds::linker_kind::LinkerKind::detect(
+            &self.config.build.linker.path,
+            self.config.build.linker.kind,
+            self.compiler_kind(),
+        )
     }
 }

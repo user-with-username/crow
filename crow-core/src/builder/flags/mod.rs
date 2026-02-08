@@ -37,6 +37,10 @@ pub enum Flag {
     SharedLink,
 
     PositionIndependentCode,
+    LinkTimeOptimization,
+    NoLinkTimeOptimization,
+    ThinLTO,
+    FatLTO,
 
     TargetArch(String),
 
@@ -88,35 +92,43 @@ impl Flags {
         }
     }
 
-    pub fn standard_flags(&mut self, release: bool) -> &mut Self {
+    pub fn link_time_optimization(&mut self) -> &mut Self {
+        self.flags.push(Flag::LinkTimeOptimization);
+        self
+    }
+
+    pub fn no_link_time_optimization(&mut self) -> &mut Self {
+        self.flags.push(Flag::NoLinkTimeOptimization);
+        self
+    }
+
+    pub fn thin_lto(&mut self) -> &mut Self {
+        self.flags.push(Flag::ThinLTO);
+        self
+    }
+
+    pub fn fat_lto(&mut self) -> &mut Self {
+        self.flags.push(Flag::FatLTO);
+        self
+    }
+
+    pub fn standard_flags(&mut self) -> &mut Self {
         let is_msvc = self.compiler_kind.is_msvc();
 
-        if is_msvc {
-            self.no_logo();
-            self.exception_handling();
-            self.all_warnings();
-
-            self.define("WIN32", None::<String>);
-            self.define("_WINDOWS", None::<String>);
-
-            if release {
-                self.optimization_level(2);
-                self.define("NDEBUG", None::<String>);
-                self.multi_threaded_dll();
-                self.debug_type("Zi".to_string());
-            } else {
-                self.debug_info();
-                self.no_optimization();
-                self.define("_DEBUG", None::<String>);
-                self.multi_threaded_dll_debug();
-                self.debug_type("Zi".to_string());
+        match self.operation {
+            Operation::Compile => {
+                if is_msvc {
+                    self.no_logo();
+                    self.exception_handling();
+                    self.all_warnings();
+                    self.define("WIN32", None::<String>);
+                    self.define("_WINDOWS", None::<String>);
+                }
             }
-        } else {
-            if release {
-                self.optimization_level(2);
-            } else {
-                self.debug_info();
-                self.no_optimization();
+            Operation::Link => {
+                if is_msvc {
+                    self.no_logo();
+                }
             }
         }
 
@@ -354,7 +366,11 @@ impl Flags {
         flags
     }
 
-    fn convert_flag(flag: &Flag, compiler_kind: &CompilerKind, operation: &Operation) -> Vec<String> {
+    fn convert_flag(
+        flag: &Flag,
+        compiler_kind: &CompilerKind,
+        operation: &Operation,
+    ) -> Vec<String> {
         match flag {
             Flag::Raw(f) => vec![f.clone()],
             _ => {
@@ -410,6 +426,10 @@ impl Flags {
             Flag::SharedLink => vec!["-shared".to_string()],
 
             Flag::PositionIndependentCode => vec!["-fPIC".to_string()],
+            Flag::LinkTimeOptimization => vec!["-flto".to_string()],
+            Flag::NoLinkTimeOptimization => vec!["-fno-lto".to_string()],
+            Flag::ThinLTO => vec!["-flto=thin".to_string()],
+            Flag::FatLTO => vec!["-flto=full".to_string()],
             Flag::TargetArch(arch) => vec![format!("-march={}", arch)],
 
             Flag::NoLogo => vec![],
@@ -453,7 +473,10 @@ impl Flags {
 
             Flag::DependencyInfo(_) => vec![],
 
-            Flag::DebugInfo => vec!["/Zi".to_string()],
+            Flag::DebugInfo => match operation {
+                Operation::Compile => vec!["/Zi".to_string()],
+                Operation::Link => vec!["/DEBUG".to_string()],
+            },
             Flag::DebugInfoFull => vec!["/Z7".to_string()],
             Flag::NoDebugInfo => vec![],
 
@@ -496,6 +519,22 @@ impl Flags {
             Flag::SharedLink => vec!["/LD".to_string()],
 
             Flag::PositionIndependentCode => vec![],
+            Flag::LinkTimeOptimization => match operation {
+                Operation::Compile => vec!["/GL".to_string()],
+                Operation::Link => vec!["/LTCG".to_string()],
+            },
+            Flag::NoLinkTimeOptimization => match operation {
+                Operation::Compile => vec![],
+                Operation::Link => vec!["/LTCG:OFF".to_string()],
+            },
+            Flag::ThinLTO => match operation {
+                Operation::Compile => vec!["/GL".to_string()],
+                Operation::Link => vec!["/LTCG".to_string()],
+            },
+            Flag::FatLTO => match operation {
+                Operation::Compile => vec!["/GL".to_string()],
+                Operation::Link => vec!["/LTCG".to_string()],
+            },
             Flag::TargetArch(arch) => vec![format!("/arch:{}", arch)],
 
             Flag::NoLogo => vec!["/nologo".to_string()],
@@ -518,7 +557,9 @@ impl Flags {
             Flag::FeatureFlag(_) => vec![],
 
             Flag::ProgramDatabase(pdb_path) => vec![format!("/Fd{}", normalize_path(pdb_path))],
-            Flag::LinkProgramDatabase(pdb_path) => vec![format!("/PDB:{}", normalize_path(pdb_path))],
+            Flag::LinkProgramDatabase(pdb_path) => {
+                vec![format!("/PDB:{}", normalize_path(pdb_path))]
+            }
             Flag::DebugType(debug_type) => match debug_type.as_str() {
                 "7" | "Z7" => vec!["/Z7".to_string()],
                 "i" | "Zi" => vec!["/Zi".to_string()],

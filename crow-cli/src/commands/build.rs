@@ -24,6 +24,10 @@ pub struct BuildArgs {
     /// Specific binary to build
     #[arg(long)]
     pub bin: Option<String>,
+
+    /// Build profile (dev, release, test, bench)
+    #[arg(short = 'p', long, default_value = "debug")]
+    pub profile: String,
 }
 
 pub struct BuildCommand {
@@ -37,7 +41,14 @@ impl BuildCommand {
 
     pub fn execute(self) -> Result<()> {
         let config = CrowConfig::load()?;
-        let project = Project::new(config, self.args.release)?;
+
+        let profile_name = if self.args.release {
+            "release"
+        } else {
+            &self.args.profile
+        };
+
+        let project = Project::new(config, profile_name)?;
 
         let compiler_exe = project
             .config
@@ -63,7 +74,7 @@ impl BuildCommand {
             "{} v{} ({})",
             project.config.package.name,
             project.config.package.version,
-            project.root.display()
+            project.root.display(),
         );
 
         let start = Instant::now();
@@ -73,8 +84,7 @@ impl BuildCommand {
         LinkingBuilder::new(linker_exe, &project, &objects).link()?;
 
         let duration = start.elapsed();
-        let profile_name = if self.args.release { "release" } else { "dev" };
-        let opt_level = if self.args.release {
+        let opt_level = if project.profile.opt_level != "0" {
             "optimized"
         } else {
             "unoptimized"

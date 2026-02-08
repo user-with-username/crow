@@ -37,7 +37,8 @@ impl IncrementalManager {
             (Some(entry), Some(current_hash)) => {
                 current_hash != &entry.hash
                     || !obj.exists()
-                    || normalize_path(&obj.as_path().to_string_lossy()) != normalize_path(&entry.object.to_string_lossy())
+                    || normalize_path(&obj.as_path().to_string_lossy())
+                        != normalize_path(&entry.object.to_string_lossy())
             }
         }
     }

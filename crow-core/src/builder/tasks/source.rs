@@ -1,11 +1,10 @@
-use crate::builder::{flags::Flags, incremental::CacheEntry, paths::ObjectFileNaming};
-use crate::builder::paths::{DependencyFilePath, DependencyFileNaming, ObjectFilePath, SourceFilePath};
-use crow_utils::normalize_path;
-use anyhow::{Context, Result};
-use std::{
-    path::Path,
-    process::Command,
+use crate::builder::paths::{
+    DependencyFileNaming, DependencyFilePath, ObjectFilePath, SourceFilePath,
 };
+use crate::builder::{flags::Flags, incremental::CacheEntry, paths::ObjectFileNaming};
+use anyhow::{Context, Result};
+use crow_utils::normalize_path;
+use std::{path::Path, process::Command};
 
 #[derive(Debug)]
 pub struct SourceCompilationTask {
@@ -22,12 +21,14 @@ impl SourceCompilationTask {
         build_config: &crate::config::BuildConfig,
         deps_dir: &Path,
         project: &crate::project::Project,
+        profile: &crate::config::Profile,
     ) -> Result<Self> {
         let compiler_kind = project.compiler_kind();
 
         let mut flags = Flags::new(compiler_kind);
         flags.compile_only();
-        flags.standard_flags(project.release);
+        flags.standard_flags();
+        profile.apply_to_compile_flags(&mut flags);
 
         for inc in build_config.get_include_dirs() {
             let inc_path = inc.to_string_lossy();
@@ -69,7 +70,7 @@ impl SourceCompilationTask {
         all_args.push(source_path.clone());
 
         cmd.args(&all_args);
-        
+
         Ok(Self {
             source: source.clone(),
             object: ObjectFilePath(object_path),
