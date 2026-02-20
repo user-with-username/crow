@@ -5,27 +5,19 @@ use crow_core::{
     CrowConfig, Project,
 };
 use crow_utils::status;
+use rayon;
 use std::time::Instant;
 
 #[derive(Args)]
 pub struct BuildArgs {
-    /// Build in release mode
     #[arg(short, long)]
     pub release: bool,
-
-    /// Target triple
     #[arg(long)]
     pub target: Option<String>,
-
-    /// Number of parallel jobs
     #[arg(short = 'j', long)]
     pub jobs: Option<usize>,
-
-    /// Specific binary to build
     #[arg(long)]
     pub bin: Option<String>,
-
-    /// Build profile (dev, release, test, bench)
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
 }
@@ -41,14 +33,20 @@ impl BuildCommand {
 
     pub fn execute(self) -> Result<()> {
         let config = CrowConfig::load()?;
-
         let profile_name = if self.args.release {
             "release"
         } else {
             &self.args.profile
         };
-
         let project = Project::new(config, profile_name)?;
+
+        if project.config.build.parallelism {
+            if let Some(jobs) = self.args.jobs {
+                let _ = rayon::ThreadPoolBuilder::new()
+                    .num_threads(jobs)
+                    .build_global();
+            }
+        }
 
         let compiler_exe = project
             .config
@@ -60,7 +58,6 @@ impl BuildCommand {
             .unwrap_or_else(|| project.compiler_kind().default_executable());
 
         let linker_kind = project.linker_kind();
-
         let linker_exe = if let Some(ref path) = project.config.build.linker.path() {
             path.as_str()
         } else if linker_kind.is_msvc() {
@@ -78,9 +75,7 @@ impl BuildCommand {
         );
 
         let start = Instant::now();
-
         let objects = CompilationBuilder::new(compiler_exe, &project).compile()?;
-
         LinkingBuilder::new(linker_exe, &project, &objects).link()?;
 
         let duration = start.elapsed();

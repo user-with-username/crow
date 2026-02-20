@@ -11,7 +11,7 @@ pub struct RunArgs {
     pub release: bool,
 
     /// Build profile (dev, release, test, bench)
-    #[arg(short = 'p', long, default_value = "dev")]
+    #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
 
     /// Arguments to pass to the executable
@@ -60,7 +60,7 @@ impl RunCommand {
             );
         }
 
-        status!("Running", "{}", executable.display());
+        status!("Running", "`{}`", executable.display());
 
         let mut cmd = Command::new(format!("{}", executable.display()));
 

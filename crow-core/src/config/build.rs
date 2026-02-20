@@ -25,19 +25,8 @@ pub struct BuildConfig {
     #[default(vec!["cpp".to_string(), "c".to_string(), "cc".to_string(), "cxx".to_string()])]
     pub src_extensions: Vec<String>,
 
-    #[default(vec!["h".to_string(), "hpp".to_string(), "hh".to_string(), "hxx".to_string()])]
-    pub header_extensions: Vec<String>,
-
     #[default(PathBuf::from("target"))]
     pub target_dir: PathBuf,
-
-    #[default("debug".to_string())]
-    pub out_dir: String,
-
-    pub preprocessor_defines: Vec<String>,
-
-    #[default(false)]
-    pub warnings_as_errors: bool,
 
     #[default(true)]
     pub parallelism: bool,
