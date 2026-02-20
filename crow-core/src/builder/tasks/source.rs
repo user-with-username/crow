@@ -4,7 +4,15 @@ use crate::builder::paths::{
 use crate::builder::{flags::CompilerFlags, incremental::CacheEntry, paths::ObjectFileNaming};
 use anyhow::{Context, Result};
 use crow_utils::normalize_path;
+use serde::Serialize;
 use std::{path::Path, process::Command};
+
+#[derive(Serialize, Clone)]
+pub struct CompileCommand {
+    pub directory: String,
+    pub command: String,
+    pub file: String,
+}
 
 #[derive(Debug)]
 pub struct SourceCompilationTask {
@@ -89,6 +97,17 @@ impl SourceCompilationTask {
             dep_file,
             command: cmd,
         })
+    }
+
+    pub fn to_compile_command(&self, directory: &Path) -> CompileCommand {
+        let mut full_cmd = vec![self.command.get_program().to_string_lossy().to_string()];
+        full_cmd.extend(self.command.get_args().map(|a| a.to_string_lossy().to_string()));
+
+        CompileCommand {
+            directory: directory.to_string_lossy().to_string(),
+            command: full_cmd.join(" "),
+            file: self.source.as_path().to_string_lossy().to_string(),
+        }
     }
 
     pub fn to_cache_entry(&self, hash: String) -> CacheEntry {

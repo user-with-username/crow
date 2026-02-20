@@ -2,20 +2,22 @@ use crate::builder::{
     flags::CompilerFlags,
     incremental::{hash_source, IncrementalManager},
     paths::{ObjectFilePath, SourceFilePath},
-    tasks::{IncludeTask, SourceCompilationTask},
+    tasks::source::{CompileCommand, SourceCompilationTask},
+    tasks::IncludeTask,
 };
 use crate::project::Project;
-use anyhow::{Context, Result};
-use crow_utils::{show_output, ProgressBar};
+use anyhow::Result;
+use crow_utils::{normalize_path, show_output, ProgressBar};
 use std::fs;
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 pub(crate) struct CompilationContext<'a> {
-    compiler_exe: &'a str,
-    project: &'a Project,
-    deps_dir: PathBuf,
-    base_flags: Vec<String>,
-    is_msvc: bool,
+    pub(crate) compiler_exe: &'a str,
+    pub(crate) project: &'a Project,
+    pub(crate) deps_dir: PathBuf,
+    pub(crate) base_flags: Vec<String>,
+    pub(crate) is_msvc: bool,
 }
 
 impl<'a> CompilationContext<'a> {
@@ -39,10 +41,7 @@ impl<'a> CompilationContext<'a> {
         }
 
         for def in &project.config.build.preprocessor_defines {
-            let (name, value) = def
-                .split_once('=')
-                .map(|(k, v)| (k, Some(v)))
-                .unwrap_or((def.as_str(), None));
+            let (name, value) = def.split_once('=').map(|(k, v)| (k, Some(v))).unwrap_or((def.as_str(), None));
             flags.define(name, value);
         }
 
@@ -64,7 +63,7 @@ impl<'a> CompilationContext<'a> {
         source_path: &Path,
         cache_manager: &IncrementalManager,
         progress: &ProgressBar,
-    ) -> Result<ObjectFilePath> {
+    ) -> Result<(ObjectFilePath, CompileCommand)> {
         let source = SourceFilePath(source_path.to_path_buf());
         let mut task = SourceCompilationTask::prepare(
             &source,
@@ -76,43 +75,40 @@ impl<'a> CompilationContext<'a> {
         )?;
 
         let object_path = task.object.clone();
+        let compile_command = task.to_compile_command(&self.project.root);
+        
         let pre_hash = self.compute_hash_before_compile(&task)?;
-
-        let needs_compile =
-            cache_manager.should_compile(&source, &Some(pre_hash.clone()), &object_path);
+        let needs_compile = cache_manager.should_compile(&source, &Some(pre_hash.clone()), &object_path);
 
         if needs_compile {
-            self.execute_compilation(&mut task, progress)?;
+            let stdout_lines = self.execute_compilation(&mut task, progress)?;
 
-            let final_hash = if self.is_msvc {
-                pre_hash
-            } else {
-                let headers = IncludeTask::new(task.dep_file.clone().into())
-                    .collect_headers()
-                    .unwrap_or_default();
-                hash_source(
-                    task.source.as_path(),
-                    &headers,
-                    self.compiler_exe,
-                    &self.base_flags,
-                )?
-            };
+            if self.is_msvc {
+                self.save_msvc_deps(&task.dep_file.as_path(), &stdout_lines)?;
+            }
 
+            let final_hash = self.compute_hash_before_compile(&task)?;
             cache_manager.record_success(&source, task.to_cache_entry(final_hash));
         }
 
         progress.inc();
-        Ok(object_path)
+        Ok((object_path, compile_command))
     }
 
     fn compute_hash_before_compile(&self, task: &SourceCompilationTask) -> Result<String> {
-        let headers = if !self.is_msvc && task.dep_file.exists() {
-            IncludeTask::new(task.dep_file.clone().into())
-                .collect_headers()
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
+        let mut headers = Vec::new();
+        if task.dep_file.exists() {
+            if self.is_msvc {
+                if let Ok(content) = fs::read_to_string(task.dep_file.as_path()) {
+                    headers = content.lines().map(PathBuf::from).collect();
+                }
+            } else {
+                headers = IncludeTask::new(task.dep_file.clone().into())
+                    .collect_headers()
+                    .unwrap_or_default();
+            }
+        }
+
         hash_source(
             task.source.as_path(),
             &headers,
@@ -121,31 +117,36 @@ impl<'a> CompilationContext<'a> {
         )
     }
 
-    fn execute_compilation(
-        &self,
-        task: &mut SourceCompilationTask,
-        progress: &ProgressBar,
-    ) -> Result<()> {
-        let output = task
-            .command
+    fn execute_compilation(&self, task: &mut SourceCompilationTask, progress: &ProgressBar) -> Result<Vec<String>> {
+        let output = task.command
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
-            .output()
-            .with_context(|| {
-                format!(
-                    "Failed to run compiler for {}",
-                    task.source.as_path().display()
-                )
-            })?;
+            .output()?;
+
+        let stdout_reader = BufReader::new(&output.stdout[..]);
+        let stdout_lines: Vec<String> = stdout_reader.lines().filter_map(|l| l.ok()).collect();
 
         if !output.status.success() {
             progress.finish();
             show_output!(output, self.project);
-            anyhow::bail!(
-                "Compilation failed for {} (exit code: {:?})",
-                task.source.as_path().display(),
-                output.status.code()
-            );
+            anyhow::bail!("Compilation failed for {}", task.source.as_path().display());
+        }
+        Ok(stdout_lines)
+    }
+
+    fn save_msvc_deps(&self, dep_path: &Path, lines: &[String]) -> Result<()> {
+        let mut deps = Vec::new();
+        for line in lines {
+            if let Some(path_str) = line.strip_prefix("Note: including file: ") {
+                let path = path_str.trim();
+                deps.push(normalize_path(path));
+            }
+        }
+        if !deps.is_empty() {
+            let mut f = fs::File::create(dep_path)?;
+            for d in deps {
+                writeln!(f, "{}", d)?;
+            }
         }
         Ok(())
     }
