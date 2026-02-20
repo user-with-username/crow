@@ -13,7 +13,14 @@ pub struct Project {
 impl Project {
     pub fn new(config: CrowConfig, profile_name: &str) -> anyhow::Result<Self> {
         let root = std::env::current_dir().context("failed to get current directory")?;
-        let profile = config.get_profile(profile_name).clone();
+        let profile = match profile_name {
+            "dev" => crate::config::Profile::Dev(config.profile.dev.clone()),
+            "release" => crate::config::Profile::Release(config.profile.release.clone()),
+            "test" => crate::config::Profile::Test(config.profile.test.clone()),
+            "bench" => crate::config::Profile::Bench(config.profile.bench.clone()),
+            _ => crate::config::Profile::Dev(config.profile.dev.clone()),
+        };
+
 
         Ok(Self {
             config,
@@ -82,15 +89,15 @@ impl Project {
 
     pub fn compiler_kind(&self) -> crate::builder::kinds::compiler_kind::CompilerKind {
         crate::builder::kinds::compiler_kind::CompilerKind::detect(
-            &self.config.build.compiler.path,
-            self.config.build.compiler.kind,
+            self.config.build.compiler.path().cloned(),
+            Some(self.config.build.compiler.kind()),
         )
     }
 
     pub fn linker_kind(&self) -> crate::builder::kinds::linker_kind::LinkerKind {
         crate::builder::kinds::linker_kind::LinkerKind::detect(
-            &self.config.build.linker.path,
-            self.config.build.linker.kind,
+            self.config.build.linker.path().cloned(),
+            Some(self.config.build.linker.kind(self.compiler_kind())),
             self.compiler_kind(),
         )
     }

@@ -54,14 +54,14 @@ impl BuildCommand {
             .config
             .build
             .compiler
-            .path
+            .path()
             .as_ref()
             .map(|s| s.as_str())
             .unwrap_or_else(|| project.compiler_kind().default_executable());
 
         let linker_kind = project.linker_kind();
 
-        let linker_exe = if let Some(ref path) = project.config.build.linker.path {
+        let linker_exe = if let Some(ref path) = project.config.build.linker.path() {
             path.as_str()
         } else if linker_kind.is_msvc() {
             linker_kind.default_executable()
@@ -84,7 +84,7 @@ impl BuildCommand {
         LinkingBuilder::new(linker_exe, &project, &objects).link()?;
 
         let duration = start.elapsed();
-        let opt_level = if project.profile.opt_level != "0" {
+        let opt_level = if project.profile.opt_level() != "0" {
             "optimized"
         } else {
             "unoptimized"

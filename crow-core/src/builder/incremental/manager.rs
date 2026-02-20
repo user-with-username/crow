@@ -8,16 +8,16 @@ use crate::builder::paths::{ObjectFilePath, SourceFilePath};
 pub struct IncrementalManager {
     cache: IncrementalCache,
     path: PathBuf,
-    is_release: bool,
+    is_incremental: bool,
 }
 
 impl IncrementalManager {
-    pub fn new(cache_path: &Path, is_release: bool) -> Self {
+    pub fn new(cache_path: &Path, is_incremental: bool) -> Self {
         let cache = IncrementalCache::load_or_default(cache_path);
         Self {
             cache,
             path: cache_path.to_path_buf(),
-            is_release,
+            is_incremental,
         }
     }
 
@@ -27,7 +27,7 @@ impl IncrementalManager {
         hash: &Option<String>,
         obj: &ObjectFilePath,
     ) -> bool {
-        if self.is_release {
+        if !self.is_incremental {
             return true;
         }
 
@@ -44,15 +44,12 @@ impl IncrementalManager {
     }
 
     pub fn record_success(&mut self, src: &SourceFilePath, entry: CacheEntry) {
-        if self.is_release {
-            return;
-        }
         let key = normalize_path(&src.as_path().to_string_lossy());
         self.cache.files.insert(key, entry);
     }
 
     pub fn finalize(&self) -> Result<()> {
-        if self.is_release {
+        if !self.is_incremental {
             let _ = std::fs::remove_file(&self.path);
             Ok(())
         } else {

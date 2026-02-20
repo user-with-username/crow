@@ -21,6 +21,8 @@ impl CleanCommand {
 
         let profile_dir = project.profile_dir();
 
+        println!("{}", profile_dir.display());
+
         if profile_dir.exists() {
             status!("Cleaning", "{}", profile_dir.display());
             std::fs::remove_dir_all(&profile_dir)?;

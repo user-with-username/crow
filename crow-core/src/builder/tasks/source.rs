@@ -30,12 +30,12 @@ impl SourceCompilationTask {
         flags.standard_flags();
         profile.apply_to_compile_flags(&mut flags);
 
-        for inc in build_config.get_include_dirs() {
+        for inc in build_config.include_dirs.iter() {
             let inc_path = inc.to_string_lossy();
             flags.include_path(inc_path.into_owned());
         }
 
-        for raw_flag in &build_config.compiler.flags {
+        for raw_flag in &build_config.compiler.flags().to_vec() {
             flags.add_raw(raw_flag.clone());
         }
 

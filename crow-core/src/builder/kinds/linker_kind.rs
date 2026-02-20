@@ -17,7 +17,7 @@ pub enum LinkerKind {
 
 impl LinkerKind {
     pub fn detect(
-        preferred: &Option<String>,
+        preferred: Option<String>,
         preferred_kind: Option<LinkerKind>,
         compiler_kind: CompilerKind,
     ) -> Self {
@@ -25,43 +25,45 @@ impl LinkerKind {
             return kind;
         }
 
-        if let Some(exe) = preferred.as_deref() {
-            if let Ok(out) = Command::new(exe).output() {
-                let info =
-                    String::from_utf8_lossy(&out.stdout) + String::from_utf8_lossy(&out.stderr);
-                if info.contains("Microsoft (R) Incremental Linker")
-                    || info.contains("Microsoft (R) Linker")
-                {
-                    return Self::Link;
+        if let Some(preferred_exe) = preferred {
+            if !preferred_exe.is_empty() {
+                if let Ok(out) = Command::new(&preferred_exe).output() {
+                    let info =
+                        String::from_utf8_lossy(&out.stdout) + String::from_utf8_lossy(&out.stderr);
+                    if info.contains("Microsoft (R) Incremental Linker")
+                        || info.contains("Microsoft (R) Linker")
+                    {
+                        return Self::Link;
+                    }
                 }
+
+                if let Ok(out) = Command::new(&preferred_exe).arg("--version").output() {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    let info = stdout.to_string() + &stderr;
+
+                    if info.contains("LLD") {
+                        return Self::Lld;
+                    }
+                    if info.contains("GNU gold") {
+                        return Self::Gold;
+                    }
+                    if info.contains("GNU ld") {
+                        return Self::Ld;
+                    }
+                    if info.contains("wasm-ld") {
+                        return Self::WasmLd;
+                    }
+                    if info.contains("ld64") || info.contains("cctools") {
+                        return Self::AppleLd;
+                    }
+                    if info.contains("BPF") && info.contains("ld") {
+                        return Self::BpfLink;
+                    }
+                }
+
+                return Self::Unknown;
             }
-
-            if let Ok(out) = Command::new(exe).arg("--version").output() {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                let stderr = String::from_utf8_lossy(&out.stderr);
-                let info = stdout.to_string() + &stderr;
-
-                if info.contains("LLD") {
-                    return Self::Lld;
-                }
-                if info.contains("GNU gold") {
-                    return Self::Gold;
-                }
-                if info.contains("GNU ld") {
-                    return Self::Ld;
-                }
-                if info.contains("wasm-ld") {
-                    return Self::WasmLd;
-                }
-                if info.contains("ld64") || info.contains("cctools") {
-                    return Self::AppleLd;
-                }
-                if info.contains("BPF") && info.contains("ld") {
-                    return Self::BpfLink;
-                }
-            }
-
-            return Self::Unknown;
         }
 
         match compiler_kind {

@@ -5,6 +5,7 @@ use std::process::{Command, Stdio};
 #[serde(rename_all = "snake_case")]
 pub enum CompilerKind {
     Gcc,
+    #[serde(alias = "g++", alias = "gpp")]
     Gpp,
     Clang,
     #[serde(alias = "clang++", alias = "clangpp", alias = "clang_p_p")]
@@ -14,7 +15,7 @@ pub enum CompilerKind {
 }
 
 impl CompilerKind {
-    pub fn detect(preferred: &Option<String>, preferred_kind: Option<CompilerKind>) -> Self {
+    pub fn detect(preferred: Option<String>, preferred_kind: Option<CompilerKind>) -> Self {
         if let Some(kind) = preferred_kind {
             return kind;
         }

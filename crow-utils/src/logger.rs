@@ -55,3 +55,30 @@ macro_rules! warning {
         logger.warning(&format!($($arg)*));
     }};
 }
+
+#[macro_export]
+macro_rules! show_output {
+    ($output:expr, $project:expr) => {
+        use $crate::DiagnosticHighlighter;
+
+        let is_msvc = $project.compiler_kind().is_msvc();
+
+        String::from_utf8_lossy(&$output.stderr)
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .for_each(|line| eprintln!("{}", DiagnosticHighlighter::colorize(line)));
+
+        String::from_utf8_lossy(&$output.stdout)
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .filter(|line| {
+                if is_msvc {
+                    let upper = line.trim().to_uppercase();
+                    upper.contains("WARNING") || upper.contains("ERROR")
+                } else {
+                    true
+                }
+            })
+            .for_each(|line| eprintln!("{}", DiagnosticHighlighter::colorize(line)));
+    };
+}

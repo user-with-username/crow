@@ -7,7 +7,7 @@ use crate::{
     project::Project,
 };
 use anyhow::{Context, Result};
-use crow_utils::{DiagnosticHighlighter, ProgressBar};
+use crow_utils::{show_output, ProgressBar};
 use std::process::Stdio;
 
 pub struct CompilationBuilder<'a> {
@@ -33,7 +33,7 @@ impl<'a> CompilationBuilder<'a> {
 
         let cache_path = profile_dir.join(".fingerprint.json");
         let mut cache_manager: IncrementalManager =
-            IncrementalManager::new(&cache_path, self.project.profile.opt_level != "0");
+            IncrementalManager::new(&cache_path, self.project.profile.incremental());
 
         let sources: Vec<_> = self.project.find_sources().into_iter().collect();
         let total = sources.len();
@@ -65,7 +65,7 @@ impl<'a> CompilationBuilder<'a> {
                 Vec::new()
             };
 
-            let flags = self.project.config.build.compiler.flags.clone();
+            let flags = self.project.config.build.compiler.flags();
             let current_hash =
                 hash_source(task.source.as_path(), &headers, self.compiler_exe, &flags)?;
 
@@ -100,7 +100,11 @@ impl<'a> CompilationBuilder<'a> {
         Ok(objects)
     }
 
-    fn execute_compilation(&self, task: &mut SourceCompilationTask, progress: &ProgressBar) -> Result<()> {
+    fn execute_compilation(
+        &self,
+        task: &mut SourceCompilationTask,
+        progress: &ProgressBar,
+    ) -> Result<()> {
         let output = task
             .command
             .stdout(Stdio::piped())
@@ -116,30 +120,7 @@ impl<'a> CompilationBuilder<'a> {
         if !output.status.success() {
             progress.finish();
 
-            let is_msvc = self.project.compiler_kind().is_msvc();
-            
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            for line in stderr.lines() {
-                let trimmed = line.trim();
-                if !trimmed.is_empty() {
-                    eprintln!("{}", DiagnosticHighlighter::colorize(line));
-                }
-            }
-
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                let trimmed = line.trim();
-                if !trimmed.is_empty() {
-                    if is_msvc {
-                        let upper = trimmed.to_uppercase();
-                        if upper.contains("WARNING") || upper.contains("ERROR") {
-                            eprintln!("{}", DiagnosticHighlighter::colorize(line));
-                        }
-                    } else {
-                        eprintln!("{}", DiagnosticHighlighter::colorize(line));
-                    }
-                }
-            }
+            show_output!(output, self.project);
 
             let exit_code = output.status.code().unwrap_or(-1);
             anyhow::bail!(

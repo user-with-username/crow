@@ -1,6 +1,8 @@
 use crate::builder::paths::{ObjectFilePath, PdbFileNaming};
 use crate::{builder::flags::Flags, project::Project};
 use anyhow::{Context, Result};
+use crow_utils::show_output;
+use std::process::Stdio;
 use std::{fs, process::Command};
 
 pub struct LinkingBuilder<'a> {
@@ -44,23 +46,26 @@ impl<'a> LinkingBuilder<'a> {
             flags.link_library(lib.clone());
         }
 
-        for raw_flag in &build.linker.flags {
+        for raw_flag in &build.linker.flags().to_vec() {
             flags.add_raw(raw_flag);
         }
 
         let mut cmd = Command::new(self.linker_exe);
-        cmd.args(flags.build());
+        cmd.stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .args(flags.build());
 
         for obj in self.objects {
             cmd.arg(obj.as_path());
         }
 
-        let status = cmd.status().context("failed to execute linker")?;
+        let output = cmd.output().context("failed to execute linker")?;
 
-        if !status.success() {
+        if !output.status.success() {
+            show_output!(output, self.project);
             anyhow::bail!(
                 "linking failed with exit code {}",
-                status.code().unwrap_or(-1)
+                output.status.code().unwrap_or(-1)
             );
         }
 
