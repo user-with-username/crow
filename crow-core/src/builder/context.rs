@@ -1,5 +1,5 @@
 use crate::builder::{
-    flags::Flags,
+    flags::CompilerFlags,
     incremental::{hash_source, IncrementalManager},
     paths::{ObjectFilePath, SourceFilePath},
     tasks::{IncludeTask, SourceCompilationTask},
@@ -26,7 +26,7 @@ impl<'a> CompilationContext<'a> {
 
         fs::create_dir_all(&deps_dir)?;
 
-        let mut flags = Flags::new(project.compiler_kind());
+        let mut flags = CompilerFlags::new(project.compiler_kind());
         flags.standard_flags();
         project.profile.apply_to_compile_flags(&mut flags);
 

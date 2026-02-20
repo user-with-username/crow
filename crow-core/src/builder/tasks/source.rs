@@ -1,7 +1,7 @@
 use crate::builder::paths::{
     DependencyFileNaming, DependencyFilePath, ObjectFilePath, SourceFilePath,
 };
-use crate::builder::{flags::Flags, incremental::CacheEntry, paths::ObjectFileNaming};
+use crate::builder::{flags::CompilerFlags, incremental::CacheEntry, paths::ObjectFileNaming};
 use anyhow::{Context, Result};
 use crow_utils::normalize_path;
 use std::{path::Path, process::Command};
@@ -25,7 +25,7 @@ impl SourceCompilationTask {
     ) -> Result<Self> {
         let compiler_kind = project.compiler_kind();
 
-        let mut flags = Flags::new(compiler_kind);
+        let mut flags = CompilerFlags::new(compiler_kind);
         flags.compile_only();
         flags.standard_flags();
         profile.apply_to_compile_flags(&mut flags);

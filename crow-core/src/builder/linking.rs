@@ -1,5 +1,5 @@
 use crate::builder::paths::{ObjectFilePath, PdbFileNaming};
-use crate::{builder::flags::Flags, project::Project};
+use crate::{builder::flags::LinkerFlags, project::Project};
 use anyhow::{Context, Result};
 use crow_utils::show_output;
 use std::process::Stdio;
@@ -21,7 +21,7 @@ impl<'a> LinkingBuilder<'a> {
     }
 
     pub fn link(&self) -> Result<()> {
-        let mut flags = Flags::for_linking(self.project.compiler_kind());
+        let mut flags = LinkerFlags::new(self.project.compiler_kind());
         let config = &self.project.config;
         let build = &config.build;
 

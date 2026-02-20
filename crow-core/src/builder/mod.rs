@@ -8,5 +8,5 @@ pub mod tasks;
 pub mod context;
 
 pub use compilation::CompilationBuilder;
-pub use flags::Flags;
+pub use flags::{CompilerFlags, LinkerFlags};
 pub use linking::LinkingBuilder;

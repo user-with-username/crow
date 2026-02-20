@@ -1,4 +1,5 @@
-use crate::builder::flags::Flags;
+use crate::builder::LinkerFlags;
+use crate::builder::flags::CompilerFlags;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::config::profile::{BenchProfile, DevProfile, ReleaseProfile, TestProfile};
 
@@ -83,7 +84,7 @@ impl Profile {
         }
     }
 
-    pub fn apply_to_compile_flags(&self, flags: &mut Flags) {
+    pub fn apply_to_compile_flags(&self, flags: &mut CompilerFlags) {
         match self.opt_level() {
             "0" => flags.no_optimization(),
             "1" => flags.optimization_level(1),
@@ -134,7 +135,7 @@ impl Profile {
         }
     }
 
-    pub fn apply_to_link_flags(&self, flags: &mut Flags) {
+    pub fn apply_to_link_flags(&self, flags: &mut LinkerFlags) {
         if self.lto() {
             match flags.get_compiler_kind() {
                 CompilerKind::Msvc => {
