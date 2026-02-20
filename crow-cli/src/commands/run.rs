@@ -10,7 +10,7 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub release: bool,
 
-    /// Build profile (dev, release, test, bench)
+    /// Build profile (debug, release, test, bench)
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
 

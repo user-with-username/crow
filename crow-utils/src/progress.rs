@@ -1,50 +1,63 @@
 use std::io::{self, Write};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::Mutex;
 
 pub struct ProgressBar {
     total: usize,
-    current: Arc<AtomicUsize>,
+    current: AtomicUsize,
+    last_drawn: AtomicUsize,
     label: String,
+    io_lock: Mutex<()>,
 }
 
 impl ProgressBar {
     pub fn new(total: usize, label: impl Into<String>) -> Self {
         Self {
             total,
-            current: Arc::new(AtomicUsize::new(0)),
+            current: AtomicUsize::new(0),
+            last_drawn: AtomicUsize::new(0),
             label: label.into(),
+            io_lock: Mutex::new(()),
         }
     }
 
     pub fn inc(&self) {
-        let current = self.current.fetch_add(1, Ordering::SeqCst) + 1;
-        self.draw(current);
+        let val = self.current.fetch_add(1, Ordering::SeqCst) + 1;
+        self.draw(val);
     }
 
     pub fn finish(&self) {
-        self.draw(self.total);
-        print!("\r{}\r", " ".repeat(100));
-        io::stdout().flush().unwrap();
+        let _lock = self.io_lock.lock().unwrap();
+        print!("\r\x1b[2K");
+        let _ = io::stdout().flush();
     }
 
     fn draw(&self, current: usize) {
+        let _lock = self.io_lock.lock().unwrap();
+        
+        let last = self.last_drawn.load(Ordering::SeqCst);
+        if current < last && current < self.total {
+            return;
+        }
+        self.last_drawn.store(current, Ordering::SeqCst);
+
         let width = 30;
-        let filled = (current * width) / self.total.max(1);
+        let total_safe = self.total.max(1);
+        let filled = (current * width) / total_safe;
+        let filled = filled.min(width);
 
-        let bar_content = format!(
-            "{}{}{}",
-            "=".repeat(filled),
-            ">",
-            " ".repeat(width.saturating_sub(filled))
-        );
+        let mut bar_content = "=".repeat(filled);
+        if filled < width {
+            bar_content.push('>');
+            bar_content.push_str(&" ".repeat(width - filled - 1));
+        } else {
+            if bar_content.len() < width { bar_content.push('='); }
+        }
 
-        let bar = format!(
+        print!(
             "\r\x1b[1;96m{:>12}\x1b[0m [{}] {}/{}: {}",
             "Building", bar_content, current, self.total, self.label
         );
-
-        print!("{}", bar);
-        io::stdout().flush().unwrap();
+        let _ = io::stdout().flush();
     }
 }

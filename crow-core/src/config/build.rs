@@ -31,6 +31,9 @@ pub struct BuildConfig {
     #[default(Vec::new())]
     pub preprocessor_defines: Vec<String>,
 
+    #[default(false)]
+    pub warnings_as_errors: bool,
+
     #[default(true)]
     pub parallelism: bool,
 }

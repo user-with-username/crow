@@ -5,6 +5,7 @@ pub mod kinds;
 pub mod linking;
 pub mod paths;
 pub mod tasks;
+pub mod context;
 
 pub use compilation::CompilationBuilder;
 pub use flags::Flags;

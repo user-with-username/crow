@@ -30,6 +30,10 @@ impl SourceCompilationTask {
         flags.standard_flags();
         profile.apply_to_compile_flags(&mut flags);
 
+        if build_config.warnings_as_errors {
+            flags.warnings_as_errors();
+        }
+
         for inc in build_config.include_dirs.iter() {
             let inc_path = inc.to_string_lossy();
             flags.include_path(inc_path.into_owned());
