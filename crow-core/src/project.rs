@@ -30,12 +30,13 @@ impl Project {
     }
 
     pub fn find_sources(&self) -> Vec<PathBuf> {
+        let extensions = &self.config.build.src_extensions;
         WalkDir::new("src")
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|entry| {
                 entry.path().extension().map_or(false, |ext| {
-                    matches!(ext.to_str(), Some("cpp" | "c" | "cc"))
+                    extensions.iter().any(|e| e.as_str() == ext)
                 })
             })
             .map(|entry| entry.path().to_path_buf())
@@ -43,7 +44,7 @@ impl Project {
     }
 
     pub fn target_dir(&self) -> PathBuf {
-        self.root.join("target")
+        self.config.build.target_dir.clone()
     }
 
     pub fn profile_dir(&self) -> PathBuf {
@@ -55,19 +56,36 @@ impl Project {
     }
 
     pub fn output_path(&self) -> PathBuf {
-        self.profile_dir().join(&self.output_name())
+        let base_name = self.config.r#type.display_name(&self.config.package.name);
+        let filename = if self.config.r#type.needs_prefix() {
+            format!("lib{}", base_name)
+        } else {
+            base_name.to_string()
+        };
+        self.profile_dir().join(filename).with_extension(self.config.r#type.extension())
     }
 
     pub fn output_name(&self) -> String {
-        if cfg!(windows) {
-            format!("{}.exe", self.config.package.name)
+        let base_name = self.config.r#type.display_name(&self.config.package.name);
+        let filename = if self.config.r#type.needs_prefix() {
+            format!("lib{}", base_name)
         } else {
-            self.config.package.name.clone()
+            base_name.to_string()
+        };
+        let extension = self.config.r#type.extension();
+        if extension.is_empty() {
+            filename
+        } else {
+            format!("{}.{}", filename, extension)
         }
     }
 
     pub fn create_dirs(&self) -> Result<(), std::io::Error> {
-        let dirs = vec![self.target_dir(), self.profile_dir()];
+        let dirs = vec![
+            self.target_dir(),
+            self.profile_dir(),
+            self.profile_dir().join("deps"),
+        ];
 
         for dir in dirs {
             if !dir.exists() {
