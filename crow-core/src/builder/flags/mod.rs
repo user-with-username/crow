@@ -97,27 +97,6 @@ impl Flags {
         self
     }
 
-    pub fn defines_to_flags(defines: &[String], compiler_kind: CompilerKind) -> Vec<String> {
-        let mut flags = Vec::new();
-        for def in defines {
-            if let Some((name, value)) = def.split_once('=') {
-                if compiler_kind.is_msvc() {
-                    flags.push(format!("/D{}={}", name, value));
-                } else {
-                    flags.push(format!("-D{}={}", name, value));
-                }
-            } else {
-                if compiler_kind.is_msvc() {
-                    flags.push(format!("/D{}", def));
-                } else {
-                    flags.push(format!("-D{}", def));
-                }
-            }
-        }
-        flags
-    }
-
-
     pub fn no_link_time_optimization(&mut self) -> &mut Self {
         self.flags.push(Flag::NoLinkTimeOptimization);
         self
