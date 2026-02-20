@@ -22,7 +22,7 @@ impl CleanCommand {
         let profile_dir = project.profile_dir();
         let target_dir = profile_dir
             .parent()
-            .context("Profile directory has no parent. How is it possible?")?;
+            .context("Target directory has no parent. How is it possible?")?;
 
         if target_dir.exists() {
             status!("Cleaning", "{}", target_dir.display());
