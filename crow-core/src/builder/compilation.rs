@@ -1,5 +1,6 @@
 use crate::{
     builder::{
+        flags::Flags,
         incremental::{hash_source, IncrementalManager},
         paths::{ObjectFilePath, SourceFilePath},
         tasks::{IncludeTask, SourceCompilationTask},
@@ -46,8 +47,26 @@ impl<'a> CompilationBuilder<'a> {
 
         let is_msvc = self.project.compiler_kind().is_msvc();
 
+        let base_compiler_flags = self.project.config.build.compiler.flags();
+        let define_flags = Flags::defines_to_flags(
+            &self.project.config.build.preprocessor_defines,
+            self.project.compiler_kind()
+        );
+        let all_base_flags: Vec<String> = base_compiler_flags
+            .iter()
+            .cloned()
+            .chain(define_flags)
+            .collect();
+
         if !self.project.config.build.parallelism {
-            return self.compile_sequentially(&sources, &deps_dir, cache_manager, &progress, is_msvc);
+            return self.compile_sequentially(
+                &sources,
+                &deps_dir,
+                cache_manager,
+                &progress,
+                is_msvc,
+                &all_base_flags,
+            );
         }
 
         let cache_manager = Mutex::new(cache_manager);
@@ -74,9 +93,12 @@ impl<'a> CompilationBuilder<'a> {
                 Vec::new()
             };
 
-            let flags = self.project.config.build.compiler.flags();
-            let current_hash =
-                hash_source(task.source.as_path(), &headers, self.compiler_exe, &flags)?;
+            let current_hash = hash_source(
+                task.source.as_path(),
+                &headers,
+                self.compiler_exe,
+                &all_base_flags,
+            )?;
 
             let needs_compile = {
                 let cache = cache_manager.lock().unwrap();
@@ -92,7 +114,7 @@ impl<'a> CompilationBuilder<'a> {
                 } else {
                     let include_task = IncludeTask::new(task.dep_file.clone().into());
                     let headers = include_task.collect_headers()?;
-                    hash_source(task.source.as_path(), &headers, self.compiler_exe, &flags)?
+                    hash_source(task.source.as_path(), &headers, self.compiler_exe, &all_base_flags)?
                 };
 
                 {
@@ -122,6 +144,7 @@ impl<'a> CompilationBuilder<'a> {
         mut cache_manager: IncrementalManager,
         progress: &Mutex<ProgressBar>,
         is_msvc: bool,
+        all_base_flags: &[String],
     ) -> Result<Vec<ObjectFilePath>> {
         let mut objects = Vec::new();
         for source_path in sources {
@@ -145,9 +168,12 @@ impl<'a> CompilationBuilder<'a> {
                 Vec::new()
             };
 
-            let flags = self.project.config.build.compiler.flags();
-            let current_hash =
-                hash_source(task.source.as_path(), &headers, self.compiler_exe, &flags)?;
+            let current_hash = hash_source(
+                task.source.as_path(),
+                &headers,
+                self.compiler_exe,
+                all_base_flags,
+            )?;
 
             let needs_compile =
                 cache_manager.should_compile(&source, &Some(current_hash.clone()), &object_path);
@@ -161,7 +187,7 @@ impl<'a> CompilationBuilder<'a> {
                 } else {
                     let include_task = IncludeTask::new(task.dep_file.clone().into());
                     let headers = include_task.collect_headers()?;
-                    hash_source(task.source.as_path(), &headers, self.compiler_exe, &flags)?
+                    hash_source(task.source.as_path(), &headers, self.compiler_exe, all_base_flags)?
                 };
 
                 cache_manager.record_success(&source, task.to_cache_entry(final_hash));

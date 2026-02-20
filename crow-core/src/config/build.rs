@@ -28,6 +28,9 @@ pub struct BuildConfig {
     #[default(PathBuf::from("target"))]
     pub target_dir: PathBuf,
 
+    #[default(Vec::new())]
+    pub preprocessor_defines: Vec<String>,
+
     #[default(true)]
     pub parallelism: bool,
 }

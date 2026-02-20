@@ -35,6 +35,14 @@ impl SourceCompilationTask {
             flags.include_path(inc_path.into_owned());
         }
 
+        for def in &build_config.preprocessor_defines {
+            if let Some((name, value)) = def.split_once('=') {
+                flags.define(name, Some(value));
+            } else {
+                flags.define(def.as_str(), None::<String>);
+            }
+        }
+
         for raw_flag in &build_config.compiler.flags().to_vec() {
             flags.add_raw(raw_flag.clone());
         }
