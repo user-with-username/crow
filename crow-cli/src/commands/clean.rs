@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Args;
 use crow_core::{CrowConfig, Project};
 use crow_utils::status;
@@ -20,13 +20,14 @@ impl CleanCommand {
         let project = Project::new(config, "dev")?;
 
         let profile_dir = project.profile_dir();
+        let target_dir = profile_dir
+            .parent()
+            .context("Profile directory has no parent. How is it possible?")?;
 
-        println!("{}", profile_dir.display());
-
-        if profile_dir.exists() {
-            status!("Cleaning", "{}", profile_dir.display());
-            std::fs::remove_dir_all(&profile_dir)?;
-            status!("Deleted", "profile directory");
+        if target_dir.exists() {
+            status!("Cleaning", "{}", target_dir.display());
+            std::fs::remove_dir_all(target_dir)?;
+            status!("Deleted", "target directory");
         }
 
         Ok(())
