@@ -10,14 +10,23 @@ use std::time::Instant;
 
 #[derive(Args)]
 pub struct BuildArgs {
+    /// Build in release mode
     #[arg(short, long)]
     pub release: bool,
+
+    /// Build for the specific target triple
     #[arg(long)]
     pub target: Option<String>,
+
+    /// Number of parallel jobs to run
     #[arg(short = 'j', long)]
     pub jobs: Option<usize>,
+
+    /// Build only the specified binary
     #[arg(long)]
     pub bin: Option<String>,
+
+    /// Build profile (debug, release, test, bench)
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
 }
