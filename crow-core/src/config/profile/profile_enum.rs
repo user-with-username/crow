@@ -1,6 +1,6 @@
 use crate::builder::flags::Flags;
 use crate::builder::kinds::compiler_kind::CompilerKind;
-use crate::config::profile::{DevProfile, ReleaseProfile, TestProfile, BenchProfile};
+use crate::config::profile::{BenchProfile, DevProfile, ReleaseProfile, TestProfile};
 
 #[derive(Clone)]
 pub enum Profile {

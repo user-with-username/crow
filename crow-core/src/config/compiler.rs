@@ -1,6 +1,6 @@
-use serde::Deserialize;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::config::macros::config_enum;
+use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 pub enum CompilerConfig {

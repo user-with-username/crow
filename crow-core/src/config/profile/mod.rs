@@ -1,14 +1,14 @@
+mod bench;
 mod dev;
+mod profile_enum;
 mod release;
 mod test;
-mod bench;
-mod profile_enum;
 
+pub use bench::BenchProfile;
 pub use dev::DevProfile;
+pub use profile_enum::Profile;
 pub use release::ReleaseProfile;
 pub use test::TestProfile;
-pub use bench::BenchProfile;
-pub use profile_enum::Profile;
 
 use serde::Deserialize;
 use smart_default::SmartDefault;

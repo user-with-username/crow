@@ -23,7 +23,10 @@ macro_rules! config_enum {
                 impl<'de> ::serde::de::Visitor<'de> for ConfigVisitor {
                     type Value = $name;
 
-                    fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::std::fmt::Formatter,
+                    ) -> ::std::fmt::Result {
                         formatter.write_str("a string or a struct with path, flags, and kind")
                     }
 
@@ -31,7 +34,8 @@ macro_rules! config_enum {
                     where
                         E: ::serde::de::Error,
                     {
-                        let kind = <$kind>::deserialize(::serde::de::value::StrDeserializer::new(value))?;
+                        let kind =
+                            <$kind>::deserialize(::serde::de::value::StrDeserializer::new(value))?;
                         Ok($name::Simple(kind))
                     }
 
@@ -41,7 +45,7 @@ macro_rules! config_enum {
                     {
                         let detailed =
                             $crate::config::macros::DetailedConfig::<$kind>::deserialize(
-                                ::serde::de::value::MapAccessDeserializer::new(map)
+                                ::serde::de::value::MapAccessDeserializer::new(map),
                             )?;
                         Ok($name::Detailed {
                             path: detailed.path,

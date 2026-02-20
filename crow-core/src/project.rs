@@ -21,7 +21,6 @@ impl Project {
             _ => crate::config::Profile::Dev(config.profile.dev.clone()),
         };
 
-
         Ok(Self {
             config,
             root,

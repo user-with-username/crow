@@ -1,7 +1,7 @@
-use serde::Deserialize;
-use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::kinds::compiler_kind::CompilerKind;
+use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::config::macros::config_enum;
+use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 pub enum LinkerConfig {
@@ -44,9 +44,9 @@ impl LinkerConfig {
                 }
             }
             LinkerConfig::Detailed { kind: Some(k), .. } => *k,
-            LinkerConfig::Detailed { kind: None, path, .. } => {
-                LinkerKind::detect(path.clone(), None, compiler_kind)
-            }
+            LinkerConfig::Detailed {
+                kind: None, path, ..
+            } => LinkerKind::detect(path.clone(), None, compiler_kind),
         }
     }
 
@@ -60,10 +60,16 @@ impl LinkerConfig {
                 }
             }
             LinkerConfig::Detailed { path: Some(p), .. } => p,
-            LinkerConfig::Detailed { path: None, kind: Some(k), .. } => k.default_executable(),
-            LinkerConfig::Detailed { path: None, kind: None, .. } => {
-                self.kind(compiler_kind).default_executable()
-            }
+            LinkerConfig::Detailed {
+                path: None,
+                kind: Some(k),
+                ..
+            } => k.default_executable(),
+            LinkerConfig::Detailed {
+                path: None,
+                kind: None,
+                ..
+            } => self.kind(compiler_kind).default_executable(),
         }
     }
 }

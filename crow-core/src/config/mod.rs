@@ -1,15 +1,17 @@
 use serde::Deserialize;
 
-mod macros;
-mod linker;
-mod compiler;
 mod build;
+mod compiler;
+mod linker;
+mod macros;
 pub mod profile;
+mod r#type;
 
-pub use linker::LinkerConfig;
-pub use compiler::CompilerConfig;
 pub use build::BuildConfig;
-pub use profile::{Profiles, DevProfile, ReleaseProfile, TestProfile, BenchProfile, Profile};
+pub use compiler::CompilerConfig;
+pub use linker::LinkerConfig;
+pub use profile::{BenchProfile, DevProfile, Profile, Profiles, ReleaseProfile, TestProfile};
+pub use r#type::{BinaryConfig, LibraryConfig, ProjectType, TargetType};
 
 #[derive(Deserialize)]
 pub struct CrowConfig {
@@ -18,12 +20,18 @@ pub struct CrowConfig {
     pub build: BuildConfig,
     #[serde(default)]
     pub profile: Profiles,
+    #[serde(default)]
+    pub r#type: ProjectType,
 }
 
 #[derive(Deserialize)]
 pub struct Package {
     pub name: String,
     pub version: String,
+    pub authors: Option<Vec<String>>,
+    pub description: Option<String>,
+    pub license: Option<String>,
+    pub repository: Option<String>,
 }
 
 impl CrowConfig {

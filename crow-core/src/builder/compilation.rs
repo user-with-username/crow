@@ -1,9 +1,10 @@
 use crate::{
-    builder::paths::{ObjectFilePath, SourceFilePath},
     builder::{
         incremental::{hash_source, IncrementalManager},
+        paths::{ObjectFilePath, SourceFilePath},
         tasks::{IncludeTask, SourceCompilationTask},
     },
+    config::ProjectType,
     project::Project,
 };
 use anyhow::{Context, Result};
@@ -38,8 +39,20 @@ impl<'a> CompilationBuilder<'a> {
         let sources: Vec<_> = self.project.find_sources().into_iter().collect();
         let total = sources.len();
 
-        let progress =
-            ProgressBar::new(total, format!("{}(bin)", self.project.config.package.name));
+        let r#type = match self.project.config.r#type {
+            ProjectType::Bin(_) => "bin",
+            ProjectType::Exe(_) => "exe",
+            ProjectType::Lib(_) => "lib",
+            ProjectType::StaticLib(_) | ProjectType::StaticLibrary(_) => "static-lib",
+            ProjectType::SharedLib(_) | ProjectType::SharedLibrary(_) => "shared-lib",
+            ProjectType::Module(_) => "module",
+            ProjectType::HeaderOnly => "header-only",
+        };
+
+        let progress = ProgressBar::new(
+            total,
+            format!("{}({})", self.project.config.package.name, r#type),
+        );
 
         let mut objects = Vec::new();
         let is_msvc = self.project.compiler_kind().is_msvc();
