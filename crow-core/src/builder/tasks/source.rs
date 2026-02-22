@@ -42,9 +42,12 @@ impl SourceCompilationTask {
             flags.warnings_as_errors();
         }
 
+        for inc in project.toolchain.system_include_dirs() {
+            flags.include_path(inc.to_string_lossy().into_owned());
+        }
+
         for inc in build_config.include_dirs.iter() {
-            let inc_path = inc.to_string_lossy();
-            flags.include_path(inc_path.into_owned());
+            flags.include_path(inc.to_string_lossy().into_owned());
         }
 
         for def in &build_config.preprocessor_defines {
@@ -84,12 +87,14 @@ impl SourceCompilationTask {
             flags.program_database(&normalize_path(&pdb_path.to_string_lossy()));
         }
 
-        let mut cmd = Command::new(compiler_exe);
-        let mut all_args = flags.build();
-        let source_path = normalize_path(&source.as_path().to_string_lossy());
-        all_args.push(source_path.clone());
+        let built_flags = flags.build();
 
-        cmd.args(&all_args);
+        let mut cmd = Command::new(compiler_exe);
+
+        cmd.args(&built_flags);
+
+        let source_path = normalize_path(&source.as_path().to_string_lossy());
+        cmd.arg(&source_path);
 
         Ok(Self {
             source: source.clone(),
@@ -101,7 +106,11 @@ impl SourceCompilationTask {
 
     pub fn to_compile_command(&self, directory: &Path) -> CompileCommand {
         let mut full_cmd = vec![self.command.get_program().to_string_lossy().to_string()];
-        full_cmd.extend(self.command.get_args().map(|a| a.to_string_lossy().to_string()));
+        full_cmd.extend(
+            self.command
+                .get_args()
+                .map(|a| a.to_string_lossy().to_string()),
+        );
 
         CompileCommand {
             directory: directory.to_string_lossy().to_string(),

@@ -1,6 +1,6 @@
-use crate::builder::LinkerFlags;
 use crate::builder::flags::CompilerFlags;
 use crate::builder::kinds::compiler_kind::CompilerKind;
+use crate::builder::LinkerFlags;
 use crate::config::profile::{BenchProfile, DevProfile, ReleaseProfile, TestProfile};
 
 #[derive(Clone)]
@@ -115,6 +115,7 @@ impl Profile {
                 CompilerKind::Gcc | CompilerKind::Gpp => {
                     flags.link_time_optimization();
                 }
+                CompilerKind::Unknown => {}
             }
         } else {
             flags.no_link_time_optimization();
@@ -151,6 +152,7 @@ impl Profile {
                 CompilerKind::Gcc | CompilerKind::Gpp => {
                     flags.link_time_optimization();
                 }
+                CompilerKind::Unknown => {}
             }
         } else {
             flags.no_link_time_optimization();

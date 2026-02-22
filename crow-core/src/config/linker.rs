@@ -1,4 +1,3 @@
-use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::config::macros::config_enum;
 use serde::Deserialize;
@@ -34,42 +33,11 @@ impl LinkerConfig {
         }
     }
 
-    pub fn kind(&self, compiler_kind: CompilerKind) -> LinkerKind {
+    pub fn kind(&self) -> LinkerKind {
         match self {
-            LinkerConfig::Simple(kind) => {
-                if *kind == LinkerKind::Unknown {
-                    LinkerKind::detect(self.path().cloned(), None, compiler_kind)
-                } else {
-                    *kind
-                }
-            }
+            LinkerConfig::Simple(kind) => *kind,
             LinkerConfig::Detailed { kind: Some(k), .. } => *k,
-            LinkerConfig::Detailed {
-                kind: None, path, ..
-            } => LinkerKind::detect(path.clone(), None, compiler_kind),
-        }
-    }
-
-    pub fn executable(&self, compiler_kind: CompilerKind) -> &str {
-        match self {
-            LinkerConfig::Simple(kind) => {
-                if *kind == LinkerKind::Unknown {
-                    self.kind(compiler_kind).default_executable()
-                } else {
-                    kind.default_executable()
-                }
-            }
-            LinkerConfig::Detailed { path: Some(p), .. } => p,
-            LinkerConfig::Detailed {
-                path: None,
-                kind: Some(k),
-                ..
-            } => k.default_executable(),
-            LinkerConfig::Detailed {
-                path: None,
-                kind: None,
-                ..
-            } => self.kind(compiler_kind).default_executable(),
+            LinkerConfig::Detailed { kind: None, .. } => LinkerKind::Unknown,
         }
     }
 }

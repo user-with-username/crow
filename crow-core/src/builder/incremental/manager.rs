@@ -33,9 +33,9 @@ impl IncrementalManager {
         }
 
         let key = normalize_path(&src.as_path().to_string_lossy());
-        
+
         let cache = self.cache.lock().unwrap();
-        
+
         match (cache.files.get(&key), hash) {
             (None, _) | (_, None) => true,
             (Some(entry), Some(current_hash)) => {
@@ -53,7 +53,7 @@ impl IncrementalManager {
         }
 
         let key = normalize_path(&src.as_path().to_string_lossy());
-        
+
         let mut cache = self.cache.lock().unwrap();
         cache.files.insert(key, entry);
     }

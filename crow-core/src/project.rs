@@ -1,3 +1,4 @@
+use crate::builder::toolchain::{self, Toolchain};
 use crate::config::CrowConfig;
 use anyhow::Context;
 use std::path::PathBuf;
@@ -8,6 +9,7 @@ pub struct Project {
     pub root: PathBuf,
     pub profile: crate::config::Profile,
     pub profile_name: String,
+    pub toolchain: Box<dyn Toolchain>,
 }
 
 impl Project {
@@ -21,11 +23,17 @@ impl Project {
             _ => crate::config::Profile::Dev(config.profile.dev.clone()),
         };
 
+        let toolchain = toolchain::detect_toolchain(
+            config.build.compiler.path().cloned(),
+            Some(config.build.compiler.kind().clone()),
+        )?;
+
         Ok(Self {
             config,
             root,
             profile,
             profile_name: profile_name.to_string(),
+            toolchain,
         })
     }
 
@@ -35,9 +43,10 @@ impl Project {
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|entry| {
-                entry.path().extension().map_or(false, |ext| {
-                    extensions.iter().any(|e| e.as_str() == ext)
-                })
+                entry
+                    .path()
+                    .extension()
+                    .map_or(false, |ext| extensions.iter().any(|e| e.as_str() == ext))
             })
             .map(|entry| entry.path().to_path_buf())
             .collect()
@@ -62,7 +71,9 @@ impl Project {
         } else {
             base_name.to_string()
         };
-        self.profile_dir().join(filename).with_extension(self.config.r#type.extension())
+        self.profile_dir()
+            .join(filename)
+            .with_extension(self.config.r#type.extension())
     }
 
     pub fn output_name(&self) -> String {
@@ -105,17 +116,29 @@ impl Project {
     }
 
     pub fn compiler_kind(&self) -> crate::builder::kinds::compiler_kind::CompilerKind {
-        crate::builder::kinds::compiler_kind::CompilerKind::detect(
-            self.config.build.compiler.path().cloned(),
-            Some(self.config.build.compiler.kind()),
-        )
+        self.toolchain.compiler_kind()
     }
 
     pub fn linker_kind(&self) -> crate::builder::kinds::linker_kind::LinkerKind {
-        crate::builder::kinds::linker_kind::LinkerKind::detect(
-            self.config.build.linker.path().cloned(),
-            Some(self.config.build.linker.kind(self.compiler_kind())),
-            self.compiler_kind(),
-        )
+        self.toolchain.linker_kind()
+    }
+
+    pub fn compiler_path(&self) -> &str {
+        self.toolchain.compiler_path()
+    }
+
+    pub fn linker_path(&self) -> &str {
+        if let Some(path) = self.config.build.linker.path() {
+            return path;
+        }
+        if self.compiler_kind().is_msvc() {
+            self.toolchain.linker_path()
+        } else {
+            self.toolchain.compiler_path()
+        }
+    }
+
+    pub fn system_include_dirs(&self) -> Vec<PathBuf> {
+        self.toolchain.system_include_dirs()
     }
 }

@@ -7,7 +7,11 @@ pub fn change_directory(path: &Path) -> Result<()> {
 }
 
 pub fn normalize_path(path: &str) -> String {
-    path.replace("\\", "/")
+    if cfg!(windows) {
+        path.trim().to_string()
+    } else {
+        path.replace("\\", "/")
+    }
 }
 
 pub fn fix_msvc_path(path: &str, default_extension: Option<&str>) -> String {

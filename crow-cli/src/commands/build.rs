@@ -57,22 +57,16 @@ impl BuildCommand {
             }
         }
 
-        let compiler_exe = project
-            .config
-            .build
-            .compiler
-            .path()
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or_else(|| project.compiler_kind().default_executable());
-
-        let linker_kind = project.linker_kind();
-        let linker_exe = if let Some(ref path) = project.config.build.linker.path() {
+        let compiler_exe = if let Some(path) = project.config.build.compiler.path() {
             path.as_str()
-        } else if linker_kind.is_msvc() {
-            linker_kind.default_executable()
         } else {
-            compiler_exe
+            project.compiler_path()
+        };
+
+        let linker_exe = if let Some(path) = project.config.build.linker.path() {
+            path.as_str()
+        } else {
+            project.linker_path()
         };
 
         status!(

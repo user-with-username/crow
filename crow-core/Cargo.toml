@@ -18,3 +18,4 @@ indicatif = { version = "0.18.3" }
 colored = "3.1.1"
 smart-default = "0.7.1"
 rayon = { workspace = true }
+which = "8.0.0"

@@ -32,6 +32,10 @@ impl<'a> CompilationContext<'a> {
         flags.standard_flags();
         project.profile.apply_to_compile_flags(&mut flags);
 
+        for inc in project.toolchain.system_include_dirs() {
+            flags.include_path(inc.to_string_lossy().into_owned());
+        }
+
         for inc in &project.config.build.include_dirs {
             flags.include_path(inc.to_string_lossy().into_owned());
         }
@@ -41,7 +45,10 @@ impl<'a> CompilationContext<'a> {
         }
 
         for def in &project.config.build.preprocessor_defines {
-            let (name, value) = def.split_once('=').map(|(k, v)| (k, Some(v))).unwrap_or((def.as_str(), None));
+            let (name, value) = def
+                .split_once('=')
+                .map(|(k, v)| (k, Some(v)))
+                .unwrap_or((def.as_str(), None));
             flags.define(name, value);
         }
 
@@ -76,9 +83,10 @@ impl<'a> CompilationContext<'a> {
 
         let object_path = task.object.clone();
         let compile_command = task.to_compile_command(&self.project.root);
-        
+
         let pre_hash = self.compute_hash_before_compile(&task)?;
-        let needs_compile = cache_manager.should_compile(&source, &Some(pre_hash.clone()), &object_path);
+        let needs_compile =
+            cache_manager.should_compile(&source, &Some(pre_hash.clone()), &object_path);
 
         if needs_compile {
             let stdout_lines = self.execute_compilation(&mut task, progress)?;
@@ -117,8 +125,13 @@ impl<'a> CompilationContext<'a> {
         )
     }
 
-    fn execute_compilation(&self, task: &mut SourceCompilationTask, progress: &ProgressBar) -> Result<Vec<String>> {
-        let output = task.command
+    fn execute_compilation(
+        &self,
+        task: &mut SourceCompilationTask,
+        progress: &ProgressBar,
+    ) -> Result<Vec<String>> {
+        let output = task
+            .command
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .output()?;

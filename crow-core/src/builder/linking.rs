@@ -38,6 +38,10 @@ impl<'a> LinkingBuilder<'a> {
             flags.link_program_database(pdb_path.to_string_lossy().into_owned());
         }
 
+        for dir in self.project.toolchain.system_library_dirs() {
+            flags.library_path(dir.to_string_lossy().into_owned());
+        }
+
         for dir in &build.lib_dirs {
             flags.library_path(dir.to_string_lossy().into_owned());
         }

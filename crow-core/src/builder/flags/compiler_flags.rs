@@ -31,8 +31,6 @@ impl CompilerFlags {
             self.no_logo();
             self.exception_handling();
             self.all_warnings();
-            self.define("WIN32", None::<String>);
-            self.define("_WINDOWS", None::<String>);
         }
         self
     }
@@ -377,8 +375,8 @@ impl CompilerFlags {
             Flag::CxxStandard(std) => vec![format!("/std:{}", std)],
             Flag::CStandard(std) => vec![format!("/std:{}", std)],
 
-            Flag::IncludePath(path) => vec![format!("/I{}", normalize_path(path))],
-            Flag::SystemIncludePath(path) => vec![format!("/I{}", normalize_path(path))],
+            Flag::IncludePath(path) => vec![format!("/I{}", path)],
+            Flag::SystemIncludePath(path) => vec![format!("/I{}", path)],
 
             Flag::Define(name, val) => match val {
                 Some(v) => vec![format!("/D{}={}", name, v)],

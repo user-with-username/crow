@@ -34,7 +34,7 @@ impl ProgressBar {
 
     fn draw(&self, current: usize) {
         let _lock = self.io_lock.lock().unwrap();
-        
+
         let last = self.last_drawn.load(Ordering::SeqCst);
         if current < last && current < self.total {
             return;
@@ -51,7 +51,9 @@ impl ProgressBar {
             bar_content.push('>');
             bar_content.push_str(&" ".repeat(width - filled - 1));
         } else {
-            if bar_content.len() < width { bar_content.push('='); }
+            if bar_content.len() < width {
+                bar_content.push('=');
+            }
         }
 
         print!(

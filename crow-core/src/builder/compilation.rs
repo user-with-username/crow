@@ -35,22 +35,26 @@ impl<'a> CompilationBuilder<'a> {
             sources.len(),
             format!(
                 "{}({})",
-                self.project.config.r#type.display_name(&self.project.config.package.name),
+                self.project
+                    .config
+                    .r#type
+                    .display_name(&self.project.config.package.name),
                 self.project.config.r#type.type_str()
             ),
         );
 
-        let results: Result<Vec<(ObjectFilePath, CompileCommand)>> = if self.project.config.build.parallelism {
-            sources
-                .par_iter()
-                .map(|path| context.compile_unit(path, &cache_manager, &progress))
-                .collect()
-        } else {
-            sources
-                .iter()
-                .map(|path| context.compile_unit(path, &cache_manager, &progress))
-                .collect()
-        };
+        let results: Result<Vec<(ObjectFilePath, CompileCommand)>> =
+            if self.project.config.build.parallelism {
+                sources
+                    .par_iter()
+                    .map(|path| context.compile_unit(path, &cache_manager, &progress))
+                    .collect()
+            } else {
+                sources
+                    .iter()
+                    .map(|path| context.compile_unit(path, &cache_manager, &progress))
+                    .collect()
+            };
 
         let results = results?;
         let (objects, commands): (Vec<_>, Vec<_>) = results.into_iter().unzip();
