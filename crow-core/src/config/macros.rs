@@ -27,19 +27,22 @@ macro_rules! config_enum {
                         &self,
                         formatter: &mut ::std::fmt::Formatter,
                     ) -> ::std::fmt::Result {
-                        formatter.write_str("a string (path) or a struct with path, flags, and kind")
+                        formatter
+                            .write_str("a string (path) or a struct with path, flags, and kind")
                     }
 
                     fn visit_str<E>(self, value: &str) -> Result<$name, E>
                     where
                         E: ::serde::de::Error,
                     {
-                        let kind = match <$kind>::deserialize(
-                            ::serde::de::value::StrDeserializer::<::serde::de::value::Error>::new(value)
-                        ) {
-                            Ok(k) => Some(k),
-                            Err(_) => None,
-                        };
+                        let kind =
+                            match <$kind>::deserialize(::serde::de::value::StrDeserializer::<
+                                ::serde::de::value::Error,
+                            >::new(value))
+                            {
+                                Ok(k) => Some(k),
+                                Err(_) => None,
+                            };
 
                         Ok($name::Detailed {
                             path: Some(value.to_string()),

@@ -43,7 +43,10 @@ pub fn detect_toolchain(
     let kind = preferred_kind.unwrap_or(CompilerKind::Unknown);
 
     #[cfg(target_os = "windows")]
-    if !matches!(kind, CompilerKind::Gcc | CompilerKind::Gpp | CompilerKind::Clang | CompilerKind::ClangPP) {
+    if !matches!(
+        kind,
+        CompilerKind::Gcc | CompilerKind::Gpp | CompilerKind::Clang | CompilerKind::ClangPP
+    ) {
         if let Ok(msvc) = MsvcToolchain::detect(preferred_compiler.clone()) {
             return Ok(Box::new(msvc));
         }

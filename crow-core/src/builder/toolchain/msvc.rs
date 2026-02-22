@@ -15,12 +15,8 @@ pub struct MsvcToolchain {
 impl MsvcToolchain {
     pub fn detect(preferred_path: Option<String>) -> Result<Self> {
         match preferred_path {
-            Some(path) => {
-                Self::from_compiler_path(&path)
-            }
-            None => {
-                Self::from_vs_installation()
-            }
+            Some(path) => Self::from_compiler_path(&path),
+            None => Self::from_vs_installation(),
         }
     }
 
@@ -71,17 +67,30 @@ impl MsvcToolchain {
             .ok_or_else(|| anyhow!("vswhere.exe not found. Is Visual Studio installed?"))?;
 
         let output = Command::new(&vswhere_path)
-            .args(&["-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"])
+            .args(&[
+                "-latest",
+                "-products",
+                "*",
+                "-requires",
+                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "-property",
+                "installationPath",
+            ])
             .output()
             .context("Failed to run vswhere")?;
         let vs_path = String::from_utf8(output.stdout)?.trim().to_string();
         if vs_path.is_empty() {
-            return Err(anyhow!("No Visual Studio installation with VC tools found."));
+            return Err(anyhow!(
+                "No Visual Studio installation with VC tools found."
+            ));
         }
 
-        let vc_tools_path = PathBuf::from(&vs_path).join("VC").join("Tools").join("MSVC");
-        let vc_versions = std::fs::read_dir(&vc_tools_path)
-            .context("Failed to read VC tools directory")?;
+        let vc_tools_path = PathBuf::from(&vs_path)
+            .join("VC")
+            .join("Tools")
+            .join("MSVC");
+        let vc_versions =
+            std::fs::read_dir(&vc_tools_path).context("Failed to read VC tools directory")?;
         let mut latest_version = None;
         for entry in vc_versions {
             let entry = entry?;
@@ -110,10 +119,7 @@ impl MsvcToolchain {
             .join("link.exe");
 
         if !compiler_path.exists() {
-            return Err(anyhow!(
-                "Compiler not found at {}",
-                compiler_path.display()
-            ));
+            return Err(anyhow!("Compiler not found at {}", compiler_path.display()));
         }
         if !linker_path.exists() {
             return Err(anyhow!("Linker not found at {}", linker_path.display()));
@@ -126,7 +132,7 @@ impl MsvcToolchain {
         if vc_include.exists() {
             includes.push(vc_include);
         }
-        
+
         let vc_lib = tools_root.join("lib").join("x64");
         if vc_lib.exists() {
             libraries.push(vc_lib);
@@ -142,37 +148,38 @@ impl MsvcToolchain {
         })
     }
 
-    fn add_windows_sdk_paths(includes: &mut Vec<PathBuf>, libraries: &mut Vec<PathBuf>) -> Result<()> {
+    fn add_windows_sdk_paths(
+        includes: &mut Vec<PathBuf>,
+        libraries: &mut Vec<PathBuf>,
+    ) -> Result<()> {
         let sdk_root = PathBuf::from(r"C:\Program Files (x86)\Windows Kits\10");
         if sdk_root.exists() {
             let include_root = sdk_root.join("Include");
             let lib_root = sdk_root.join("Lib");
-            
+
             if let Ok(entries) = std::fs::read_dir(&include_root) {
                 let mut sdk_versions = Vec::new();
                 for entry in entries.flatten() {
                     if entry.file_type().map_or(false, |ft| ft.is_dir()) {
-                         sdk_versions.push(entry.file_name().to_string_lossy().to_string());
+                        sdk_versions.push(entry.file_name().to_string_lossy().to_string());
                     }
                 }
                 sdk_versions.sort_by(|a, b| {
                     fn version_parts(v: &str) -> Vec<u32> {
-                        v.split('.')
-                            .filter_map(|s| s.parse::<u32>().ok())
-                            .collect()
+                        v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
                     }
                     let a_parts = version_parts(a);
                     let b_parts = version_parts(b);
                     a_parts.cmp(&b_parts)
                 });
-                
+
                 if let Some(latest) = sdk_versions.last() {
                     let sdk_include = include_root.join(latest);
                     let um = sdk_include.join("um");
                     let shared = sdk_include.join("shared");
                     let winrt = sdk_include.join("winrt");
                     let ucrt = sdk_include.join("ucrt");
-                    
+
                     if um.exists() {
                         includes.push(um);
                     }
@@ -185,14 +192,14 @@ impl MsvcToolchain {
                     if ucrt.exists() {
                         includes.push(ucrt);
                     }
-                    
+
                     let sdk_lib = lib_root.join(latest);
-                    
+
                     let ucrt_lib = sdk_lib.join("ucrt").join("x64");
                     if ucrt_lib.exists() {
                         libraries.push(ucrt_lib);
                     }
-                    
+
                     let um_lib = sdk_lib.join("um").join("x64");
                     if um_lib.exists() {
                         libraries.push(um_lib);
@@ -237,7 +244,7 @@ impl Toolchain for MsvcToolchain {
     fn system_include_dirs(&self) -> Vec<PathBuf> {
         self.system_includes.clone()
     }
-    
+
     fn system_library_dirs(&self) -> Vec<PathBuf> {
         self.system_libraries.clone()
     }

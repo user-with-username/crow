@@ -1,12 +1,56 @@
 [
   {
     "directory": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples",
-    "command": "clang++ -c -O0 -g -fno-lto -IC:\\Program Files\\LLVM\\lib\\clang\\21\\include -IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\include -IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\atlmfc\\include -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\cppwinrt -Iinclude -MD -MF target\\debug\\deps\\calculator.d -o target\\debug\\calculator.o src\\calculator.cpp",
-    "file": "src\\calculator.cpp"
+    "arguments": [
+      "clang",
+      "--driver-mode=cl",
+      "-c",
+      "-O0",
+      "-g",
+      "-fno-lto",
+      "-IC:\\Program Files\\LLVM\\lib\\clang\\21\\include",
+      "-IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\include",
+      "-IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\atlmfc\\include",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\cppwinrt",
+      "-Iinclude",
+      "-MD",
+      "-MF",
+      "target\\debug\\deps\\calculator.d",
+      "-o",
+      "target\\debug\\calculator.o",
+      "src\\calculator.cpp"
+    ],
+    "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\src\\calculator.cpp"
   },
   {
     "directory": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples",
-    "command": "clang++ -c -O0 -g -fno-lto -IC:\\Program Files\\LLVM\\lib\\clang\\21\\include -IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\include -IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\atlmfc\\include -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt -IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\cppwinrt -Iinclude -MD -MF target\\debug\\deps\\main.d -o target\\debug\\main.o src\\main.cpp",
-    "file": "src\\main.cpp"
+    "arguments": [
+      "clang",
+      "--driver-mode=cl",
+      "-c",
+      "-O0",
+      "-g",
+      "-fno-lto",
+      "-IC:\\Program Files\\LLVM\\lib\\clang\\21\\include",
+      "-IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\include",
+      "-IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\atlmfc\\include",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt",
+      "-IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\cppwinrt",
+      "-Iinclude",
+      "-MD",
+      "-MF",
+      "target\\debug\\deps\\main.d",
+      "-o",
+      "target\\debug\\main.o",
+      "src\\main.cpp"
+    ],
+    "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\src\\main.cpp"
   }
 ]

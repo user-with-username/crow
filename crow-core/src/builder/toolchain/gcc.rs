@@ -100,13 +100,13 @@ impl GccToolchain {
         }
         Ok(includes)
     }
-    
+
     fn extract_system_library_dirs(compiler_exe: &str) -> Result<Vec<PathBuf>> {
         let mut libraries = Vec::new();
-        
+
         if let Ok(output) = Command::new(compiler_exe)
             .arg("-print-search-dirs")
-            .output() 
+            .output()
         {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
@@ -122,7 +122,7 @@ impl GccToolchain {
                 }
             }
         }
-        
+
         if libraries.is_empty() {
             if let Ok(output) = Command::new(compiler_exe)
                 .args(&["-Wl,--verbose", "-shared"])
@@ -133,23 +133,25 @@ impl GccToolchain {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let combined = format!("{}\n{}", stderr, stdout);
-                
+
                 for line in combined.lines() {
                     if line.contains("SEARCH_DIR") {
                         if let Some(start) = line.find('"') {
                             if let Some(end) = line.rfind('"') {
                                 if start < end {
-                                    let path = &line[start+1..end];
+                                    let path = &line[start + 1..end];
                                     let path = path.strip_prefix('=').unwrap_or(path);
                                     libraries.push(PathBuf::from(path));
                                 }
                             }
                         }
                     }
-                    
+
                     #[cfg(target_os = "macos")]
                     {
-                        if line.contains("Library search paths:") || line.starts_with(' ') && line.contains('/') {
+                        if line.contains("Library search paths:")
+                            || line.starts_with(' ') && line.contains('/')
+                        {
                             let trimmed = line.trim();
                             if !trimmed.is_empty() && trimmed.starts_with('/') {
                                 libraries.push(PathBuf::from(trimmed));
@@ -159,20 +161,17 @@ impl GccToolchain {
                 }
             }
         }
-        
+
         #[cfg(target_os = "linux")]
         if libraries.is_empty() {
-            if let Ok(output) = Command::new("ld")
-                .arg("--verbose")
-                .output()
-            {
+            if let Ok(output) = Command::new("ld").arg("--verbose").output() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 for line in stdout.lines() {
                     if line.contains("SEARCH_DIR") {
                         if let Some(start) = line.find('"') {
                             if let Some(end) = line.rfind('"') {
                                 if start < end {
-                                    let path = &line[start+1..end];
+                                    let path = &line[start + 1..end];
                                     let path = path.strip_prefix('=').unwrap_or(path);
                                     libraries.push(PathBuf::from(path));
                                 }
@@ -182,9 +181,13 @@ impl GccToolchain {
                 }
             }
         }
-        
+
         if let Ok(output) = Command::new(compiler_exe)
-            .args(&["-print-multiarch", "-print-sysroot", "-print-file-name=libc.so"])
+            .args(&[
+                "-print-multiarch",
+                "-print-sysroot",
+                "-print-file-name=libc.so",
+            ])
             .output()
         {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -201,18 +204,15 @@ impl GccToolchain {
                 }
             }
         }
-        
-        if let Ok(output) = Command::new(compiler_exe)
-            .args(&["-dumpspecs"])
-            .output()
-        {
+
+        if let Ok(output) = Command::new(compiler_exe).args(&["-dumpspecs"]).output() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 if line.contains("lib") && line.contains('/') {
                     if let Some(start) = line.find('{') {
                         if let Some(end) = line.find('}') {
                             if start < end {
-                                let content = &line[start+1..end];
+                                let content = &line[start + 1..end];
                                 for word in content.split_whitespace() {
                                     if word.contains('/') && !word.contains('*') {
                                         libraries.push(PathBuf::from(word));
@@ -224,7 +224,7 @@ impl GccToolchain {
                 }
             }
         }
-        
+
         let mut seen = std::collections::HashSet::new();
         libraries.retain(|path| {
             let path_str = path.to_string_lossy().to_string();
@@ -235,7 +235,7 @@ impl GccToolchain {
                 true
             }
         });
-        
+
         Ok(libraries)
     }
 }
@@ -264,7 +264,7 @@ impl Toolchain for GccToolchain {
     fn system_include_dirs(&self) -> Vec<PathBuf> {
         self.system_includes.clone()
     }
-    
+
     fn system_library_dirs(&self) -> Vec<PathBuf> {
         self.system_libraries.clone()
     }

@@ -1,16 +1,18 @@
 use crate::builder::{
     flags::CompilerFlags,
-    incremental::{hash_source, IncrementalManager},
+    incremental::{IncrementalManager, hash_source},
     paths::{ObjectFilePath, SourceFilePath},
-    tasks::source::{CompileCommand, SourceCompilationTask},
-    tasks::IncludeTask,
+    tasks::{IncludeTask, database::CompilationDatabase, source::SourceCompilationTask},
 };
 use crate::project::Project;
 use anyhow::Result;
-use crow_utils::{normalize_path, show_output, ProgressBar};
+use crow_utils::{show_output, ProgressBar};
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 pub(crate) struct CompilationContext<'a> {
     pub(crate) compiler_exe: &'a str,
@@ -32,34 +34,16 @@ impl<'a> CompilationContext<'a> {
         flags.standard_flags();
         project.profile.apply_to_compile_flags(&mut flags);
 
-        for inc in project.toolchain.system_include_dirs() {
-            flags.include_path(inc.to_string_lossy().into_owned());
-        }
-
         for inc in &project.config.build.include_dirs {
-            flags.include_path(inc.to_string_lossy().into_owned());
+            let abs_inc = if inc.is_relative() { project.root.join(inc) } else { inc.clone() };
+            flags.include_path(CompilationDatabase::clean_path(abs_inc));
         }
 
-        if project.config.build.warnings_as_errors {
-            flags.warnings_as_errors();
-        }
-
-        for def in &project.config.build.preprocessor_defines {
-            let (name, value) = def
-                .split_once('=')
-                .map(|(k, v)| (k, Some(v)))
-                .unwrap_or((def.as_str(), None));
-            flags.define(name, value);
-        }
-
-        for f in project.config.build.compiler.flags() {
-            flags.add_raw(f.clone());
-        }
+        if project.config.build.warnings_as_errors { flags.warnings_as_errors(); }
+        for f in project.config.build.compiler.flags() { flags.add_raw(f.clone()); }
 
         Ok(Self {
-            compiler_exe,
-            project,
-            deps_dir,
+            compiler_exe, project, deps_dir,
             base_flags: flags.build(),
             is_msvc,
         })
@@ -70,37 +54,68 @@ impl<'a> CompilationContext<'a> {
         source_path: &Path,
         cache_manager: &IncrementalManager,
         progress: &ProgressBar,
-    ) -> Result<(ObjectFilePath, CompileCommand)> {
+        failed: Arc<AtomicBool>,
+    ) -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
         let source = SourceFilePath(source_path.to_path_buf());
         let mut task = SourceCompilationTask::prepare(
-            &source,
-            self.compiler_exe,
-            &self.project.config.build,
-            &self.deps_dir,
-            self.project,
-            &self.project.profile,
+            &source, self.compiler_exe, &self.project.config.build,
+            &self.deps_dir, self.project, &self.project.profile,
         )?;
 
         let object_path = task.object.clone();
-        let compile_command = task.to_compile_command(&self.project.root);
+        
+        let mut args = Vec::new();
+        args.push(self.compiler_exe.to_string());
+        for arg in task.command.get_args() {
+            args.push(arg.to_string_lossy().into_owned());
+        }
 
         let pre_hash = self.compute_hash_before_compile(&task)?;
-        let needs_compile =
-            cache_manager.should_compile(&source, &Some(pre_hash.clone()), &object_path);
-
-        if needs_compile {
-            let stdout_lines = self.execute_compilation(&mut task, progress)?;
-
+        if cache_manager.should_compile(&source, &Some(pre_hash.clone()), &object_path) {
+            let stdout_lines = self.execute_compilation(&mut task, progress, failed)?;
             if self.is_msvc {
-                self.save_msvc_deps(&task.dep_file.as_path(), &stdout_lines)?;
+                IncludeTask::save_deps(task.dep_file.as_path(), &stdout_lines)?;
             }
-
             let final_hash = self.compute_hash_before_compile(&task)?;
             cache_manager.record_success(&source, task.to_cache_entry(final_hash));
         }
 
         progress.inc();
-        Ok((object_path, compile_command))
+        Ok((object_path, source_path.to_path_buf(), args))
+    }
+
+    fn execute_compilation(
+        &self,
+        task: &mut SourceCompilationTask,
+        progress: &ProgressBar,
+        failed: Arc<AtomicBool>,
+    ) -> Result<Vec<String>> {
+        let mut child = task.command
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()?;
+
+        let output = loop {
+            if failed.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                anyhow::bail!("Aborted");
+            }
+            if let Some(_status) = child.try_wait()? {
+                break child.wait_with_output()?;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+
+        if !output.status.success() {
+            if !failed.swap(true, Ordering::SeqCst) {
+                progress.finish();
+                show_output!(output, self.project);
+            }
+            anyhow::bail!("Compilation failed for {}", task.source.as_path().display());
+        }
+
+        let stdout_reader = BufReader::new(&output.stdout[..]);
+        Ok(stdout_reader.lines().filter_map(|l| l.ok()).collect())
     }
 
     fn compute_hash_before_compile(&self, task: &SourceCompilationTask) -> Result<String> {
@@ -112,55 +127,9 @@ impl<'a> CompilationContext<'a> {
                 }
             } else {
                 headers = IncludeTask::new(task.dep_file.clone().into())
-                    .collect_headers()
-                    .unwrap_or_default();
+                    .collect_headers().unwrap_or_default();
             }
         }
-
-        hash_source(
-            task.source.as_path(),
-            &headers,
-            self.compiler_exe,
-            &self.base_flags,
-        )
-    }
-
-    fn execute_compilation(
-        &self,
-        task: &mut SourceCompilationTask,
-        progress: &ProgressBar,
-    ) -> Result<Vec<String>> {
-        let output = task
-            .command
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .output()?;
-
-        let stdout_reader = BufReader::new(&output.stdout[..]);
-        let stdout_lines: Vec<String> = stdout_reader.lines().filter_map(|l| l.ok()).collect();
-
-        if !output.status.success() {
-            progress.finish();
-            show_output!(output, self.project);
-            anyhow::bail!("Compilation failed for {}", task.source.as_path().display());
-        }
-        Ok(stdout_lines)
-    }
-
-    fn save_msvc_deps(&self, dep_path: &Path, lines: &[String]) -> Result<()> {
-        let mut deps = Vec::new();
-        for line in lines {
-            if let Some(path_str) = line.strip_prefix("Note: including file: ") {
-                let path = path_str.trim();
-                deps.push(normalize_path(path));
-            }
-        }
-        if !deps.is_empty() {
-            let mut f = fs::File::create(dep_path)?;
-            for d in deps {
-                writeln!(f, "{}", d)?;
-            }
-        }
-        Ok(())
+        hash_source(task.source.as_path(), &headers, self.compiler_exe, &self.base_flags)
     }
 }
