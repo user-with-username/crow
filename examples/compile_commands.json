@@ -1,54 +1,50 @@
 [
   {
-    "directory": "/mnt/c/Users/user/Documents/GitHub/crow/examples",
+    "directory": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples",
     "arguments": [
-      "clang++",
+      "g++",
       "--driver-mode=cl",
       "-c",
-      "-O0",
-      "-g",
-      "-fno-lto",
-      "-I/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13",
-      "-I/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/x86_64-linux-gnu/c++/13",
-      "-I/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13/backward",
-      "-I/usr/lib/llvm-18/lib/clang/18/include",
-      "-I/usr/local/include",
-      "-I/usr/include/x86_64-linux-gnu",
-      "-I/usr/include",
+      "-O3",
+      "-flto",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include/c++",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include/c++/x86_64-w64-mingw32",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include/c++/backward",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include-fixed",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/../../../../x86_64-w64-mingw32/include",
       "-Iinclude",
       "-MD",
       "-MF",
-      "target/debug/deps/calculator.d",
+      "target\\release\\deps\\calculator.d",
       "-o",
-      "target/debug/calculator.o",
-      "src/calculator.cpp"
+      "target\\release\\calculator.o",
+      "src\\calculator.cpp"
     ],
-    "file": "/mnt/c/Users/user/Documents/GitHub/crow/examples/src/calculator.cpp"
+    "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\src\\calculator.cpp"
   },
   {
-    "directory": "/mnt/c/Users/user/Documents/GitHub/crow/examples",
+    "directory": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples",
     "arguments": [
-      "clang++",
+      "g++",
       "--driver-mode=cl",
       "-c",
-      "-O0",
-      "-g",
-      "-fno-lto",
-      "-I/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13",
-      "-I/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/x86_64-linux-gnu/c++/13",
-      "-I/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13/backward",
-      "-I/usr/lib/llvm-18/lib/clang/18/include",
-      "-I/usr/local/include",
-      "-I/usr/include/x86_64-linux-gnu",
-      "-I/usr/include",
+      "-O3",
+      "-flto",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include/c++",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include/c++/x86_64-w64-mingw32",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include/c++/backward",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/include-fixed",
+      "-IC:/ProgramData/mingw64/mingw64/bin/../lib/gcc/x86_64-w64-mingw32/13.2.0/../../../../x86_64-w64-mingw32/include",
       "-Iinclude",
       "-MD",
       "-MF",
-      "target/debug/deps/main.d",
+      "target\\release\\deps\\main.d",
       "-o",
-      "target/debug/main.o",
-      "src/main.cpp"
+      "target\\release\\main.o",
+      "src\\main.cpp"
     ],
-    "file": "/mnt/c/Users/user/Documents/GitHub/crow/examples/src/main.cpp"
+    "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\src\\main.cpp"
   }
 ]
