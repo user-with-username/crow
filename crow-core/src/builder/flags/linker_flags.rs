@@ -22,6 +22,11 @@ impl LinkerFlags {
         self
     }
 
+    pub fn use_lld(&mut self) -> &mut Self {
+        self.add_raw("-fuse-ld=lld".to_string());
+        self
+    }
+
     pub fn get_compiler_kind(&self) -> &CompilerKind {
         &self.compiler_kind
     }
@@ -157,6 +162,7 @@ impl LinkerFlags {
             Flag::NoLinkTimeOptimization => vec!["-fno-lto".to_string()],
             Flag::ThinLTO => vec!["-flto=thin".to_string()],
             Flag::FatLTO => vec!["-flto=full".to_string()],
+            
             Flag::TargetArch(arch) => vec![format!("-march={}", arch)],
 
             Flag::NoLogo => vec![],

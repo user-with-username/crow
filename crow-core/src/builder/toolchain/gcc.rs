@@ -246,9 +246,17 @@ impl Toolchain for GccToolchain {
     }
 
     fn linker_kind(&self) -> LinkerKind {
+        #[cfg(target_os = "windows")]
+        {
+            if matches!(self.compiler_kind, CompilerKind::Clang | CompilerKind::ClangPP) {
+                return LinkerKind::Link;
+            }
+        }
+        
         match self.compiler_kind {
             CompilerKind::Gcc | CompilerKind::Gpp => LinkerKind::Ld,
             CompilerKind::Clang | CompilerKind::ClangPP => LinkerKind::Lld,
+            CompilerKind::Msvc => LinkerKind::Link,
             _ => LinkerKind::Unknown,
         }
     }
