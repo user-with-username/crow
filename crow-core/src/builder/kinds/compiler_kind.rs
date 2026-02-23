@@ -4,12 +4,11 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum CompilerKind {
     Gcc,
-    #[serde(alias = "g++", alias = "gpp")]
+    #[serde(alias = "g++")]
     Gpp,
     Clang,
-    #[serde(alias = "clang++", alias = "clangpp", alias = "clang_p_p")]
+    #[serde(alias = "clang++")]
     ClangPP,
-    #[serde(alias = "cl", alias = "msvc-cl")]
     Msvc,
     Unknown,
 }
