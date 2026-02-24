@@ -1,4 +1,5 @@
 pub mod diagnostic_highlighter;
+pub mod enviroment;
 pub mod helpers;
 pub mod logger;
 pub mod progress;

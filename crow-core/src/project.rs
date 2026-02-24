@@ -1,6 +1,7 @@
 use crate::builder::toolchain::{self, Toolchain};
 use crate::config::CrowConfig;
 use anyhow::Context;
+use crow_utils::enviroment::Enviroment;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
@@ -53,7 +54,7 @@ impl Project {
     }
 
     pub fn target_dir(&self) -> PathBuf {
-        self.config.build.target_dir.clone()
+        Enviroment::target_dir()
     }
 
     pub fn profile_dir(&self) -> PathBuf {

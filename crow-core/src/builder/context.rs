@@ -1,11 +1,11 @@
 use crate::builder::{
     flags::CompilerFlags,
-    incremental::{IncrementalManager, hash_source},
+    incremental::{hash_source, IncrementalManager},
     paths::{ObjectFilePath, SourceFilePath},
-    tasks::{IncludeTask, database::CompilationDatabase, source::SourceCompilationTask},
+    tasks::{database::CompilationDatabase, source::SourceCompilationTask, IncludeTask},
 };
 use crate::project::Project;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use crow_utils::{show_output, ProgressBar};
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -32,15 +32,25 @@ impl<'a> CompilationContext<'a> {
         project.profile.apply_to_compile_flags(&mut flags);
 
         for inc in &project.config.build.include_dirs {
-            let abs_inc = if inc.is_relative() { project.root.join(inc) } else { inc.clone() };
+            let abs_inc = if inc.is_relative() {
+                project.root.join(inc)
+            } else {
+                inc.clone()
+            };
             flags.include_path(CompilationDatabase::clean_path(abs_inc));
         }
 
-        if project.config.build.warnings_as_errors { flags.warnings_as_errors(); }
-        for f in project.config.build.compiler.flags() { flags.add_raw(f.clone()); }
+        if project.config.build.warnings_as_errors {
+            flags.warnings_as_errors();
+        }
+        for f in project.config.build.compiler.flags() {
+            flags.add_raw(f.clone());
+        }
 
         Ok(Self {
-            compiler_exe, project, deps_dir,
+            compiler_exe,
+            project,
+            deps_dir,
             base_flags: flags.build(),
             is_msvc,
         })
@@ -54,23 +64,31 @@ impl<'a> CompilationContext<'a> {
     ) -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
         let source = SourceFilePath(source_path.to_path_buf());
         let mut task = SourceCompilationTask::prepare(
-            &source, self.compiler_exe, &self.project.config.build,
-            &self.deps_dir, self.project, &self.project.profile,
+            &source,
+            self.compiler_exe,
+            &self.project.config.build,
+            &self.deps_dir,
+            self.project,
+            &self.project.profile,
         )?;
 
         let object_path = task.object.clone();
         let mut args = vec![self.compiler_exe.to_string()];
-        args.extend(task.command.get_args().map(|arg| arg.to_string_lossy().into_owned()));
+        args.extend(
+            task.command
+                .get_args()
+                .map(|arg| arg.to_string_lossy().into_owned()),
+        );
 
         let pre_hash = self._compute_hash_before_compile(&task)?;
-        
+
         if cache_manager.should_compile(&source, &Some(pre_hash), &object_path) {
             let stdout_lines = self.execute_compilation(&mut task, progress)?;
-            
+
             if self.is_msvc {
                 IncludeTask::save_deps(task.dep_file.as_path(), &stdout_lines)?;
             }
-            
+
             let final_hash = self._compute_hash_before_compile(&task)?;
             cache_manager.record_success(&source, task.to_cache_entry(final_hash));
         }
@@ -84,15 +102,19 @@ impl<'a> CompilationContext<'a> {
         task: &mut SourceCompilationTask,
         progress: &ProgressBar,
     ) -> Result<Vec<String>> {
-        let output = task.command
+        let output = task
+            .command
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .output()?;
 
         if !output.status.success() {
-            progress.finish(); 
+            progress.finish();
             show_output!(output, self.project);
-            return Err(anyhow!("Compilation failed for {}", task.source.as_path().display()));
+            return Err(anyhow!(
+                "Compilation failed for {}",
+                task.source.as_path().display()
+            ));
         }
 
         let stdout_reader = BufReader::new(&output.stdout[..]);
@@ -108,9 +130,15 @@ impl<'a> CompilationContext<'a> {
                 }
             } else {
                 headers = IncludeTask::new(task.dep_file.clone().into())
-                    .collect_headers().unwrap_or_default();
+                    .collect_headers()
+                    .unwrap_or_default();
             }
         }
-        hash_source(task.source.as_path(), &headers, self.compiler_exe, &self.base_flags)
+        hash_source(
+            task.source.as_path(),
+            &headers,
+            self.compiler_exe,
+            &self.base_flags,
+        )
     }
 }

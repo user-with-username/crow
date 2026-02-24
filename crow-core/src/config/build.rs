@@ -25,9 +25,6 @@ pub struct BuildConfig {
     #[default(vec!["cpp".to_string(), "c".to_string(), "cc".to_string(), "cxx".to_string()])]
     pub src_extensions: Vec<String>,
 
-    #[default(PathBuf::from("target"))]
-    pub target_dir: PathBuf,
-
     #[default(Vec::new())]
     pub preprocessor_defines: Vec<String>,
 

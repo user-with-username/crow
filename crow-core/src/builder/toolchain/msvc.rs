@@ -55,12 +55,18 @@ impl MsvcToolchain {
             }
         }
 
-        Err(anyhow!("Could not find compiler '{}' in PATH or current directory", spec))
+        Err(anyhow!(
+            "Could not find compiler '{}' in PATH or current directory",
+            spec
+        ))
     }
 
     fn determine_target_arch(compiler_path: &Path) -> String {
         let parent = compiler_path.parent().and_then(|p| p.file_name());
-        let grandparent = compiler_path.parent().and_then(|p| p.parent()).and_then(|p| p.file_name());
+        let grandparent = compiler_path
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.file_name());
 
         match (grandparent, parent) {
             (Some(gp), Some(p)) => {
@@ -90,11 +96,15 @@ impl MsvcToolchain {
             .ok_or_else(|| anyhow!("Could not find link.exe next to compiler"))?;
 
         let tools_root = compiler_path
-            .parent()           // x64 / x86
-            .and_then(|p| p.parent())  // Hostx64 / Hostx86
-            .and_then(|p| p.parent())  // bin
-            .and_then(|p| p.parent())  // version
-            .ok_or_else(|| anyhow!("Could not derive tools root (expected .../bin/Host(x64|x86)/(x64|x86)/cl.exe)"))?;
+            .parent() // x64 / x86
+            .and_then(|p| p.parent()) // Hostx64 / Hostx86
+            .and_then(|p| p.parent()) // bin
+            .and_then(|p| p.parent()) // version
+            .ok_or_else(|| {
+                anyhow!(
+                    "Could not derive tools root (expected .../bin/Host(x64|x86)/(x64|x86)/cl.exe)"
+                )
+            })?;
 
         let mut includes = Vec::new();
         let mut libraries = Vec::new();
@@ -120,8 +130,9 @@ impl MsvcToolchain {
     }
 
     fn from_vs_installation() -> Result<Self> {
-        let vswhere_path = Self::find_vswhere()
-            .ok_or_else(|| anyhow!("vswhere.exe not found. Is Visual Studio / Build Tools installed?"))?;
+        let vswhere_path = Self::find_vswhere().ok_or_else(|| {
+            anyhow!("vswhere.exe not found. Is Visual Studio / Build Tools installed?")
+        })?;
 
         let output = Command::new(&vswhere_path)
             .args(&[
@@ -146,8 +157,8 @@ impl MsvcToolchain {
             .join("Tools")
             .join("MSVC");
 
-        let vc_versions = std::fs::read_dir(&vc_tools_path)
-            .context("Failed to read VC tools directory")?;
+        let vc_versions =
+            std::fs::read_dir(&vc_tools_path).context("Failed to read VC tools directory")?;
 
         let mut latest_version = None;
         for entry in vc_versions {
@@ -233,9 +244,7 @@ impl MsvcToolchain {
 
             sdk_versions.sort_by(|a, b| {
                 fn version_parts(v: &str) -> Vec<u32> {
-                    v.split('.')
-                        .filter_map(|s| s.parse::<u32>().ok())
-                        .collect()
+                    v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
                 }
                 let a_parts = version_parts(a);
                 let b_parts = version_parts(b);
@@ -245,12 +254,7 @@ impl MsvcToolchain {
             if let Some(latest) = sdk_versions.last() {
                 let sdk_include = include_root.join(latest);
 
-                let inc_paths = [
-                    "um",
-                    "shared",
-                    "winrt",
-                    "ucrt",
-                ];
+                let inc_paths = ["um", "shared", "winrt", "ucrt"];
 
                 for sub in inc_paths {
                     let p = sdk_include.join(sub);

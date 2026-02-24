@@ -36,19 +36,23 @@ fn compatible_kinds(expected: CompilerKind, detected: CompilerKind) -> bool {
     if expected == detected {
         return true;
     }
-    
+
     // Clang family compatibility
-    let clang_family = [CompilerKind::Clang, CompilerKind::ClangPP, CompilerKind::ClangCl];
+    let clang_family = [
+        CompilerKind::Clang,
+        CompilerKind::ClangPP,
+        CompilerKind::ClangCl,
+    ];
     if clang_family.contains(&expected) && clang_family.contains(&detected) {
         return true;
     }
-    
+
     // GCC family compatibility
     let gcc_family = [CompilerKind::Gcc, CompilerKind::Gpp];
     if gcc_family.contains(&expected) && gcc_family.contains(&detected) {
         return true;
     }
-    
+
     false
 }
 
