@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use crow_utils::normalize_path;
 use std::fs;
-use std::path::{Path, PathBuf};
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct IncludeTask {
@@ -44,9 +44,10 @@ impl IncludeTask {
         }
         if !deps.is_empty() {
             let mut f = fs::File::create(dep_path)?;
-            for d in deps { writeln!(f, "{}", d)?; }
+            for d in deps {
+                writeln!(f, "{}", d)?;
+            }
         }
         Ok(())
-
     }
 }

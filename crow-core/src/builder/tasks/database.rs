@@ -1,5 +1,5 @@
-use std::path::Path;
 use anyhow::Result;
+use std::path::Path;
 
 pub struct CompilationDatabase {
     entries: Vec<ClangdEntry>,
@@ -14,7 +14,9 @@ struct ClangdEntry {
 
 impl CompilationDatabase {
     pub fn new() -> Self {
-        Self { entries: Vec::new() }
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     pub fn clean_path<P: AsRef<Path>>(path: P) -> String {

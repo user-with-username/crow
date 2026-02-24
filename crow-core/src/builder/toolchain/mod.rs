@@ -31,7 +31,28 @@ pub trait Toolchain: Send + Sync {
     fn system_library_dirs(&self) -> Vec<PathBuf>;
 }
 
-/// Returns `true` if the compiler kind belongs to the GCC/clang family.
+/// Returns `true` if the two compiler kinds are compatible (belong to the same family).
+fn compatible_kinds(expected: CompilerKind, detected: CompilerKind) -> bool {
+    if expected == detected {
+        return true;
+    }
+    
+    // Clang family compatibility
+    let clang_family = [CompilerKind::Clang, CompilerKind::ClangPP, CompilerKind::ClangCl];
+    if clang_family.contains(&expected) && clang_family.contains(&detected) {
+        return true;
+    }
+    
+    // GCC family compatibility
+    let gcc_family = [CompilerKind::Gcc, CompilerKind::Gpp];
+    if gcc_family.contains(&expected) && gcc_family.contains(&detected) {
+        return true;
+    }
+    
+    false
+}
+
+/// Returns `true` if the compiler kind belongs to the GCC/clang family (Unix-like).
 fn is_gcc_like(kind: CompilerKind) -> bool {
     matches!(
         kind,
@@ -41,7 +62,7 @@ fn is_gcc_like(kind: CompilerKind) -> bool {
 
 /// Detects a suitable toolchain.
 /// - If `preferred_compiler` is Some(path), we use that exact path and let the toolchain detect its kind.
-/// - If `preferred_kind` is Some(kind), we try to find a toolchain of that kind and verify it.
+/// - If `preferred_kind` is Some(kind), we try to find a toolchain of that kind (or compatible) and verify it.
 /// - On Windows, it first attempts to find an MSVC toolchain. If that fails, it falls back to GCC.
 /// - On other platforms, it uses GCC (or Clang on macOS).
 pub fn detect_toolchain(
@@ -52,10 +73,11 @@ pub fn detect_toolchain(
 
     #[cfg(target_os = "windows")]
     {
+        // If user explicitly wants MSVC, try that first
         if let Some(kind) = &preferred_kind {
             if *kind == CompilerKind::Msvc {
                 let msvc = MsvcToolchain::detect(preferred_compiler.clone())?;
-                if msvc.compiler_kind() == *kind {
+                if compatible_kinds(*kind, msvc.compiler_kind()) {
                     return Ok(Box::new(msvc));
                 } else {
                     anyhow::bail!(
@@ -67,17 +89,19 @@ pub fn detect_toolchain(
             }
         }
 
+        // Otherwise, try to detect any MSVC toolchain if preferred kind is not GCC-like
         if preferred_kind.as_ref().map_or(true, |k| !is_gcc_like(*k)) {
             if let Ok(msvc) = MsvcToolchain::detect(preferred_compiler.clone()) {
-                if preferred_kind.map_or(true, |k| msvc.compiler_kind() == k) {
+                if preferred_kind.map_or(true, |k| compatible_kinds(k, msvc.compiler_kind())) {
                     return Ok(Box::new(msvc));
                 }
             }
         }
     }
 
+    // Try GCC-like toolchain (GCC, Clang, ClangCl)
     if let Ok(gcc) = GccToolchain::detect(preferred_compiler) {
-        if preferred_kind.map_or(true, |k| gcc.compiler_kind() == k) {
+        if preferred_kind.map_or(true, |k| compatible_kinds(k, gcc.compiler_kind())) {
             return Ok(Box::new(gcc));
         } else {
             anyhow::bail!(

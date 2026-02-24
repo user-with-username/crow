@@ -6,8 +6,7 @@ use crate::project::Project;
 use anyhow::Result;
 use crow_utils::ProgressBar;
 use rayon::prelude::*;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::path::PathBuf;
 
 pub struct CompilationBuilder<'a> {
     compiler_exe: &'a str,
@@ -21,8 +20,8 @@ impl<'a> CompilationBuilder<'a> {
 
     pub fn compile(&self) -> Result<Vec<ObjectFilePath>> {
         self.project.create_dirs()?;
+        
         let context = CompilationContext::new(self.compiler_exe, self.project)?;
-
         let cache_path = self.project.profile_dir().join(".fingerprint.json");
         let cache_manager = IncrementalManager::new(&cache_path, self.project.profile.incremental());
 
@@ -35,23 +34,14 @@ impl<'a> CompilationBuilder<'a> {
             ),
         );
 
-        let failed = Arc::new(AtomicBool::new(false));
+        let compile_task = |path: &PathBuf| -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
+            context.compile_unit(path, &cache_manager, &progress)
+        };
 
-        let results: Result<Vec<(ObjectFilePath, std::path::PathBuf, Vec<String>)>> = if self.project.config.build.parallelism {
-            sources.par_iter().map(|path| {
-                if failed.load(Ordering::Relaxed) {
-                    return Err(anyhow::anyhow!("Aborted"));
-                }
-                let res = context.compile_unit(path, &cache_manager, &progress, Arc::clone(&failed));
-                if res.is_err() { failed.store(true, Ordering::SeqCst); }
-                res
-            }).collect()
+        let results: Result<Vec<(ObjectFilePath, PathBuf, Vec<String>)>> = if self.project.config.build.parallelism {
+            sources.par_iter().map(compile_task).collect()
         } else {
-            sources.iter().map(|path| {
-                let res = context.compile_unit(path, &cache_manager, &progress, Arc::clone(&failed));
-                if res.is_err() { failed.store(true, Ordering::SeqCst); }
-                res
-            }).collect()
+            sources.iter().map(compile_task).collect()
         };
 
         progress.finish();
@@ -59,7 +49,7 @@ impl<'a> CompilationBuilder<'a> {
         match results {
             Ok(res) => {
                 let mut db = CompilationDatabase::new();
-                let mut objects = Vec::new();
+                let mut objects = Vec::with_capacity(res.len());
 
                 for (obj, src, args) in res {
                     db.add_entry(&self.project.root, &src, args);
@@ -71,7 +61,7 @@ impl<'a> CompilationBuilder<'a> {
                 Ok(objects)
             }
             Err(e) => {
-                cache_manager.finalize()?;
+                let _ = cache_manager.finalize();
                 Err(e)
             }
         }

@@ -105,7 +105,7 @@ impl Profile {
                 CompilerKind::Msvc => {
                     flags.link_time_optimization();
                 }
-                CompilerKind::Clang | CompilerKind::ClangPP => {
+                CompilerKind::Clang | CompilerKind::ClangPP | CompilerKind::ClangCl => {
                     match self.lto_type() {
                         "thin" => flags.thin_lto(),
                         "fat" | "full" => flags.fat_lto(),
@@ -142,8 +142,9 @@ impl Profile {
                 CompilerKind::Msvc => {
                     flags.link_time_optimization();
                 }
-                CompilerKind::Clang | CompilerKind::ClangPP => {
+                CompilerKind::Clang | CompilerKind::ClangPP | CompilerKind::ClangCl => {
                     flags.use_lld();
+
                     match self.lto_type() {
                         "thin" => flags.thin_lto(),
                         "fat" | "full" => flags.fat_lto(),
@@ -158,7 +159,7 @@ impl Profile {
         } else {
             flags.no_link_time_optimization();
         }
-        
+
         if flags.get_compiler_kind().is_msvc() && self.debug() {
             flags.debug_info();
         }

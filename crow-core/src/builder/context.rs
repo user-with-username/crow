@@ -5,14 +5,11 @@ use crate::builder::{
     tasks::{IncludeTask, database::CompilationDatabase, source::SourceCompilationTask},
 };
 use crate::project::Project;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use crow_utils::{show_output, ProgressBar};
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 
 pub(crate) struct CompilationContext<'a> {
     pub(crate) compiler_exe: &'a str,
@@ -54,7 +51,6 @@ impl<'a> CompilationContext<'a> {
         source_path: &Path,
         cache_manager: &IncrementalManager,
         progress: &ProgressBar,
-        failed: Arc<AtomicBool>,
     ) -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
         let source = SourceFilePath(source_path.to_path_buf());
         let mut task = SourceCompilationTask::prepare(
@@ -63,20 +59,19 @@ impl<'a> CompilationContext<'a> {
         )?;
 
         let object_path = task.object.clone();
-        
-        let mut args = Vec::new();
-        args.push(self.compiler_exe.to_string());
-        for arg in task.command.get_args() {
-            args.push(arg.to_string_lossy().into_owned());
-        }
+        let mut args = vec![self.compiler_exe.to_string()];
+        args.extend(task.command.get_args().map(|arg| arg.to_string_lossy().into_owned()));
 
-        let pre_hash = self.compute_hash_before_compile(&task)?;
-        if cache_manager.should_compile(&source, &Some(pre_hash.clone()), &object_path) {
-            let stdout_lines = self.execute_compilation(&mut task, progress, failed)?;
+        let pre_hash = self._compute_hash_before_compile(&task)?;
+        
+        if cache_manager.should_compile(&source, &Some(pre_hash), &object_path) {
+            let stdout_lines = self.execute_compilation(&mut task, progress)?;
+            
             if self.is_msvc {
                 IncludeTask::save_deps(task.dep_file.as_path(), &stdout_lines)?;
             }
-            let final_hash = self.compute_hash_before_compile(&task)?;
+            
+            let final_hash = self._compute_hash_before_compile(&task)?;
             cache_manager.record_success(&source, task.to_cache_entry(final_hash));
         }
 
@@ -88,37 +83,23 @@ impl<'a> CompilationContext<'a> {
         &self,
         task: &mut SourceCompilationTask,
         progress: &ProgressBar,
-        failed: Arc<AtomicBool>,
     ) -> Result<Vec<String>> {
-        let mut child = task.command
+        let output = task.command
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
-            .spawn()?;
-
-        let output = loop {
-            if failed.load(Ordering::Relaxed) {
-                let _ = child.kill();
-                anyhow::bail!("Aborted");
-            }
-            if let Some(_status) = child.try_wait()? {
-                break child.wait_with_output()?;
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        };
+            .output()?;
 
         if !output.status.success() {
-            if !failed.swap(true, Ordering::SeqCst) {
-                progress.finish();
-                show_output!(output, self.project);
-            }
-            anyhow::bail!("Compilation failed for {}", task.source.as_path().display());
+            progress.finish(); 
+            show_output!(output, self.project);
+            return Err(anyhow!("Compilation failed for {}", task.source.as_path().display()));
         }
 
         let stdout_reader = BufReader::new(&output.stdout[..]);
         Ok(stdout_reader.lines().filter_map(|l| l.ok()).collect())
     }
 
-    fn compute_hash_before_compile(&self, task: &SourceCompilationTask) -> Result<String> {
+    fn _compute_hash_before_compile(&self, task: &SourceCompilationTask) -> Result<String> {
         let mut headers = Vec::new();
         if task.dep_file.exists() {
             if self.is_msvc {

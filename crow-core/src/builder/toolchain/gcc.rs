@@ -43,31 +43,65 @@ impl GccToolchain {
     }
 
     fn detect_compiler_kind(compiler_exe: &str) -> Result<CompilerKind> {
-        let output = Command::new(compiler_exe)
-            .args(&["-dM", "-E", "-"])
+        // ahh. have u every heard of clang-cl? because of it we have to do this msvc checks
+        let msvc_test = Command::new(compiler_exe)
+            .args(&["/nologo", "-dM", "-E", "-"])
             .stdin(std::process::Stdio::null())
-            .output()
-            .context("Failed to run compiler for macro detection")?;
+            .output();
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let is_clang = stdout.contains("__clang__");
-        let is_gnu = stdout.contains("__GNUC__");
-
-        let kind = if is_clang {
-            if compiler_exe.contains("++") {
-                CompilerKind::ClangPP
+        let (supports_msvc, output) = if let Ok(output) = msvc_test {
+            if output.status.success() {
+                (true, output)
             } else {
-                CompilerKind::Clang
-            }
-        } else if is_gnu {
-            if compiler_exe.contains("++") {
-                CompilerKind::Gpp
-            } else {
-                CompilerKind::Gcc
+                let fallback = Command::new(compiler_exe)
+                    .args(&["-dM", "-E", "-"])
+                    .stdin(std::process::Stdio::null())
+                    .output()
+                    .context("Failed to run compiler for macro detection")?;
+                if !fallback.status.success() {
+                    anyhow::bail!("Compiler returned non-zero exit code");
+                }
+                (false, fallback)
             }
         } else {
-            CompilerKind::Gpp
+            let fallback = Command::new(compiler_exe)
+                .args(&["-dM", "-E", "-"])
+                .stdin(std::process::Stdio::null())
+                .output()
+                .context("Failed to run compiler for macro detection")?;
+            if !fallback.status.success() {
+                anyhow::bail!("Compiler returned non-zero exit code");
+            }
+            (false, fallback)
         };
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let defines: Vec<&str> = stdout.lines().collect();
+        let has = |macro_name: &str| defines.iter().any(|line| line.contains(macro_name));
+
+        let is_clang = has("__clang__");
+        let is_gnu = has("__GNUC__");
+        let is_cpp = has("__cplusplus");
+        let is_msvc = has("_MSC_VER");
+
+        let kind = if supports_msvc {
+            if is_clang {
+                CompilerKind::ClangCl
+            } else if is_msvc {
+                CompilerKind::Msvc
+            } else {
+                CompilerKind::Unknown
+            }
+        } else {
+            match (is_clang, is_gnu, is_cpp) {
+                (true, _, true) => CompilerKind::ClangPP,
+                (true, _, false) => CompilerKind::Clang,
+                (false, true, true) => CompilerKind::Gpp,
+                (false, true, false) => CompilerKind::Gcc,
+                _ => CompilerKind::Unknown,
+            }
+        };
+
         Ok(kind)
     }
 
@@ -248,15 +282,17 @@ impl Toolchain for GccToolchain {
     fn linker_kind(&self) -> LinkerKind {
         #[cfg(target_os = "windows")]
         {
-            if matches!(self.compiler_kind, CompilerKind::Clang | CompilerKind::ClangPP) {
-                return LinkerKind::Link;
+            if matches!(
+                self.compiler_kind,
+                CompilerKind::Clang | CompilerKind::ClangPP | CompilerKind::ClangCl
+            ) {
+                return LinkerKind::Lld;
             }
         }
-        
+
         match self.compiler_kind {
             CompilerKind::Gcc | CompilerKind::Gpp => LinkerKind::Ld,
-            CompilerKind::Clang | CompilerKind::ClangPP => LinkerKind::Lld,
-            CompilerKind::Msvc => LinkerKind::Link,
+            CompilerKind::Clang | CompilerKind::ClangPP | CompilerKind::ClangCl => LinkerKind::Lld,
             _ => LinkerKind::Unknown,
         }
     }

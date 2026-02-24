@@ -23,7 +23,9 @@ impl LinkerFlags {
     }
 
     pub fn use_lld(&mut self) -> &mut Self {
-        self.add_raw("-fuse-ld=lld".to_string());
+        if self.compiler_kind != CompilerKind::Msvc {
+            self.add_raw("-fuse-ld=lld");
+        }
         self
     }
 
@@ -32,7 +34,7 @@ impl LinkerFlags {
     }
 
     pub fn standard_flags(&mut self) -> &mut Self {
-        if self.compiler_kind.is_msvc() {
+        if self.compiler_kind.is_msvc() && self.compiler_kind != CompilerKind::ClangCl {
             self.no_logo();
         }
         self
@@ -124,18 +126,20 @@ impl LinkerFlags {
     }
 
     pub fn build(&self) -> Vec<String> {
-        self.flags
+        let result = self
+            .flags
             .iter()
             .flat_map(|f| Self::convert_flag(f, &self.compiler_kind))
             .filter(|s| !s.is_empty())
-            .collect()
+            .collect();
+        result
     }
 
     fn convert_flag(flag: &Flag, compiler_kind: &CompilerKind) -> Vec<String> {
         match flag {
             Flag::Raw(f) => vec![f.clone()],
             _ => {
-                if compiler_kind.is_msvc() {
+                if compiler_kind.is_msvc() && *compiler_kind != CompilerKind::ClangCl {
                     Self::to_msvc(flag)
                 } else {
                     Self::to_gcc_like(flag)
@@ -153,7 +157,13 @@ impl LinkerFlags {
 
             Flag::OutputFile(path) => vec!["-o".to_string(), normalize_path(path)],
 
-            Flag::LinkLibrary(lib) => vec![format!("-l{}", lib)],
+            Flag::LinkLibrary(lib) => {
+                if lib.ends_with(".lib") || lib.ends_with(".a") {
+                    vec![lib.clone()]
+                } else {
+                    vec![format!("-l{}", lib)]
+                }
+            }
             Flag::LibraryPath(path) => vec![format!("-L{}", normalize_path(path))],
             Flag::StaticLink => vec!["-static".to_string()],
             Flag::SharedLink => vec!["-shared".to_string()],
@@ -162,7 +172,7 @@ impl LinkerFlags {
             Flag::NoLinkTimeOptimization => vec!["-fno-lto".to_string()],
             Flag::ThinLTO => vec!["-flto=thin".to_string()],
             Flag::FatLTO => vec!["-flto=full".to_string()],
-            
+
             Flag::TargetArch(arch) => vec![format!("-march={}", arch)],
 
             Flag::NoLogo => vec![],
@@ -176,6 +186,8 @@ impl LinkerFlags {
                     vec![format!("-m{}", f)]
                 }
             }
+
+            Flag::LinkProgramDatabase(_) => vec![],
 
             _ => vec![],
         }

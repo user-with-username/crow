@@ -9,12 +9,13 @@ pub enum CompilerKind {
     Clang,
     #[serde(alias = "clang++")]
     ClangPP,
+    ClangCl,
     Msvc,
     Unknown,
 }
 
 impl CompilerKind {
     pub fn is_msvc(self) -> bool {
-        matches!(self, Self::Msvc)
+        matches!(self, Self::Msvc | Self::ClangCl)
     }
 }

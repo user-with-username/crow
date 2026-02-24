@@ -53,7 +53,7 @@ impl<'a> LinkingBuilder<'a> {
         for raw_flag in &build.linker.flags().to_vec() {
             flags.add_raw(raw_flag);
         }
-        
+
         let mut cmd = Command::new(self.linker_exe);
         cmd.stdout(Stdio::piped())
             .stderr(Stdio::piped())
