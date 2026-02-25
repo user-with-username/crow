@@ -13,7 +13,7 @@ pub use test::TestProfile;
 use serde::Deserialize;
 use smart_default::SmartDefault;
 
-#[derive(Deserialize, SmartDefault)]
+#[derive(Debug, Clone, Deserialize, SmartDefault)]
 pub struct Profiles {
     #[serde(default)]
     pub dev: DevProfile,

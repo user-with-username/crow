@@ -34,7 +34,8 @@ impl<'a> LinkingBuilder<'a> {
             let profile_dir = self.project.profile_dir();
             let pdb_dir = profile_dir.join("pdb");
             fs::create_dir_all(&pdb_dir)?;
-            let pdb_path = PdbFileNaming::generate(&pdb_dir, &config.package.name);
+            
+            let pdb_path = PdbFileNaming::generate(&pdb_dir, &self.project.package.name);
             flags.link_program_database(pdb_path.to_string_lossy().into_owned());
         }
 
@@ -50,7 +51,7 @@ impl<'a> LinkingBuilder<'a> {
             flags.link_library(lib.clone());
         }
 
-        for raw_flag in &build.linker.flags().to_vec() {
+        for raw_flag in build.linker.flags() {
             flags.add_raw(raw_flag);
         }
 

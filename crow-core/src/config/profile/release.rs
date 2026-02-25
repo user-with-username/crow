@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use smart_default::SmartDefault;
 
-#[derive(Deserialize, SmartDefault, Clone)]
+#[derive(Debug, Deserialize, SmartDefault, Clone)]
 #[serde(default)]
 pub struct ReleaseProfile {
     #[default = "3"]
