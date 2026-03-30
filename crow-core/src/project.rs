@@ -31,8 +31,10 @@ impl Project {
         };
 
         let toolchain = toolchain::detect_toolchain(
-            config.build.compiler.path().cloned(),
-            Some(config.build.compiler.kind().clone()),
+            loaded_config.build.compiler.path().cloned(),
+            Some(loaded_config.build.compiler.kind().clone()),
+            loaded_config.build.linker.path().cloned(),
+            Some(loaded_config.build.linker.kind().clone()),
         )?;
 
         Ok(Self {
