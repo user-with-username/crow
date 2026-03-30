@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::path::Path;
 
+use crate::Project;
+
 pub struct CompilationDatabase {
     entries: Vec<ClangdEntry>,
 }
@@ -26,12 +28,14 @@ impl CompilationDatabase {
         s.strip_prefix(r"\\?\").unwrap_or(&s).to_string()
     }
 
-    pub fn add_entry(&mut self, project_root: &Path, file_path: &Path, mut args: Vec<String>) {
-        let root_str = Self::clean_path(project_root);
-        let abs_file = Self::clean_path(project_root.join(file_path));
+    pub fn add_entry(&mut self, project: &Project, file_path: &Path, mut args: Vec<String>) {
+        let root_str = Self::clean_path(project.root.clone());
+        let abs_file = Self::clean_path(project.root.join(file_path));
 
         if !args.is_empty() {
-            args.insert(1, "--driver-mode=cl".to_string());
+            if project.compiler_kind().is_msvc() {
+                args.insert(1, "--driver-mode=cl".to_string());
+            }
         } // looks like cringe, but it makes clangd work better
 
         self.entries.push(ClangdEntry {

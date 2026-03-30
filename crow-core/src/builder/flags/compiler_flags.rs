@@ -266,10 +266,18 @@ impl CompilerFlags {
         match flag {
             Flag::Raw(f) => vec![f.clone()],
             _ => {
-                if compiler_kind.is_msvc() {
-                    Self::to_msvc(flag)
-                } else {
-                    Self::to_gcc_like(flag)
+                match compiler_kind {
+                    CompilerKind::ClangCl => {
+                        match flag {
+                            Flag::LinkTimeOptimization
+                            | Flag::NoLinkTimeOptimization
+                            | Flag::ThinLTO
+                            | Flag::FatLTO => Self::to_gcc_like(flag),
+                            _ => Self::to_msvc(flag),
+                        }
+                    }
+                    _ if compiler_kind.is_msvc() => Self::to_msvc(flag),
+                    _ => Self::to_gcc_like(flag),
                 }
             }
         }

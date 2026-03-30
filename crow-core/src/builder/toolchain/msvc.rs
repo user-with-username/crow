@@ -13,10 +13,94 @@ pub struct MsvcToolchain {
 }
 
 impl MsvcToolchain {
-    pub fn detect(preferred_path: Option<String>) -> Result<Self> {
-        match preferred_path {
-            Some(path) => Self::from_compiler_path(&path),
-            None => Self::from_vs_installation(),
+    pub fn identify_compiler(compiler_exe: &str) -> Option<CompilerKind> {
+        if !cfg!(target_os = "windows") {
+            return None;
+        }
+
+        let output = Command::new(compiler_exe)
+            .args(&["/nologo", "/?"])
+            .output()
+            .ok()?;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let combined = format!("{}{}", stdout, stderr);
+
+        if combined.contains("Microsoft (R) C/C++ Optimizing Compiler") {
+            return Some(CompilerKind::Msvc);
+        }
+
+        let version_check = Command::new(compiler_exe)
+            .arg("--version")
+            .output()
+            .ok()?;
+        let version_out = String::from_utf8_lossy(&version_check.stdout);
+        if version_out.contains("clang") && version_out.contains("clang-cl") {
+            return Some(CompilerKind::ClangCl);
+        }
+
+        None
+    }
+
+    pub fn identify_linker(linker_exe: &str) -> bool {
+        if !cfg!(target_os = "windows") {
+            return false;
+        }
+
+        let mut supports_msvc = false;
+        let mut supports_gcc = false;
+
+        if let Ok(output) = Command::new(linker_exe).arg("/?").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{}{}", stdout, stderr);
+            if combined.contains("Microsoft (R) Incremental Linker") {
+                supports_msvc = true;
+            } else if output.status.success() {
+                supports_msvc = true;
+            }
+        }
+
+        if let Ok(output) = Command::new(linker_exe).arg("--version").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{}{}", stdout, stderr);
+            if combined.contains("GNU ld")
+                || combined.contains("GNU gold")
+                || combined.contains("LLD")
+                || combined.contains("ld64")
+            {
+                supports_gcc = true;
+            } else if output.status.success() {
+                supports_gcc = true;
+            }
+        }
+
+        if !supports_gcc {
+            if let Ok(output) = Command::new(linker_exe).arg("-v").output() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let combined = format!("{}{}", stdout, stderr);
+                if combined.contains("GNU ld") || combined.contains("GNU gold") || combined.contains("LLD") {
+                    supports_gcc = true;
+                } else if output.status.success() {
+                    supports_gcc = true;
+                }
+            }
+        }
+
+        supports_msvc || (supports_msvc && supports_gcc)
+    }
+
+    pub fn detect(preferred_compiler: Option<String>, preferred_linker: Option<String>) -> Result<Self> {
+        if !cfg!(target_os = "windows") {
+            anyhow::bail!("MSVC toolchain is only available on Windows");
+        }
+
+        match preferred_compiler {
+            Some(path) => Self::from_compiler_path(&path, preferred_linker),
+            None => Self::from_vs_installation_with_linker(preferred_linker),
         }
     }
 
@@ -55,10 +139,7 @@ impl MsvcToolchain {
             }
         }
 
-        Err(anyhow!(
-            "Could not find compiler '{}' in PATH or current directory",
-            spec
-        ))
+        Err(anyhow!("Could not find compiler '{}' in PATH or current directory", spec))
     }
 
     fn determine_target_arch(compiler_path: &Path) -> String {
@@ -85,26 +166,37 @@ impl MsvcToolchain {
         }
     }
 
-    fn from_compiler_path(compiler_spec: &str) -> Result<Self> {
+    fn from_compiler_path(compiler_spec: &str, preferred_linker: Option<String>) -> Result<Self> {
         let compiler_path = Self::resolve_to_full_path(compiler_spec)?;
+
+        let is_clang_cl = compiler_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_lowercase().contains("clang-cl"))
+            .unwrap_or(false);
+
+        if is_clang_cl && !compiler_path.to_string_lossy().contains("VC\\Tools\\MSVC") {
+            return Self::from_vs_installation_with_linker(preferred_linker);
+        }
+
         let target_arch = Self::determine_target_arch(&compiler_path);
 
-        let linker_path = compiler_path
-            .parent()
-            .map(|p| p.join("link.exe"))
-            .filter(|p| p.is_file())
-            .ok_or_else(|| anyhow!("Could not find link.exe next to compiler"))?;
+        let linker_path = if let Some(linker) = preferred_linker {
+            Self::resolve_to_full_path(&linker)?
+        } else {
+            compiler_path
+                .parent()
+                .map(|p| p.join("link.exe"))
+                .filter(|p| p.is_file())
+                .ok_or_else(|| anyhow!("Could not find link.exe next to compiler"))?
+        };
 
         let tools_root = compiler_path
-            .parent() // x64 / x86
-            .and_then(|p| p.parent()) // Hostx64 / Hostx86
-            .and_then(|p| p.parent()) // bin
-            .and_then(|p| p.parent()) // version
-            .ok_or_else(|| {
-                anyhow!(
-                    "Could not derive tools root (expected .../bin/Host(x64|x86)/(x64|x86)/cl.exe)"
-                )
-            })?;
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .ok_or_else(|| anyhow!("Could not derive tools root (expected .../bin/Host(x64|x86)/(x64|x86)/cl.exe)"))?;
 
         let mut includes = Vec::new();
         let mut libraries = Vec::new();
@@ -130,65 +222,18 @@ impl MsvcToolchain {
     }
 
     fn from_vs_installation() -> Result<Self> {
-        let vswhere_path = Self::find_vswhere().ok_or_else(|| {
-            anyhow!("vswhere.exe not found. Is Visual Studio / Build Tools installed?")
-        })?;
-
-        let output = Command::new(&vswhere_path)
-            .args(&[
-                "-latest",
-                "-products",
-                "*",
-                "-requires",
-                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-                "-property",
-                "installationPath",
-            ])
-            .output()
-            .context("Failed to run vswhere")?;
-
-        let vs_path = String::from_utf8(output.stdout)?.trim().to_string();
-        if vs_path.is_empty() {
-            return Err(anyhow!("No Visual Studio installation with VC tools found"));
-        }
-
-        let vc_tools_path = PathBuf::from(&vs_path)
-            .join("VC")
-            .join("Tools")
-            .join("MSVC");
-
-        let vc_versions =
-            std::fs::read_dir(&vc_tools_path).context("Failed to read VC tools directory")?;
-
-        let mut latest_version = None;
-        for entry in vc_versions {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                let version = entry.file_name().to_string_lossy().to_string();
-                if latest_version
-                    .as_ref()
-                    .map_or(true, |v: &String| &version > v)
-                {
-                    latest_version = Some(version);
-                }
-            }
-        }
-
-        let version_dir = latest_version.ok_or_else(|| anyhow!("No MSVC tools version found"))?;
-        let tools_root = vc_tools_path.join(&version_dir);
-
-        let target_arch = "x64".to_string();
+        let (tools_root, target_arch) = Self::find_vs_tools_root()?;
 
         let compiler_path = tools_root
             .join("bin")
             .join("Hostx64")
-            .join("x64")
+            .join(&target_arch)
             .join("cl.exe");
 
         let linker_path = tools_root
             .join("bin")
             .join("Hostx64")
-            .join("x64")
+            .join(&target_arch)
             .join("link.exe");
 
         if !compiler_path.exists() {
@@ -219,6 +264,62 @@ impl MsvcToolchain {
             system_includes: includes,
             system_libraries: libraries,
         })
+    }
+
+    fn from_vs_installation_with_linker(preferred_linker: Option<String>) -> Result<Self> {
+        let mut tc = Self::from_vs_installation()?;
+        if let Some(linker) = preferred_linker {
+            tc.linker_path = Self::resolve_to_full_path(&linker)?.to_string_lossy().to_string();
+        }
+        Ok(tc)
+    }
+
+    fn find_vs_tools_root() -> Result<(PathBuf, String)> {
+        let vswhere = Self::find_vswhere()
+            .ok_or_else(|| anyhow!("vswhere.exe not found. Is Visual Studio / Build Tools installed?"))?;
+
+        let output = Command::new(&vswhere)
+            .args(&[
+                "-latest",
+                "-products",
+                "*",
+                "-requires",
+                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "-property",
+                "installationPath",
+            ])
+            .output()
+            .context("Failed to run vswhere")?;
+
+        let vs_path = String::from_utf8(output.stdout)?.trim().to_string();
+        if vs_path.is_empty() {
+            return Err(anyhow!("No Visual Studio installation with VC tools found"));
+        }
+
+        let vc_tools_path = PathBuf::from(&vs_path)
+            .join("VC")
+            .join("Tools")
+            .join("MSVC");
+
+        let vc_versions = std::fs::read_dir(&vc_tools_path)
+            .context("Failed to read VC tools directory")?;
+
+        let mut latest_version = None;
+        for entry in vc_versions {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                let version = entry.file_name().to_string_lossy().to_string();
+                if latest_version.as_ref().map_or(true, |v: &String| &version > v) {
+                    latest_version = Some(version);
+                }
+            }
+        }
+
+        let version_dir = latest_version.ok_or_else(|| anyhow!("No MSVC tools version found"))?;
+        let tools_root = vc_tools_path.join(&version_dir);
+        let target_arch = "x64".to_string();
+
+        Ok((tools_root, target_arch))
     }
 
     fn add_windows_sdk_paths(

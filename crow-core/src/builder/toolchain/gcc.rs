@@ -1,22 +1,76 @@
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::toolchain::Toolchain;
-use anyhow::{Context, Result};
-use std::path::PathBuf;
+use anyhow::{anyhow, Context, Result};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub struct GccToolchain {
     compiler_kind: CompilerKind,
     compiler_path: String,
+    linker_path: String,
     system_includes: Vec<PathBuf>,
     system_libraries: Vec<PathBuf>,
 }
 
 impl GccToolchain {
-    pub fn detect(preferred_path: Option<String>) -> Result<Self> {
-        let (compiler_exe, compiler_kind) = match preferred_path {
+    pub fn identify_compiler(compiler_exe: &str) -> Option<CompilerKind> {
+        Self::detect_compiler_kind(compiler_exe)
+            .ok()
+            .filter(|k| *k != CompilerKind::Unknown)
+    }
+
+    pub fn identify_linker(linker_exe: &str) -> bool {
+        let mut supports_msvc = false;
+        let mut supports_gcc = false;
+
+        if let Ok(output) = Command::new(linker_exe).arg("/?").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{}{}", stdout, stderr);
+            if combined.contains("Microsoft (R) Incremental Linker") {
+                supports_msvc = true;
+            } else if output.status.success() {
+                supports_msvc = true;
+            }
+        }
+
+        if let Ok(output) = Command::new(linker_exe).arg("--version").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{}{}", stdout, stderr);
+            if combined.contains("GNU ld")
+                || combined.contains("GNU gold")
+                || combined.contains("LLD")
+                || combined.contains("ld64")
+            {
+                supports_gcc = true;
+            } else if output.status.success() {
+                supports_gcc = true;
+            }
+        }
+
+        if !supports_gcc {
+            if let Ok(output) = Command::new(linker_exe).arg("-v").output() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let combined = format!("{}{}", stdout, stderr);
+                if combined.contains("GNU ld") || combined.contains("GNU gold") || combined.contains("LLD") {
+                    supports_gcc = true;
+                } else if output.status.success() {
+                    supports_gcc = true;
+                }
+            }
+        }
+
+        supports_gcc || (supports_msvc && supports_gcc)
+    }
+
+    pub fn detect(preferred_compiler: Option<String>, preferred_linker: Option<String>) -> Result<Self> {
+        let (compiler_exe, compiler_kind) = match preferred_compiler {
             Some(path) => {
-                let kind = Self::detect_compiler_kind(&path)?;
+                let kind = Self::detect_compiler_kind(&path)
+                    .context(format!("Failed to detect compiler kind for '{}'", path))?;
                 (path, kind)
             }
             None => {
@@ -26,83 +80,189 @@ impl GccToolchain {
                 let default = "g++";
 
                 let compiler_exe = default.to_string();
-                let kind = Self::detect_compiler_kind(&compiler_exe)?;
+                let kind = Self::detect_compiler_kind(&compiler_exe)
+                    .context(format!("Failed to detect compiler kind for default '{}'", default))?;
                 (compiler_exe, kind)
             }
         };
 
-        let system_includes = Self::extract_system_includes(&compiler_exe)?;
-        let system_libraries = Self::extract_system_library_dirs(&compiler_exe)?;
+        if compiler_kind == CompilerKind::Unknown {
+            anyhow::bail!(
+                "Could not determine a known compiler kind for '{}'. \
+                This might not be a GCC-like compiler or it's an unsupported variant.",
+                compiler_exe
+            );
+        }
+
+        let linker_path = if compiler_kind == CompilerKind::ClangCl && cfg!(target_os = "windows") {
+            if let Some(linker) = preferred_linker {
+                linker
+            } else {
+                if let Some(linker) = Self::find_linker_in_path("lld-link.exe")
+                    .or_else(|| Self::find_linker_in_path("link.exe"))
+                {
+                    linker
+                } else {
+                    eprintln!("Warning: Could not find lld-link or link.exe in PATH; falling back to compiler as linker.");
+                    compiler_exe.clone()
+                }
+            }
+        } else {
+            preferred_linker.unwrap_or_else(|| compiler_exe.clone())
+        };
+
+        let (system_includes, system_libraries) = if compiler_kind == CompilerKind::ClangCl && cfg!(target_os = "windows") {
+            match Self::get_msvc_paths() {
+                Ok((includes, libs)) => (includes, libs),
+                Err(e) => {
+                    eprintln!("Warning: Could not get MSVC paths for clang-cl: {}. Falling back to compiler extraction.", e);
+                    (Vec::new(), Vec::new())
+                }
+            }
+        } else {
+            (
+                Self::extract_system_includes(&compiler_exe)?,
+                Self::extract_system_library_dirs(&compiler_exe)?,
+            )
+        };
 
         Ok(GccToolchain {
             compiler_kind,
             compiler_path: compiler_exe,
+            linker_path,
             system_includes,
             system_libraries,
         })
     }
 
-    fn detect_compiler_kind(compiler_exe: &str) -> Result<CompilerKind> {
-        // ahh. have u every heard of clang-cl? because of it we have to do this msvc checks
-        let msvc_test = Command::new(compiler_exe)
-            .args(&["/nologo", "-dM", "-E", "-"])
-            .stdin(std::process::Stdio::null())
-            .output();
-
-        let (supports_msvc, output) = if let Ok(output) = msvc_test {
+    fn find_linker_in_path(exe_name: &str) -> Option<String> {
+        #[cfg(target_os = "windows")]
+        {
+            let output = Command::new("where").arg(exe_name).output().ok()?;
             if output.status.success() {
-                (true, output)
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                stdout.lines().next().map(|s| s.trim().to_string())
             } else {
-                let fallback = Command::new(compiler_exe)
-                    .args(&["-dM", "-E", "-"])
-                    .stdin(std::process::Stdio::null())
-                    .output()
-                    .context("Failed to run compiler for macro detection")?;
-                if !fallback.status.success() {
-                    anyhow::bail!("Compiler returned non-zero exit code");
+                None
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            None
+        }
+    }
+
+    fn detect_compiler_kind(compiler_exe: &str) -> Result<CompilerKind> {
+        fn has_define(compiler: &str, args: &[&str], macro_name: &str) -> bool {
+            let output = Command::new(compiler)
+                .args(args)
+                .stdin(std::process::Stdio::null())
+                .output();
+            if let Ok(output) = output {
+                if output.status.success() {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    return stdout.lines().any(|line| line.contains(macro_name));
                 }
-                (false, fallback)
+            }
+            false
+        }
+
+        let version_output = Command::new(compiler_exe).arg("--version").output();
+        let version_string = if let Ok(output) = &version_output {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let combined = format!("{}{}", stdout, stderr).to_lowercase();
+                Some(combined)
+            } else {
+                None
             }
         } else {
-            let fallback = Command::new(compiler_exe)
-                .args(&["-dM", "-E", "-"])
-                .stdin(std::process::Stdio::null())
-                .output()
-                .context("Failed to run compiler for macro detection")?;
-            if !fallback.status.success() {
-                anyhow::bail!("Compiler returned non-zero exit code");
-            }
-            (false, fallback)
+            None
         };
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let defines: Vec<&str> = stdout.lines().collect();
-        let has = |macro_name: &str| defines.iter().any(|line| line.contains(macro_name));
+        if let Some(ver) = &version_string {
+            if ver.contains("clang-cl") {
+                return Ok(CompilerKind::ClangCl);
+            }
+        }
 
-        let is_clang = has("__clang__");
-        let is_gnu = has("__GNUC__");
-        let is_cpp = has("__cplusplus");
-        let is_msvc = has("_MSC_VER");
+        let is_clang = has_define(compiler_exe, &["-dM", "-E", "-"], "__clang__");
+        let is_gnu = has_define(compiler_exe, &["-dM", "-E", "-"], "__GNUC__");
 
-        let kind = if supports_msvc {
-            if is_clang {
+        if is_clang || is_gnu {
+            let is_msvc = has_define(compiler_exe, &["-dM", "-E", "-"], "_MSC_VER");
+
+            if is_clang && is_msvc {
+                let supports_cpp =
+                    has_define(compiler_exe, &["-x", "c++", "-dM", "-E", "-"], "__cplusplus");
+                if supports_cpp {
+                    return Ok(CompilerKind::ClangPP);
+                } else {
+                    return Ok(CompilerKind::Clang);
+                }
+            }
+
+            if is_msvc {
+                return Ok(CompilerKind::Msvc);
+            }
+
+            let supports_cpp = has_define(compiler_exe, &["-x", "c++", "-dM", "-E", "-"], "__cplusplus");
+
+            let kind = if is_clang {
+                if supports_cpp {
+                    CompilerKind::ClangPP
+                } else {
+                    CompilerKind::Clang
+                }
+            } else {
+                if supports_cpp {
+                    CompilerKind::Gpp
+                } else {
+                    CompilerKind::Gcc
+                }
+            };
+            return Ok(kind);
+        }
+
+        if let Some(ver) = version_string {
+            let is_clang = ver.contains("clang");
+            let is_gcc = ver.contains("gcc") || ver.contains("g++");
+            let msvc_flag_supported = Command::new(compiler_exe)
+                .arg("/nologo")
+                .arg("/?")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+
+            let base_kind = if is_clang && msvc_flag_supported {
                 CompilerKind::ClangCl
-            } else if is_msvc {
-                CompilerKind::Msvc
+            } else if is_clang {
+                CompilerKind::Clang
+            } else if is_gcc {
+                if ver.contains("c++") {
+                    CompilerKind::Gpp
+                } else {
+                    CompilerKind::Gcc
+                }
             } else {
                 CompilerKind::Unknown
-            }
-        } else {
-            match (is_clang, is_gnu, is_cpp) {
-                (true, _, true) => CompilerKind::ClangPP,
-                (true, _, false) => CompilerKind::Clang,
-                (false, true, true) => CompilerKind::Gpp,
-                (false, true, false) => CompilerKind::Gcc,
-                _ => CompilerKind::Unknown,
-            }
-        };
+            };
 
-        Ok(kind)
+            if base_kind != CompilerKind::Unknown {
+                if base_kind == CompilerKind::Clang || base_kind == CompilerKind::Gcc {
+                    let supports_cpp = has_define(compiler_exe, &["-x", "c++", "-dM", "-E", "-"], "__cplusplus");
+                    return Ok(match base_kind {
+                        CompilerKind::Clang if supports_cpp => CompilerKind::ClangPP,
+                        CompilerKind::Gcc if supports_cpp => CompilerKind::Gpp,
+                        _ => base_kind,
+                    });
+                }
+                return Ok(base_kind);
+            }
+        }
+
+        Ok(CompilerKind::Unknown)
     }
 
     fn extract_system_includes(compiler_exe: &str) -> Result<Vec<PathBuf>> {
@@ -128,7 +288,10 @@ impl GccToolchain {
                 }
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
-                    includes.push(PathBuf::from(trimmed));
+                    let path = PathBuf::from(trimmed);
+                    if path.exists() {
+                        includes.push(path);
+                    }
                 }
             }
         }
@@ -138,10 +301,7 @@ impl GccToolchain {
     fn extract_system_library_dirs(compiler_exe: &str) -> Result<Vec<PathBuf>> {
         let mut libraries = Vec::new();
 
-        if let Ok(output) = Command::new(compiler_exe)
-            .arg("-print-search-dirs")
-            .output()
-        {
+        if let Ok(output) = Command::new(compiler_exe).arg("-print-search-dirs").output() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 if line.starts_with("libraries: =") {
@@ -149,7 +309,10 @@ impl GccToolchain {
                     for path in paths.split(':') {
                         let path = path.trim();
                         if !path.is_empty() {
-                            libraries.push(PathBuf::from(path));
+                            let pb = PathBuf::from(path);
+                            if pb.exists() {
+                                libraries.push(pb);
+                            }
                         }
                     }
                     break;
@@ -175,7 +338,10 @@ impl GccToolchain {
                                 if start < end {
                                     let path = &line[start + 1..end];
                                     let path = path.strip_prefix('=').unwrap_or(path);
-                                    libraries.push(PathBuf::from(path));
+                                    let pb = PathBuf::from(path);
+                                    if pb.exists() {
+                                        libraries.push(pb);
+                                    }
                                 }
                             }
                         }
@@ -183,12 +349,13 @@ impl GccToolchain {
 
                     #[cfg(target_os = "macos")]
                     {
-                        if line.contains("Library search paths:")
-                            || line.starts_with(' ') && line.contains('/')
-                        {
+                        if line.contains("Library search paths:") || line.starts_with(' ') && line.contains('/') {
                             let trimmed = line.trim();
                             if !trimmed.is_empty() && trimmed.starts_with('/') {
-                                libraries.push(PathBuf::from(trimmed));
+                                let pb = PathBuf::from(trimmed);
+                                if pb.exists() {
+                                    libraries.push(pb);
+                                }
                             }
                         }
                     }
@@ -207,7 +374,10 @@ impl GccToolchain {
                                 if start < end {
                                     let path = &line[start + 1..end];
                                     let path = path.strip_prefix('=').unwrap_or(path);
-                                    libraries.push(PathBuf::from(path));
+                                    let pb = PathBuf::from(path);
+                                    if pb.exists() {
+                                        libraries.push(pb);
+                                    }
                                 }
                             }
                         }
@@ -217,11 +387,7 @@ impl GccToolchain {
         }
 
         if let Ok(output) = Command::new(compiler_exe)
-            .args(&[
-                "-print-multiarch",
-                "-print-sysroot",
-                "-print-file-name=libc.so",
-            ])
+            .args(&["-print-multiarch", "-print-sysroot", "-print-file-name=libc.so"])
             .output()
         {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -230,7 +396,7 @@ impl GccToolchain {
                 if !trimmed.is_empty() && trimmed != "libc.so" {
                     if trimmed.contains('/') {
                         if let Some(parent) = PathBuf::from(trimmed).parent() {
-                            if !libraries.contains(&parent.to_path_buf()) {
+                            if parent.exists() && !libraries.contains(&parent.to_path_buf()) {
                                 libraries.push(parent.to_path_buf());
                             }
                         }
@@ -249,7 +415,10 @@ impl GccToolchain {
                                 let content = &line[start + 1..end];
                                 for word in content.split_whitespace() {
                                     if word.contains('/') && !word.contains('*') {
-                                        libraries.push(PathBuf::from(word));
+                                        let pb = PathBuf::from(word);
+                                        if pb.exists() && !libraries.contains(&pb) {
+                                            libraries.push(pb);
+                                        }
                                     }
                                 }
                             }
@@ -260,17 +429,184 @@ impl GccToolchain {
         }
 
         let mut seen = std::collections::HashSet::new();
-        libraries.retain(|path| {
-            let path_str = path.to_string_lossy().to_string();
-            if seen.contains(&path_str) || !path.exists() {
-                false
-            } else {
-                seen.insert(path_str);
-                true
-            }
-        });
+        let filtered: Vec<_> = libraries
+            .into_iter()
+            .filter(|path| {
+                let path_str = path.to_string_lossy().to_string();
+                if seen.contains(&path_str) {
+                    false
+                } else {
+                    seen.insert(path_str);
+                    true
+                }
+            })
+            .collect();
 
-        Ok(libraries)
+        Ok(filtered)
+    }
+
+    fn get_msvc_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+        if !cfg!(target_os = "windows") {
+            return Ok((Vec::new(), Vec::new()));
+        }
+
+        let vs_root = Self::find_vs_root()?;
+        let vc_tools_root = vs_root.join("VC").join("Tools").join("MSVC");
+
+        let latest_version = Self::find_latest_msvc_version(&vc_tools_root)?;
+        let tools_root = vc_tools_root.join(&latest_version);
+
+        let target_arch = if std::env::var("TARGET").unwrap_or_else(|_| "x86_64".into()).contains("64") {
+            "x64"
+        } else {
+            "x86"
+        };
+
+        let mut includes = Vec::new();
+        let mut libraries = Vec::new();
+
+        let vc_include = tools_root.join("include");
+        if vc_include.exists() {
+            includes.push(vc_include);
+        }
+
+        let vc_lib = tools_root.join("lib").join(target_arch);
+        if vc_lib.exists() {
+            libraries.push(vc_lib);
+        }
+
+        Self::add_windows_sdk_paths(&mut includes, &mut libraries, target_arch)?;
+
+        Ok((includes, libraries))
+    }
+
+    fn find_vs_root() -> Result<PathBuf> {
+        if let Some(vswhere) = Self::find_vswhere() {
+            let output = Command::new(&vswhere)
+                .args(&[
+                    "-latest",
+                    "-products",
+                    "*",
+                    "-requires",
+                    "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                    "-property",
+                    "installationPath",
+                ])
+                .output()
+                .context("Failed to run vswhere")?;
+
+            let stdout = String::from_utf8(output.stdout)?;
+            let vs_path = stdout.trim();
+            if !vs_path.is_empty() && Path::new(vs_path).exists() {
+                return Ok(PathBuf::from(vs_path));
+            }
+        }
+
+        let candidates = [
+            r"C:\Program Files\Microsoft Visual Studio\2022\Community",
+            r"C:\Program Files\Microsoft Visual Studio\2022\Professional",
+            r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise",
+            r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community",
+            r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional",
+            r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise",
+        ];
+        for candidate in candidates.iter() {
+            if Path::new(candidate).exists() {
+                return Ok(PathBuf::from(candidate));
+            }
+        }
+
+        Err(anyhow!("Could not locate Visual Studio installation"))
+    }
+
+    fn find_latest_msvc_version(vc_tools_root: &Path) -> Result<String> {
+        let entries = std::fs::read_dir(vc_tools_root)
+            .context("Failed to read VC tools directory")?;
+        let mut versions = Vec::new();
+        for entry in entries.flatten() {
+            if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+                if let Some(version) = entry.file_name().to_str() {
+                    versions.push(version.to_string());
+                }
+            }
+        }
+        versions.sort_by(|a, b| {
+            fn version_parts(v: &str) -> Vec<u32> {
+                v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
+            }
+            let a_parts = version_parts(a);
+            let b_parts = version_parts(b);
+            a_parts.cmp(&b_parts)
+        });
+        versions.last().cloned().ok_or_else(|| anyhow!("No MSVC toolchain found"))
+    }
+
+    fn add_windows_sdk_paths(
+        includes: &mut Vec<PathBuf>,
+        libraries: &mut Vec<PathBuf>,
+        target_arch: &str,
+    ) -> Result<()> {
+        let sdk_root = PathBuf::from(r"C:\Program Files (x86)\Windows Kits\10");
+        if !sdk_root.exists() {
+            return Ok(());
+        }
+
+        let include_root = sdk_root.join("Include");
+        let lib_root = sdk_root.join("Lib");
+
+        let sdk_version = Self::find_latest_sdk_version(&include_root)?;
+
+        for sub in &["um", "shared", "winrt", "ucrt"] {
+            let p = include_root.join(&sdk_version).join(sub);
+            if p.exists() {
+                includes.push(p);
+            }
+        }
+
+        for sub in &[format!("ucrt/{}", target_arch), format!("um/{}", target_arch)] {
+            let p = lib_root.join(&sdk_version).join(&sub);
+            if p.exists() {
+                libraries.push(p);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn find_latest_sdk_version(include_root: &Path) -> Result<String> {
+        let entries = std::fs::read_dir(include_root).context("Failed to read Windows SDK include directory")?;
+        let mut versions = Vec::new();
+        for entry in entries.flatten() {
+            if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+                if let Some(name) = entry.file_name().to_str() {
+                    if name.starts_with("10.") {
+                        versions.push(name.to_string());
+                    }
+                }
+            }
+        }
+        versions.sort_by(|a, b| {
+            fn version_parts(v: &str) -> Vec<u32> {
+                v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
+            }
+            let a_parts = version_parts(a);
+            let b_parts = version_parts(b);
+            a_parts.cmp(&b_parts)
+        });
+        versions.last().cloned().ok_or_else(|| anyhow!("No Windows SDK found"))
+    }
+
+    fn find_vswhere() -> Option<PathBuf> {
+        let candidates = [
+            r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe",
+            r"C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe",
+        ];
+        for path in candidates.iter() {
+            if Path::new(path).exists() {
+                return Some(PathBuf::from(path));
+            }
+        }
+        None
     }
 }
 
@@ -280,19 +616,10 @@ impl Toolchain for GccToolchain {
     }
 
     fn linker_kind(&self) -> LinkerKind {
-        #[cfg(target_os = "windows")]
-        {
-            if matches!(
-                self.compiler_kind,
-                CompilerKind::Clang | CompilerKind::ClangPP | CompilerKind::ClangCl
-            ) {
-                return LinkerKind::Lld;
-            }
-        }
-
         match self.compiler_kind {
+            CompilerKind::ClangCl => LinkerKind::Lld,
             CompilerKind::Gcc | CompilerKind::Gpp => LinkerKind::Ld,
-            CompilerKind::Clang | CompilerKind::ClangPP | CompilerKind::ClangCl => LinkerKind::Lld,
+            CompilerKind::Clang | CompilerKind::ClangPP => LinkerKind::Lld,
             _ => LinkerKind::Unknown,
         }
     }
@@ -302,7 +629,7 @@ impl Toolchain for GccToolchain {
     }
 
     fn linker_path(&self) -> &str {
-        &self.compiler_path
+        &self.linker_path
     }
 
     fn system_include_dirs(&self) -> Vec<PathBuf> {

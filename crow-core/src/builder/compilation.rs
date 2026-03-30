@@ -61,7 +61,7 @@ impl<'a> CompilationBuilder<'a> {
                 let mut objects = Vec::with_capacity(res.len());
 
                 for (obj, src, args) in res {
-                    db.add_entry(&self.project.root, &src, args);
+                    db.add_entry(&self.project, &src, args);
                     objects.push(obj);
                 }
 
