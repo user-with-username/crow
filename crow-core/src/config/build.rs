@@ -4,7 +4,7 @@ use serde::Deserialize;
 use smart_default::SmartDefault;
 use std::path::PathBuf;
 
-#[derive(Deserialize, SmartDefault, Clone)]
+#[derive(Debug, Deserialize, SmartDefault, Clone)]
 #[serde(default)]
 pub struct BuildConfig {
     pub compiler: CompilerConfig,

@@ -1,39 +1,45 @@
 use crate::builder::toolchain::{self, Toolchain};
-use crate::config::CrowConfig;
-use anyhow::Context;
+use crate::config::{CrowConfig, Package};
+use anyhow::{Context, Result};
 use crow_utils::enviroment::Enviroment;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
 pub struct Project {
     pub config: CrowConfig,
+    pub package: Package,
     pub root: PathBuf,
+    pub workspace_root: PathBuf,
     pub profile: crate::config::Profile,
     pub profile_name: String,
     pub toolchain: Box<dyn Toolchain>,
 }
 
 impl Project {
-    pub fn new(config: CrowConfig, profile_name: &str) -> anyhow::Result<Self> {
-        let root = std::env::current_dir().context("failed to get current directory")?;
+    pub fn new(loaded_config: CrowConfig, manifest_dir: PathBuf, profile_name: &str) -> Result<Self> {
+        let package = loaded_config
+            .package
+            .clone()
+            .context("Manifest must have a [package] section")?;
+
         let profile = match profile_name {
-            "dev" => crate::config::Profile::Dev(config.profile.dev.clone()),
-            "release" => crate::config::Profile::Release(config.profile.release.clone()),
-            "test" => crate::config::Profile::Test(config.profile.test.clone()),
-            "bench" => crate::config::Profile::Bench(config.profile.bench.clone()),
-            _ => crate::config::Profile::Dev(config.profile.dev.clone()),
+            "dev" => crate::config::Profile::Dev(loaded_config.profile.dev.clone()),
+            "release" => crate::config::Profile::Release(loaded_config.profile.release.clone()),
+            "test" => crate::config::Profile::Test(loaded_config.profile.test.clone()),
+            "bench" => crate::config::Profile::Bench(loaded_config.profile.bench.clone()),
+            _ => crate::config::Profile::Dev(loaded_config.profile.dev.clone()),
         };
 
         let toolchain = toolchain::detect_toolchain(
             config.build.compiler.path().cloned(),
             Some(config.build.compiler.kind().clone()),
-            config.build.linker.path().cloned(),
-            Some(config.build.linker.kind().clone()),
         )?;
 
         Ok(Self {
-            config,
-            root,
+            config: loaded_config,
+            package,
+            workspace_root: manifest_dir.clone(),
+            root: manifest_dir,
             profile,
             profile_name: profile_name.to_string(),
             toolchain,
@@ -42,7 +48,7 @@ impl Project {
 
     pub fn find_sources(&self) -> Vec<PathBuf> {
         let extensions = &self.config.build.src_extensions;
-        WalkDir::new("src")
+        WalkDir::new(self.root.join("src"))
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|entry| {
@@ -68,19 +74,20 @@ impl Project {
     }
 
     pub fn output_path(&self) -> PathBuf {
-        let base_name = self.config.r#type.display_name(&self.config.package.name);
+        let base_name = self.config.r#type.display_name(&self.package.name);
         let filename = if self.config.r#type.needs_prefix() {
             format!("lib{}", base_name)
         } else {
             base_name.to_string()
         };
+
         self.profile_dir()
             .join(filename)
             .with_extension(self.config.r#type.extension())
     }
 
     pub fn output_name(&self) -> String {
-        let base_name = self.config.r#type.display_name(&self.config.package.name);
+        let base_name = self.config.r#type.display_name(&self.package.name);
         let filename = if self.config.r#type.needs_prefix() {
             format!("lib{}", base_name)
         } else {

@@ -1,6 +1,6 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Args;
-use crow_core::{CrowConfig, Project};
+use crow_core::{config::Workspace, Project};
 use crow_utils::status;
 use std::process::Command;
 
@@ -13,6 +13,10 @@ pub struct RunArgs {
     /// Build profile (debug, release, test, bench)
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
+
+    /// Name of the specific binary to run
+    #[arg(long)]
+    pub bin: Option<String>,
 
     /// Arguments to pass to the executable
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -29,51 +33,78 @@ impl RunCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let profile_name: &str = if self.args.release {
-            "release"
-        } else {
-            &self.args.profile
-        };
+        let profile_name = if self.args.release { "release" } else { &self.args.profile };
 
         let build_args = crate::commands::build::BuildArgs {
             release: self.args.release,
             target: None,
             jobs: None,
-            bin: None,
+            bin: self.args.bin.clone(),
             profile: self.args.profile.clone(),
         };
-
         crate::commands::build::BuildCommand::new(build_args).execute()?;
 
-        self.run_executable(profile_name)
+        self.run_binary(profile_name)
     }
 
-    fn run_executable(&self, profile_name: &str) -> Result<()> {
-        let config = CrowConfig::load()?;
-        let project = Project::new(config, profile_name)?;
+    fn run_binary(&self, profile_name: &str) -> Result<()> {
+        let workspace = Workspace::load()?;
+        let binary_members = workspace.binary_members();
+
+        if binary_members.is_empty() {
+            anyhow::bail!("No binary packages found to run");
+        }
+
+        let (selected_config, selected_root) = match &self.args.bin {
+            Some(name) => workspace
+                .find_member_by_name(name)
+                .map(|(cfg, root)| (cfg.clone(), root.clone()))
+                .with_context(|| format!("No binary package named `{}` found", name))?,
+            None => {
+                if binary_members.len() == 1 {
+                    let (cfg, root) = binary_members[0];
+                    (cfg.clone(), root.clone())
+                } else {
+                    let names: Vec<String> = binary_members
+                        .iter()
+                        .filter_map(|(cfg, _)| cfg.package.as_ref().map(|p| p.name.clone()))
+                        .collect();
+                    anyhow::bail!(
+                        "Multiple binary packages available. Use `--bin` to specify one.\nAvailable binaries: {}",
+                        names.join(", ")
+                    );
+                }
+            }
+        };
+
+        let project = Project::new(selected_config, selected_root, profile_name)?;
+        self.execute_project_binary(project)
+    }
+
+    fn execute_project_binary(&self, project: Project) -> Result<()> {
         let executable = project.output_path();
 
-        if !std::path::Path::new(&executable).exists() {
+        if !executable.exists() {
             anyhow::bail!(
-                "executable '{}' not found after build",
+                "Executable '{}' not found. Did the build succeed?",
                 executable.display()
             );
         }
 
         status!("Running", "`{}`", executable.display());
 
-        let mut cmd = Command::new(format!("{}", executable.display()));
-
+        let mut cmd = Command::new(executable);
         if !self.args.args.is_empty() {
             cmd.args(&self.args.args);
         }
 
-        let status = cmd
-            .status()
-            .map_err(|e| anyhow::anyhow!("failed to execute '{}': {}", executable.display(), e))?;
+        let status = cmd.status().with_context(|| "Failed to start executable")?;
 
         if !status.success() {
-            std::process::exit(status.code().unwrap_or(1));
+            anyhow::bail!(
+                "Process exited with non-zero status (code: {})",
+                status.code().unwrap_or(-1)
+            );
         }
 
         Ok(())

@@ -29,15 +29,12 @@ impl<'a> CompilationBuilder<'a> {
         let cache_manager =
             IncrementalManager::new(&cache_path, self.project.profile.incremental());
 
-        let sources: Vec<_> = self.project.find_sources().into_iter().collect();
+        let sources = self.project.find_sources();
         let progress = ProgressBar::new(
             sources.len(),
             format!(
                 "{}({})",
-                self.project
-                    .config
-                    .r#type
-                    .display_name(&self.project.config.package.name),
+                self.project.config.r#type.display_name(&self.project.package.name),
                 self.project.config.r#type.type_str()
             ),
         );
