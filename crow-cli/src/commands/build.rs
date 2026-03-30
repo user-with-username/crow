@@ -2,7 +2,8 @@ use anyhow::Result;
 use clap::Args;
 use crow_core::{
     builder::{CompilationBuilder, LinkingBuilder},
-    config::Workspace, Project,
+    config::Workspace,
+    Project,
 };
 use crow_utils::status;
 use rayon;
@@ -42,7 +43,11 @@ impl BuildCommand {
 
     pub fn execute(self) -> Result<()> {
         let workspace = Workspace::load()?;
-        let profile_name = if self.args.release { "release" } else { &self.args.profile };
+        let profile_name = if self.args.release {
+            "release"
+        } else {
+            &self.args.profile
+        };
 
         // Filter members by --bin if requested
         let members_to_build: Vec<_> = if let Some(bin_name) = &self.args.bin {
@@ -61,26 +66,40 @@ impl BuildCommand {
 
         if members_to_build.is_empty() {
             if self.args.bin.is_some() {
-                anyhow::bail!("No binary package named `{}` found", self.args.bin.as_ref().unwrap());
+                anyhow::bail!(
+                    "No binary package named `{}` found",
+                    self.args.bin.as_ref().unwrap()
+                );
             } else {
                 anyhow::bail!("No packages found to build");
             }
         }
 
+        let is_multiple = members_to_build.len() > 1;
+
         for (member_config, member_root) in members_to_build {
-            status!("Building", "package at {}", member_root.display());
+            if is_multiple {
+                status!("Building", "package at {}", member_root.display());
+            }
             self.build_package(member_config, member_root, profile_name)?;
         }
 
         Ok(())
     }
 
-    fn build_package(&self, config: crow_core::CrowConfig, root: PathBuf, profile_name: &str) -> Result<()> {
+    fn build_package(
+        &self,
+        config: crow_core::CrowConfig,
+        root: PathBuf,
+        profile_name: &str,
+    ) -> Result<()> {
         let project = Project::new(config, root, profile_name)?;
 
         if project.config.build.parallelism {
             if let Some(jobs) = self.args.jobs {
-                let _ = rayon::ThreadPoolBuilder::new().num_threads(jobs).build_global();
+                let _ = rayon::ThreadPoolBuilder::new()
+                    .num_threads(jobs)
+                    .build_global();
             }
         }
 

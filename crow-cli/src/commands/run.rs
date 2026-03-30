@@ -33,7 +33,11 @@ impl RunCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let profile_name = if self.args.release { "release" } else { &self.args.profile };
+        let profile_name = if self.args.release {
+            "release"
+        } else {
+            &self.args.profile
+        };
 
         let build_args = crate::commands::build::BuildArgs {
             release: self.args.release,

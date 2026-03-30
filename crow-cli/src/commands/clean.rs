@@ -24,7 +24,7 @@ impl CleanCommand {
         if target_dir.exists() {
             status!("Cleaning", "{}", target_dir.display());
             project.clean()?;
-            
+
             status!("Deleted", "target directory");
         } else {
             status!("Finished", "nothing to clean");
