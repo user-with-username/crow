@@ -148,6 +148,7 @@ impl GccToolchain {
         }
         #[cfg(not(target_os = "windows"))]
         {
+            let _ = exe_name; // Silence unused variable warning
             None
         }
     }
