@@ -232,6 +232,11 @@ impl CompilerFlags {
         self
     }
 
+    pub fn import_library(&mut self, path: impl Into<String>) -> &mut Self {
+        self.flags.push(Flag::ImportLibrary(path.into()));
+        self
+    }
+
     pub fn add_machine_dependent(&mut self, flag: impl Into<String>) -> &mut Self {
         self.flags.push(Flag::MachineDependent(flag.into()));
         self
@@ -301,6 +306,9 @@ impl CompilerFlags {
             Flag::ExtraWarnings => vec!["-Wextra".to_string()],
             Flag::NoWarnings => vec!["-w".to_string()],
             Flag::SpecificWarning(w) => vec![format!("-W{}", w)],
+            Flag::ImportLibrary(path) => {
+                vec![format!("-Wl,--out-implib,{}", normalize_path(path))]
+            }
 
             Flag::CxxStandard(std) => vec![format!("-std={}", std)],
             Flag::CStandard(std) => vec![format!("-std={}", std)],
@@ -390,6 +398,9 @@ impl CompilerFlags {
                 Some(v) => vec![format!("/D{}={}", name, v)],
                 None => vec![format!("/D{}", name)],
             },
+            Flag::ImportLibrary(path) => {
+                vec![format!("/IMPLIB:{}", normalize_path(path))]
+            }
 
             Flag::CompileOnly => vec!["/c".to_string()],
             Flag::OutputFile(path) => vec![format!("/Fe{}", normalize_path(path))],

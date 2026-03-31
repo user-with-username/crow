@@ -35,6 +35,8 @@ impl Project {
             Some(loaded_config.build.compiler.kind().clone()),
             loaded_config.build.linker.path().cloned(),
             Some(loaded_config.build.linker.kind().clone()),
+            loaded_config.build.archiver.path().cloned(),
+            Some(loaded_config.build.archiver.kind().clone()),
         )?;
 
         Ok(Self {
@@ -148,6 +150,14 @@ impl Project {
         } else {
             self.toolchain.compiler_path()
         }
+    }
+
+    pub fn archiver_path(&self) -> &str {
+        self.toolchain.archiver_path()
+    }
+
+    pub fn archiver_kind(&self) -> crate::builder::kinds::archiver_kind::ArchiverKind {
+        self.toolchain.archiver_kind()
     }
 
     pub fn system_include_dirs(&self) -> Vec<PathBuf> {

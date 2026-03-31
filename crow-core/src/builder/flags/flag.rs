@@ -55,6 +55,14 @@ pub enum Flag {
     ProgramDatabase(String),
     LinkProgramDatabase(String),
     DebugType(String),
+    ImportLibrary(String),
 
+    Raw(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum ArchiverFlag {
+    OutputFile(String),
+    Object(String),
     Raw(String),
 }

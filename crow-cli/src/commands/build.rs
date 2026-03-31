@@ -111,6 +111,14 @@ impl BuildCommand {
             .map(|p| p.as_str())
             .unwrap_or_else(|| project.compiler_path());
 
+        let archiver_exe = project
+            .config
+            .build
+            .archiver
+            .path()
+            .map(|p| p.as_str())
+            .unwrap_or_else(|| project.archiver_path());
+
         let linker_exe = project
             .config
             .build
@@ -132,7 +140,7 @@ impl BuildCommand {
         project.create_dirs()?;
 
         let objects = CompilationBuilder::new(compiler_exe, &project).compile()?;
-        LinkingBuilder::new(linker_exe, &project, &objects).link()?;
+        LinkingBuilder::new(linker_exe, archiver_exe, &project, &objects).link()?;
 
         let duration = start.elapsed();
         let opt_level = if project.profile.opt_level() != "0" {

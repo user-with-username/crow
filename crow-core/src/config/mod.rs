@@ -7,9 +7,12 @@ mod compiler;
 mod linker;
 mod macros;
 pub mod profile;
-mod r#type;
+pub mod r#type;
 mod workspace;
 mod package;
+mod archiver;
+pub use archiver::ArchiverConfig;
+
 
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;

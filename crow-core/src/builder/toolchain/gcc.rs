@@ -1,3 +1,4 @@
+use crate::builder::kinds::archiver_kind::ArchiverKind;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::toolchain::Toolchain;
@@ -9,6 +10,8 @@ pub struct GccToolchain {
     compiler_kind: CompilerKind,
     compiler_path: String,
     linker_path: String,
+    archiver_path: String,
+    archiver_kind: ArchiverKind,
     system_includes: Vec<PathBuf>,
     system_libraries: Vec<PathBuf>,
 }
@@ -66,7 +69,12 @@ impl GccToolchain {
         supports_gcc || (supports_msvc && supports_gcc)
     }
 
-    pub fn detect(preferred_compiler: Option<String>, preferred_linker: Option<String>) -> Result<Self> {
+    pub fn detect(
+        preferred_compiler: Option<String>,
+        preferred_linker: Option<String>,
+        preferred_archiver: Option<String>,
+        preferred_archiver_kind: Option<ArchiverKind>,
+    ) -> Result<Self> {
         let (compiler_exe, compiler_kind) = match preferred_compiler {
             Some(path) => {
                 let kind = Self::detect_compiler_kind(&path)
@@ -111,6 +119,12 @@ impl GccToolchain {
             preferred_linker.unwrap_or_else(|| compiler_exe.clone())
         };
 
+        let (archiver_path, archiver_kind) = Self::determine_archiver(
+            &compiler_kind,
+            preferred_archiver,
+            preferred_archiver_kind,
+        )?;
+
         let (system_includes, system_libraries) = if compiler_kind == CompilerKind::ClangCl && cfg!(target_os = "windows") {
             match Self::get_msvc_paths() {
                 Ok((includes, libs)) => (includes, libs),
@@ -130,9 +144,53 @@ impl GccToolchain {
             compiler_kind,
             compiler_path: compiler_exe,
             linker_path,
+            archiver_path,
+            archiver_kind,
             system_includes,
             system_libraries,
         })
+    }
+
+    fn determine_archiver(
+        compiler_kind: &CompilerKind,
+        preferred_archiver: Option<String>,
+        preferred_archiver_kind: Option<ArchiverKind>,
+    ) -> Result<(String, ArchiverKind)> {
+        if let Some(path) = preferred_archiver {
+            let kind = if let Some(k) = preferred_archiver_kind {
+                k
+            } else {
+                let base = Path::new(&path).file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                if base == "lib" || path.contains("lib.exe") {
+                    ArchiverKind::Lib
+                } else if base == "llvm-ar" {
+                    ArchiverKind::LlvmAr
+                } else if base == "ar" {
+                    ArchiverKind::Ar
+                } else {
+                    ArchiverKind::Ar
+                }
+            };
+            return Ok((path, kind));
+        }
+
+        let (default_path, default_kind) = match compiler_kind {
+            CompilerKind::Clang | CompilerKind::ClangPP => ("llvm-ar".to_string(), ArchiverKind::LlvmAr),
+            CompilerKind::ClangCl => ("lib.exe".to_string(), ArchiverKind::Lib),
+            CompilerKind::Gcc | CompilerKind::Gpp => ("ar".to_string(), ArchiverKind::Ar),
+            _ => ("ar".to_string(), ArchiverKind::Ar),
+        };
+
+        if let Some(pref_kind) = preferred_archiver_kind {
+            if pref_kind != default_kind {
+                anyhow::bail!(
+                    "Incompatible archiver kind: requested {:?} but default for this toolchain is {:?}",
+                    pref_kind, default_kind
+                );
+            }
+        }
+
+        Ok((default_path, default_kind))
     }
 
     fn find_linker_in_path(exe_name: &str) -> Option<String> {
@@ -631,6 +689,14 @@ impl Toolchain for GccToolchain {
 
     fn linker_path(&self) -> &str {
         &self.linker_path
+    }
+
+    fn archiver_path(&self) -> &str {
+        &self.archiver_path
+    }
+
+    fn archiver_kind(&self) -> ArchiverKind {
+        self.archiver_kind
     }
 
     fn system_include_dirs(&self) -> Vec<PathBuf> {

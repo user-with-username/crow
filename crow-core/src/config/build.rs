@@ -1,3 +1,4 @@
+use crate::config::ArchiverConfig;
 use crate::config::CompilerConfig;
 use crate::config::LinkerConfig;
 use serde::Deserialize;
@@ -9,6 +10,7 @@ use std::path::PathBuf;
 pub struct BuildConfig {
     pub compiler: CompilerConfig,
     pub linker: LinkerConfig,
+    pub archiver: ArchiverConfig,
 
     #[default(vec![PathBuf::from("include")])]
     pub include_dirs: Vec<PathBuf>,

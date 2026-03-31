@@ -1,3 +1,4 @@
+use crate::builder::kinds::archiver_kind::ArchiverKind;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::toolchain::Toolchain;
@@ -8,6 +9,8 @@ use std::process::Command;
 pub struct MsvcToolchain {
     compiler_path: String,
     linker_path: String,
+    archiver_path: String,
+    archiver_kind: ArchiverKind,
     system_includes: Vec<PathBuf>,
     system_libraries: Vec<PathBuf>,
 }
@@ -93,14 +96,19 @@ impl MsvcToolchain {
         supports_msvc || (supports_msvc && supports_gcc)
     }
 
-    pub fn detect(preferred_compiler: Option<String>, preferred_linker: Option<String>) -> Result<Self> {
+    pub fn detect(
+        preferred_compiler: Option<String>,
+        preferred_linker: Option<String>,
+        preferred_archiver: Option<String>,
+        preferred_archiver_kind: Option<ArchiverKind>,
+    ) -> Result<Self> {
         if !cfg!(target_os = "windows") {
             anyhow::bail!("MSVC toolchain is only available on Windows");
         }
 
         match preferred_compiler {
-            Some(path) => Self::from_compiler_path(&path, preferred_linker),
-            None => Self::from_vs_installation_with_linker(preferred_linker),
+            Some(path) => Self::from_compiler_path(&path, preferred_linker, preferred_archiver, preferred_archiver_kind),
+            None => Self::from_vs_installation_with_linker_and_archiver(preferred_linker, preferred_archiver, preferred_archiver_kind),
         }
     }
 
@@ -139,7 +147,7 @@ impl MsvcToolchain {
             }
         }
 
-        Err(anyhow!("Could not find compiler '{}' in PATH or current directory", spec))
+        Err(anyhow!("Could not find '{}' in PATH or current directory", spec))
     }
 
     fn determine_target_arch(compiler_path: &Path) -> String {
@@ -166,7 +174,12 @@ impl MsvcToolchain {
         }
     }
 
-    fn from_compiler_path(compiler_spec: &str, preferred_linker: Option<String>) -> Result<Self> {
+    fn from_compiler_path(
+        compiler_spec: &str,
+        preferred_linker: Option<String>,
+        preferred_archiver: Option<String>,
+        preferred_archiver_kind: Option<ArchiverKind>,
+    ) -> Result<Self> {
         let compiler_path = Self::resolve_to_full_path(compiler_spec)?;
 
         let is_clang_cl = compiler_path
@@ -176,7 +189,7 @@ impl MsvcToolchain {
             .unwrap_or(false);
 
         if is_clang_cl && !compiler_path.to_string_lossy().contains("VC\\Tools\\MSVC") {
-            return Self::from_vs_installation_with_linker(preferred_linker);
+            return Self::from_vs_installation_with_linker_and_archiver(preferred_linker, preferred_archiver, preferred_archiver_kind);
         }
 
         let target_arch = Self::determine_target_arch(&compiler_path);
@@ -189,6 +202,18 @@ impl MsvcToolchain {
                 .map(|p| p.join("link.exe"))
                 .filter(|p| p.is_file())
                 .ok_or_else(|| anyhow!("Could not find link.exe next to compiler"))?
+        };
+
+        let (archiver_path, archiver_kind) = if let Some(path) = preferred_archiver {
+            let kind = preferred_archiver_kind.unwrap_or(ArchiverKind::Lib);
+            (Self::resolve_to_full_path(&path)?, kind)
+        } else {
+            let default_lib = compiler_path
+                .parent()
+                .map(|p| p.join("lib.exe"))
+                .filter(|p| p.is_file())
+                .ok_or_else(|| anyhow!("Could not find lib.exe next to compiler"))?;
+            (default_lib, ArchiverKind::Lib)
         };
 
         let tools_root = compiler_path
@@ -216,12 +241,18 @@ impl MsvcToolchain {
         Ok(MsvcToolchain {
             compiler_path: compiler_path.to_string_lossy().to_string(),
             linker_path: linker_path.to_string_lossy().to_string(),
+            archiver_path: archiver_path.to_string_lossy().to_string(),
+            archiver_kind,
             system_includes: includes,
             system_libraries: libraries,
         })
     }
 
-    fn from_vs_installation() -> Result<Self> {
+    fn from_vs_installation_with_linker_and_archiver(
+        preferred_linker: Option<String>,
+        preferred_archiver: Option<String>,
+        preferred_archiver_kind: Option<ArchiverKind>,
+    ) -> Result<Self> {
         let (tools_root, target_arch) = Self::find_vs_tools_root()?;
 
         let compiler_path = tools_root
@@ -230,17 +261,36 @@ impl MsvcToolchain {
             .join(&target_arch)
             .join("cl.exe");
 
-        let linker_path = tools_root
-            .join("bin")
-            .join("Hostx64")
-            .join(&target_arch)
-            .join("link.exe");
+        let linker_path = if let Some(linker) = preferred_linker {
+            Self::resolve_to_full_path(&linker)?
+        } else {
+            tools_root
+                .join("bin")
+                .join("Hostx64")
+                .join(&target_arch)
+                .join("link.exe")
+        };
+
+        let (archiver_path, archiver_kind) = if let Some(path) = preferred_archiver {
+            let kind = preferred_archiver_kind.unwrap_or(ArchiverKind::Lib);
+            (Self::resolve_to_full_path(&path)?, kind)
+        } else {
+            let default_lib = tools_root
+                .join("bin")
+                .join("Hostx64")
+                .join(&target_arch)
+                .join("lib.exe");
+            (default_lib, ArchiverKind::Lib)
+        };
 
         if !compiler_path.exists() {
             return Err(anyhow!("Compiler not found at {}", compiler_path.display()));
         }
         if !linker_path.exists() {
             return Err(anyhow!("Linker not found at {}", linker_path.display()));
+        }
+        if !archiver_path.exists() {
+            return Err(anyhow!("Archiver not found at {}", archiver_path.display()));
         }
 
         let mut includes = Vec::new();
@@ -261,17 +311,11 @@ impl MsvcToolchain {
         Ok(MsvcToolchain {
             compiler_path: compiler_path.to_string_lossy().to_string(),
             linker_path: linker_path.to_string_lossy().to_string(),
+            archiver_path: archiver_path.to_string_lossy().to_string(),
+            archiver_kind,
             system_includes: includes,
             system_libraries: libraries,
         })
-    }
-
-    fn from_vs_installation_with_linker(preferred_linker: Option<String>) -> Result<Self> {
-        let mut tc = Self::from_vs_installation()?;
-        if let Some(linker) = preferred_linker {
-            tc.linker_path = Self::resolve_to_full_path(&linker)?.to_string_lossy().to_string();
-        }
-        Ok(tc)
     }
 
     fn find_vs_tools_root() -> Result<(PathBuf, String)> {
@@ -422,5 +466,13 @@ impl Toolchain for MsvcToolchain {
 
     fn system_library_dirs(&self) -> Vec<PathBuf> {
         self.system_libraries.clone()
+    }
+
+    fn archiver_path(&self) -> &str {
+        &self.archiver_path
+    }
+
+    fn archiver_kind(&self) -> ArchiverKind {
+        self.archiver_kind
     }
 }

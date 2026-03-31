@@ -125,6 +125,22 @@ impl LinkerFlags {
         self
     }
 
+    pub fn shared_library(&mut self) -> &mut Self {
+        if self.compiler_kind.is_msvc() {
+            self.flags.push(Flag::SharedLink); // /LD
+        } else {
+            self.flags.push(Flag::SharedLink); // -shared
+        }
+        self
+    }
+
+    pub fn import_library(&mut self, path: impl Into<String>) -> &mut Self {
+        if self.compiler_kind.is_msvc() {
+            self.flags.push(Flag::Raw(format!("/IMPLIB:{}", path.into())));
+        }
+        self
+    }
+
     pub fn build(&self) -> Vec<String> {
         let result = self
             .flags

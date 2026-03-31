@@ -18,4 +18,8 @@ impl CompilerKind {
     pub fn is_msvc(self) -> bool {
         matches!(self, Self::Msvc | Self::ClangCl)
     }
+
+    pub fn is_gnu(self) -> bool {
+        matches!(self, Self::Gcc | Self::Gpp | Self::Clang | Self::ClangPP)
+    }
 }

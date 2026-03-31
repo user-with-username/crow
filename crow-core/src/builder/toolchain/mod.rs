@@ -4,7 +4,7 @@ mod msvc;
 pub use gcc::GccToolchain;
 pub use msvc::MsvcToolchain;
 
-use crate::builder::kinds::{compiler_kind::CompilerKind, linker_kind::LinkerKind};
+use crate::builder::kinds::{archiver_kind::ArchiverKind, compiler_kind::CompilerKind, linker_kind::LinkerKind};
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
@@ -13,6 +13,8 @@ pub trait Toolchain: Send + Sync {
     fn linker_kind(&self) -> LinkerKind;
     fn compiler_path(&self) -> &str;
     fn linker_path(&self) -> &str;
+    fn archiver_path(&self) -> &str;
+    fn archiver_kind(&self) -> ArchiverKind;
     fn system_include_dirs(&self) -> Vec<PathBuf>;
     fn system_library_dirs(&self) -> Vec<PathBuf>;
 }
@@ -44,7 +46,12 @@ struct ToolchainType {
     identify_compiler: fn(&str) -> Option<CompilerKind>,
     identify_linker: fn(&str) -> bool,
     is_available_on_platform: fn() -> bool,
-    detect: fn(Option<String>, Option<String>) -> Result<Box<dyn Toolchain>>,
+    detect: fn(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<ArchiverKind>,
+    ) -> Result<Box<dyn Toolchain>>,
 }
 
 macro_rules! register_toolchain {
@@ -54,8 +61,13 @@ macro_rules! register_toolchain {
             identify_compiler: <$toolchain>::identify_compiler,
             identify_linker: <$toolchain>::identify_linker,
             is_available_on_platform: $platform_check,
-            detect: |compiler_pref, linker_pref| {
-                let tc = <$toolchain>::detect(compiler_pref, linker_pref)?;
+            detect: |compiler_pref, linker_pref, archiver_pref, archiver_kind_pref| {
+                let tc = <$toolchain>::detect(
+                    compiler_pref,
+                    linker_pref,
+                    archiver_pref,
+                    archiver_kind_pref,
+                )?;
                 Ok(Box::new(tc) as Box<dyn Toolchain>)
             },
         }
@@ -77,9 +89,12 @@ pub fn detect_toolchain(
     preferred_compiler_kind: Option<CompilerKind>,
     preferred_linker: Option<String>,
     preferred_linker_kind: Option<LinkerKind>,
+    preferred_archiver: Option<String>,
+    preferred_archiver_kind: Option<ArchiverKind>,
 ) -> Result<Box<dyn Toolchain>> {
     let preferred_compiler_kind = preferred_compiler_kind.filter(|k| *k != CompilerKind::Unknown);
     let preferred_linker_kind = preferred_linker_kind.filter(|k| *k != LinkerKind::Unknown);
+    let preferred_archiver_kind = preferred_archiver_kind.filter(|k| *k != ArchiverKind::Unknown);
 
     let available_types: Vec<&ToolchainType> = TOOLCHAIN_TYPES
         .iter()
@@ -114,26 +129,35 @@ pub fn detect_toolchain(
 
     if possible_types.is_empty() {
         let mut working_types = Vec::new();
-        
+
         for tt in &available_types {
-            match (tt.detect)(preferred_compiler.clone(), preferred_linker.clone()) {
+            match (tt.detect)(
+                preferred_compiler.clone(),
+                preferred_linker.clone(),
+                preferred_archiver.clone(),
+                preferred_archiver_kind,
+            ) {
                 Ok(tc) => {
                     let compiler_kind_ok = preferred_compiler_kind
                         .as_ref()
                         .map_or(true, |k| compatible_kinds(*k, tc.compiler_kind()));
-                    
+
                     let linker_kind_ok = preferred_linker_kind
                         .as_ref()
                         .map_or(true, |k| *k == tc.linker_kind());
-                    
-                    if compiler_kind_ok && linker_kind_ok {
+
+                    let archiver_kind_ok = preferred_archiver_kind
+                        .as_ref()
+                        .map_or(true, |k| *k == tc.archiver_kind());
+
+                    if compiler_kind_ok && linker_kind_ok && archiver_kind_ok {
                         working_types.push((tt, tc));
                     }
                 }
                 Err(_) => continue,
             }
         }
-        
+
         if working_types.is_empty() {
             anyhow::bail!(
                 "Could not detect any suitable toolchain on {}. \
@@ -141,11 +165,11 @@ pub fn detect_toolchain(
                 std::env::consts::OS
             );
         }
-        
+
         if working_types.len() > 1 {
             eprintln!("Warning: multiple toolchains available; picking the first.");
         }
-        
+
         return Ok(working_types.remove(0).1);
     }
 
@@ -156,14 +180,24 @@ pub fn detect_toolchain(
                     if let Some(detected_kind) = (tt.identify_compiler)(compiler_path) {
                         compatible_kinds(*pref_kind, detected_kind)
                     } else {
-                        if let Ok(tc) = (tt.detect)(preferred_compiler.clone(), preferred_linker.clone()) {
+                        if let Ok(tc) = (tt.detect)(
+                            preferred_compiler.clone(),
+                            preferred_linker.clone(),
+                            preferred_archiver.clone(),
+                            preferred_archiver_kind,
+                        ) {
                             compatible_kinds(*pref_kind, tc.compiler_kind())
                         } else {
                             false
                         }
                     }
                 } else {
-                    if let Ok(tc) = (tt.detect)(preferred_compiler.clone(), preferred_linker.clone()) {
+                    if let Ok(tc) = (tt.detect)(
+                        preferred_compiler.clone(),
+                        preferred_linker.clone(),
+                        preferred_archiver.clone(),
+                        preferred_archiver_kind,
+                    ) {
                         compatible_kinds(*pref_kind, tc.compiler_kind())
                     } else {
                         false
@@ -179,7 +213,12 @@ pub fn detect_toolchain(
         if possible_types.len() > 1 {
             if let Some(ref pref_linker_kind) = preferred_linker_kind {
                 possible_types.retain(|tt| {
-                    if let Ok(tc) = (tt.detect)(preferred_compiler.clone(), preferred_linker.clone()) {
+                    if let Ok(tc) = (tt.detect)(
+                        preferred_compiler.clone(),
+                        preferred_linker.clone(),
+                        preferred_archiver.clone(),
+                        preferred_archiver_kind,
+                    ) {
                         tc.linker_kind() == *pref_linker_kind
                     } else {
                         false
@@ -195,19 +234,28 @@ pub fn detect_toolchain(
         if possible_types.len() > 1 {
             let mut working_types = Vec::new();
             for tt in &possible_types {
-                if let Ok(tc) = (tt.detect)(preferred_compiler.clone(), preferred_linker.clone()) {
+                if let Ok(tc) = (tt.detect)(
+                    preferred_compiler.clone(),
+                    preferred_linker.clone(),
+                    preferred_archiver.clone(),
+                    preferred_archiver_kind,
+                ) {
                     working_types.push(tc);
                 }
             }
-                        
             return Ok(working_types.remove(0));
         }
     }
 
     let selected_type = possible_types[0];
 
-    let toolchain = (selected_type.detect)(preferred_compiler, preferred_linker)
-        .with_context(|| format!("Failed to instantiate {} toolchain", selected_type.name))?;
+    let toolchain = (selected_type.detect)(
+        preferred_compiler,
+        preferred_linker,
+        preferred_archiver,
+        preferred_archiver_kind,
+    )
+    .with_context(|| format!("Failed to instantiate {} toolchain", selected_type.name))?;
 
     Ok(toolchain)
 }

@@ -31,6 +31,10 @@ impl<'a> CompilationContext<'a> {
         flags.standard_flags();
         project.profile.apply_to_compile_flags(&mut flags);
 
+        if project.config.r#type.is_shared() && !project.compiler_kind().is_msvc() {
+            flags.position_independent_code();
+        }
+
         for inc in &project.config.build.include_dirs {
             let abs_inc = if inc.is_relative() {
                 project.root.join(inc)
