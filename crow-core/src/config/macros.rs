@@ -73,4 +73,63 @@ macro_rules! config_enum {
     };
 }
 
+macro_rules! type_enum {
+    () => {
+        impl<'de> ::serde::Deserialize<'de> for $crate::config::ProjectType {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: ::serde::Deserializer<'de>,
+            {
+                struct ProjectTypeVisitor;
+
+                impl<'de> ::serde::de::Visitor<'de> for ProjectTypeVisitor {
+                    type Value = $crate::config::ProjectType;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::std::fmt::Formatter,
+                    ) -> ::std::fmt::Result {
+                        formatter.write_str("a string (type name) or a table with type field")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<$crate::config::ProjectType, E>
+                    where
+                        E: ::serde::de::Error,
+                    {
+                        match value {
+                            "bin" => Ok($crate::config::ProjectType::Bin(Default::default())),
+                            "exe" => Ok($crate::config::ProjectType::Exe(Default::default())),
+                            "lib" => Ok($crate::config::ProjectType::Lib(Default::default())),
+                            "static-lib" | "staticlib" => {
+                                Ok($crate::config::ProjectType::StaticLib(Default::default()))
+                            }
+                            "shared-lib" | "sharedlib" => {
+                                Ok($crate::config::ProjectType::SharedLib(Default::default()))
+                            }
+                            "module" => Ok($crate::config::ProjectType::Module(Default::default())),
+                            "header-only" => Ok($crate::config::ProjectType::HeaderOnly),
+                            _ => Err(E::unknown_variant(value, &[
+                                "bin", "exe", "lib", "static-lib", "shared-lib",
+                                "static-library", "shared-library", "module", "header-only"
+                            ])),
+                        }
+                    }
+
+                    fn visit_map<M>(self, map: M) -> Result<$crate::config::ProjectType, M::Error>
+                    where
+                        M: ::serde::de::MapAccess<'de>,
+                    {
+                        $crate::config::ProjectType::deserialize(
+                            ::serde::de::value::MapAccessDeserializer::new(map)
+                        )
+                    }
+                }
+
+                deserializer.deserialize_any(ProjectTypeVisitor)
+            }
+        }
+    };
+}
+
+pub(crate) use type_enum;
 pub(crate) use config_enum;

@@ -78,8 +78,8 @@ impl Project {
     }
 
     pub fn output_path(&self) -> PathBuf {
-        let base_name = self.config.r#type.display_name(&self.package.name);
-        let filename = if self.config.r#type.needs_prefix() {
+        let base_name = self.package.r#type.display_name(&self.package.name);
+        let filename = if self.package.r#type.needs_prefix() {
             format!("lib{}", base_name)
         } else {
             base_name.to_string()
@@ -87,17 +87,17 @@ impl Project {
 
         self.profile_dir()
             .join(filename)
-            .with_extension(self.config.r#type.extension())
+            .with_extension(self.package.r#type.extension())
     }
 
     pub fn output_name(&self) -> String {
-        let base_name = self.config.r#type.display_name(&self.package.name);
-        let filename = if self.config.r#type.needs_prefix() {
+        let base_name = self.package.r#type.display_name(&self.package.name);
+        let filename = if self.package.r#type.needs_prefix() {
             format!("lib{}", base_name)
         } else {
             base_name.to_string()
         };
-        let extension = self.config.r#type.extension();
+        let extension = self.package.r#type.extension();
         if extension.is_empty() {
             filename
         } else {

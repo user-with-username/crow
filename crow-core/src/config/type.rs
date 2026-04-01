@@ -2,17 +2,15 @@ use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, SmartDefault)]
+#[derive(Debug, Clone, Serialize, SmartDefault)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum ProjectType {
     #[default]
     Bin(BinaryConfig),
+    Exe(BinaryConfig),
     Lib(LibraryConfig),
     StaticLib(LibraryConfig),
     SharedLib(LibraryConfig),
-    Exe(BinaryConfig),
-    StaticLibrary(LibraryConfig),
-    SharedLibrary(LibraryConfig),
     Module(LibraryConfig),
     HeaderOnly,
 }
@@ -28,25 +26,17 @@ impl ProjectType {
             ProjectType::Lib(_)
                 | ProjectType::StaticLib(_)
                 | ProjectType::SharedLib(_)
-                | ProjectType::StaticLibrary(_)
-                | ProjectType::SharedLibrary(_)
                 | ProjectType::Module(_)
                 | ProjectType::HeaderOnly
         )
     }
 
     pub fn is_static(&self) -> bool {
-        matches!(
-            self,
-            ProjectType::StaticLib(_) | ProjectType::StaticLibrary(_)
-        )
+        matches!(self, ProjectType::Lib(_) | ProjectType::StaticLib(_))
     }
 
     pub fn is_shared(&self) -> bool {
-        matches!(
-            self,
-            ProjectType::SharedLib(_) | ProjectType::SharedLibrary(_) | ProjectType::Module(_)
-        )
+        matches!(self, ProjectType::SharedLib(_) | ProjectType::Module(_))
     }
 
     pub fn display_name<'a>(&'a self, package_name: &'a str) -> &'a str {
@@ -57,8 +47,6 @@ impl ProjectType {
             ProjectType::Lib(cfg)
             | ProjectType::StaticLib(cfg)
             | ProjectType::SharedLib(cfg)
-            | ProjectType::StaticLibrary(cfg)
-            | ProjectType::SharedLibrary(cfg)
             | ProjectType::Module(cfg) => cfg.name.as_deref().unwrap_or(package_name),
             ProjectType::HeaderOnly => package_name,
         }
@@ -69,8 +57,8 @@ impl ProjectType {
             ProjectType::Bin(_) => "bin",
             ProjectType::Exe(_) => "exe",
             ProjectType::Lib(_) => "lib",
-            ProjectType::StaticLib(_) | ProjectType::StaticLibrary(_) => "static-lib",
-            ProjectType::SharedLib(_) | ProjectType::SharedLibrary(_) => "shared-lib",
+            ProjectType::StaticLib(_) => "static-lib",
+            ProjectType::SharedLib(_) => "shared-lib",
             ProjectType::Module(_) => "module",
             ProjectType::HeaderOnly => "header-only",
         }
@@ -83,8 +71,6 @@ impl ProjectType {
             ProjectType::Lib(cfg) => Self::lib_name(package_name, cfg, "lib"),
             ProjectType::StaticLib(cfg) => Self::lib_name(package_name, cfg, "lib"),
             ProjectType::SharedLib(cfg) => Self::lib_name(package_name, cfg, "lib"),
-            ProjectType::StaticLibrary(cfg) => Self::lib_name(package_name, cfg, "lib"),
-            ProjectType::SharedLibrary(cfg) => Self::lib_name(package_name, cfg, "lib"),
             ProjectType::Module(cfg) => Self::lib_name(package_name, cfg, "module"),
             ProjectType::HeaderOnly => package_name.to_string(),
         }
@@ -122,14 +108,6 @@ impl ProjectType {
                 .sources
                 .clone()
                 .unwrap_or_else(|| vec!["lib.cpp".to_string()]),
-            ProjectType::StaticLibrary(cfg) => cfg
-                .sources
-                .clone()
-                .unwrap_or_else(|| vec!["lib.cpp".to_string()]),
-            ProjectType::SharedLibrary(cfg) => cfg
-                .sources
-                .clone()
-                .unwrap_or_else(|| vec!["lib.cpp".to_string()]),
             ProjectType::Module(cfg) => cfg
                 .sources
                 .clone()
@@ -141,7 +119,6 @@ impl ProjectType {
     pub fn version_script(&self) -> Option<PathBuf> {
         match self {
             ProjectType::SharedLib(cfg) => cfg.version_script.clone(),
-            ProjectType::SharedLibrary(cfg) => cfg.version_script.clone(),
             ProjectType::Module(cfg) => cfg.version_script.clone(),
             _ => None,
         }
@@ -150,7 +127,6 @@ impl ProjectType {
     pub fn generate_import_lib(&self) -> bool {
         match self {
             ProjectType::SharedLib(cfg) => cfg.generate_import_lib.unwrap_or(true),
-            ProjectType::SharedLibrary(cfg) => cfg.generate_import_lib.unwrap_or(true),
             ProjectType::Module(cfg) => cfg.generate_import_lib.unwrap_or(false),
             _ => false,
         }
@@ -165,21 +141,14 @@ impl ProjectType {
                     ""
                 }
             }
-            ProjectType::SharedLib(_) | ProjectType::SharedLibrary(_) | ProjectType::Module(_) => {
+            ProjectType::SharedLib(_) | ProjectType::Module(_) => {
                 if cfg!(target_os = "windows") {
                     "dll"
                 } else {
                     "so"
                 }
             }
-            ProjectType::StaticLib(_) | ProjectType::StaticLibrary(_) => {
-                if cfg!(target_os = "windows") {
-                    "lib"
-                } else {
-                    "a"
-                }
-            }
-            ProjectType::Lib(_) => {
+            ProjectType::Lib(_) | ProjectType::StaticLib(_) => {
                 if cfg!(target_os = "windows") {
                     "lib"
                 } else {
@@ -192,11 +161,9 @@ impl ProjectType {
 
     pub fn needs_prefix(&self) -> bool {
         match self {
-            ProjectType::Lib(cfg)
-            | ProjectType::StaticLib(cfg)
-            | ProjectType::SharedLib(cfg)
-            | ProjectType::StaticLibrary(cfg)
-            | ProjectType::SharedLibrary(cfg) => cfg.prefix.unwrap_or(true),
+            ProjectType::Lib(cfg) | ProjectType::StaticLib(cfg) | ProjectType::SharedLib(cfg) => {
+                cfg.prefix.unwrap_or(true)
+            }
             _ => false,
         }
     }
@@ -270,3 +237,5 @@ impl Default for TargetType {
         TargetType::Executable
     }
 }
+
+crate::config::macros::type_enum!();

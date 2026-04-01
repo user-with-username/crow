@@ -54,7 +54,13 @@ impl Workspace {
     pub fn binary_members(&self) -> Vec<&(CrowConfig, PathBuf)> {
         self.members
             .iter()
-            .filter(|(cfg, _)| cfg.r#type.is_bin())
+            .filter(|(cfg, _)| {
+    cfg.package
+        .as_ref()
+        .map(|p| p.r#type.is_bin())
+        .unwrap_or(false)
+})
+
             .collect()
     }
 

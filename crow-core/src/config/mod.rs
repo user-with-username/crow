@@ -35,9 +35,6 @@ pub struct CrowConfig {
 
     #[serde(default)]
     pub profile: Profiles,
-
-    #[serde(default)]
-    pub r#type: ProjectType,
 }
 
 impl CrowConfig {

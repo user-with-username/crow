@@ -25,7 +25,7 @@ impl<'a> LinkingBuilder<'a> {
     }
 
     pub fn link(&self) -> Result<()> {
-        let p_type = &self.project.config.r#type;
+        let p_type = &self.project.package.r#type;
         
         if p_type.is_bin() || p_type.is_shared() {
             self.link_dynamic()
@@ -38,7 +38,7 @@ impl<'a> LinkingBuilder<'a> {
 
     fn link_dynamic(&self) -> Result<()> {
         let mut flags = LinkerFlags::new(self.project.compiler_kind());
-        let p_type = &self.project.config.r#type;
+        let p_type = &self.project.package.r#type;
 
         flags.output_file(self.project.output_path().to_string_lossy().into_owned());
 
@@ -90,7 +90,7 @@ impl<'a> LinkingBuilder<'a> {
 
     fn setup_platform_artifacts(&self, flags: &mut LinkerFlags) -> Result<()> {
         let kind = self.project.compiler_kind();
-        let p_type = &self.project.config.r#type;
+        let p_type = &self.project.package.r#type;
         let pkg_name = &self.project.package.name;
 
         if kind.is_msvc() {

@@ -31,7 +31,7 @@ impl<'a> CompilationContext<'a> {
         flags.standard_flags();
         project.profile.apply_to_compile_flags(&mut flags);
 
-        if project.config.r#type.is_shared() && !project.compiler_kind().is_msvc() {
+        if project.package.r#type.is_shared() && !project.compiler_kind().is_msvc() {
             flags.position_independent_code();
         }
 

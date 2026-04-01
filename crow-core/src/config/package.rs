@@ -1,6 +1,9 @@
 use serde::Deserialize;
+use smart_default::SmartDefault;
 
-#[derive(Deserialize, Debug, Clone)]
+use crate::config::ProjectType;
+
+#[derive(Deserialize, Debug, Clone, SmartDefault)]
 pub struct Package {
     pub name: String,
     pub version: String,
@@ -8,6 +11,10 @@ pub struct Package {
     pub description: Option<String>,
     pub license: Option<String>,
     pub repository: Option<String>,
+    
+    #[serde(default)]
+    #[default(ProjectType::default())]
+    pub r#type: ProjectType,
 }
 
 impl Package {
@@ -17,10 +24,7 @@ impl Package {
         Self {
             name: name.into(),
             version: version.into(),
-            authors: None,
-            description: None,
-            license: None,
-            repository: None,
+            ..Default::default()
         }
     }
 
