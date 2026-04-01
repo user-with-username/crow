@@ -11,7 +11,7 @@ pub struct Package {
     pub description: Option<String>,
     pub license: Option<String>,
     pub repository: Option<String>,
-    
+
     #[serde(default)]
     #[default(ProjectType::default())]
     pub r#type: ProjectType,

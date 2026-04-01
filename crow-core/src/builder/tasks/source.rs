@@ -3,8 +3,8 @@ use crate::builder::paths::{
 };
 use crate::builder::{flags::CompilerFlags, incremental::CacheEntry, paths::ObjectFileNaming};
 use anyhow::{Context, Result};
-use crow_utils::normalize_path;
 use serde::Serialize;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::{path::Path, process::Command};
 
 #[derive(Serialize, Clone)]
@@ -20,6 +20,7 @@ pub struct SourceCompilationTask {
     pub object: ObjectFilePath,
     pub dep_file: DependencyFilePath,
     pub command: Command,
+    pub args: Vec<String>,
 }
 
 impl SourceCompilationTask {
@@ -32,6 +33,7 @@ impl SourceCompilationTask {
         profile: &crate::config::Profile,
     ) -> Result<Self> {
         let compiler_kind = project.compiler_kind();
+        let is_msvc = compiler_kind.is_msvc();
 
         let mut flags = CompilerFlags::new(compiler_kind);
         flags.compile_only();
@@ -43,11 +45,13 @@ impl SourceCompilationTask {
         }
 
         for inc in project.toolchain.system_include_dirs() {
-            flags.include_path(inc.to_string_lossy().into_owned());
+            let inc_str = inc.to_string_lossy().to_string();
+            flags.include_path(inc_str);
         }
 
         for inc in build_config.include_dirs.iter() {
-            flags.include_path(inc.to_string_lossy().into_owned());
+            let inc_str = inc.to_string_lossy().to_string();
+            flags.include_path(inc_str);
         }
 
         for def in &build_config.preprocessor_defines {
@@ -78,39 +82,54 @@ impl SourceCompilationTask {
         };
 
         let object_path = ObjectFileNaming::generate(obj_dir, source, compiler_kind);
-        flags.object_output(&normalize_path(&object_path.to_string_lossy()));
+        let object_path_str = object_path.to_string_lossy().to_string();
+        flags.object_output(&object_path_str);
 
         if compiler_kind.is_msvc() {
             let pdb_dir = obj_dir.join("pdb");
             std::fs::create_dir_all(&pdb_dir)?;
             let pdb_path = pdb_dir.join(format!("{}.pdb", source_file_stem));
-            flags.program_database(&normalize_path(&pdb_path.to_string_lossy()));
+            let pdb_path_str = pdb_path.to_string_lossy().to_string();
+            flags.program_database(&pdb_path_str);
         }
 
         let built_flags = flags.build();
 
+        let mut hasher = DefaultHasher::new();
+        source.as_path().hash(&mut hasher);
+        let hash = hasher.finish();
+        let response_filename = format!("{}_{:x}.args", source_file_stem, hash);
+
+        let source_path_str = source.as_path().to_string_lossy().to_string();
+
+        let mut all_args_for_response = built_flags.clone();
+        all_args_for_response.push(source_path_str.clone());
+
+        let response_file_path = crow_utils::write_to(
+            project.profile_dir(),
+            &response_filename,
+            &all_args_for_response,
+            is_msvc,
+        )?;
+
+        let mut args_vec = built_flags;
+        args_vec.push(source_path_str);
+
         let mut cmd = Command::new(compiler_exe);
-
-        cmd.args(&built_flags);
-
-        let source_path = normalize_path(&source.as_path().to_string_lossy());
-        cmd.arg(&source_path);
+        cmd.arg(format!("@{}", response_file_path.display()));
 
         Ok(Self {
             source: source.clone(),
             object: ObjectFilePath(object_path),
             dep_file,
             command: cmd,
+            args: args_vec,
         })
     }
 
     pub fn to_compile_command(&self, directory: &Path) -> CompileCommand {
         let mut full_cmd = vec![self.command.get_program().to_string_lossy().to_string()];
-        full_cmd.extend(
-            self.command
-                .get_args()
-                .map(|a| a.to_string_lossy().to_string()),
-        );
+        full_cmd.extend(self.args.clone());
 
         CompileCommand {
             directory: directory.to_string_lossy().to_string(),

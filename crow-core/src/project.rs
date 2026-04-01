@@ -16,7 +16,11 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn new(loaded_config: CrowConfig, manifest_dir: PathBuf, profile_name: &str) -> Result<Self> {
+    pub fn new(
+        loaded_config: CrowConfig,
+        manifest_dir: PathBuf,
+        profile_name: &str,
+    ) -> Result<Self> {
         let package = loaded_config
             .package
             .clone()

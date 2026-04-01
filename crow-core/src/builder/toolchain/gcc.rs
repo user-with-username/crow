@@ -58,7 +58,10 @@ impl GccToolchain {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let combined = format!("{}{}", stdout, stderr);
-                if combined.contains("GNU ld") || combined.contains("GNU gold") || combined.contains("LLD") {
+                if combined.contains("GNU ld")
+                    || combined.contains("GNU gold")
+                    || combined.contains("LLD")
+                {
                     supports_gcc = true;
                 } else if output.status.success() {
                     supports_gcc = true;
@@ -88,8 +91,10 @@ impl GccToolchain {
                 let default = "g++";
 
                 let compiler_exe = default.to_string();
-                let kind = Self::detect_compiler_kind(&compiler_exe)
-                    .context(format!("Failed to detect compiler kind for default '{}'", default))?;
+                let kind = Self::detect_compiler_kind(&compiler_exe).context(format!(
+                    "Failed to detect compiler kind for default '{}'",
+                    default
+                ))?;
                 (compiler_exe, kind)
             }
         };
@@ -119,13 +124,12 @@ impl GccToolchain {
             preferred_linker.unwrap_or_else(|| compiler_exe.clone())
         };
 
-        let (archiver_path, archiver_kind) = Self::determine_archiver(
-            &compiler_kind,
-            preferred_archiver,
-            preferred_archiver_kind,
-        )?;
+        let (archiver_path, archiver_kind) =
+            Self::determine_archiver(&compiler_kind, preferred_archiver, preferred_archiver_kind)?;
 
-        let (system_includes, system_libraries) = if compiler_kind == CompilerKind::ClangCl && cfg!(target_os = "windows") {
+        let (system_includes, system_libraries) = if compiler_kind == CompilerKind::ClangCl
+            && cfg!(target_os = "windows")
+        {
             match Self::get_msvc_paths() {
                 Ok((includes, libs)) => (includes, libs),
                 Err(e) => {
@@ -160,7 +164,10 @@ impl GccToolchain {
             let kind = if let Some(k) = preferred_archiver_kind {
                 k
             } else {
-                let base = Path::new(&path).file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                let base = Path::new(&path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
                 if base == "lib" || path.contains("lib.exe") {
                     ArchiverKind::Lib
                 } else if base == "llvm-ar" {
@@ -175,7 +182,9 @@ impl GccToolchain {
         }
 
         let (default_path, default_kind) = match compiler_kind {
-            CompilerKind::Clang | CompilerKind::ClangPP => ("llvm-ar".to_string(), ArchiverKind::LlvmAr),
+            CompilerKind::Clang | CompilerKind::ClangPP => {
+                ("llvm-ar".to_string(), ArchiverKind::LlvmAr)
+            }
             CompilerKind::ClangCl => ("lib.exe".to_string(), ArchiverKind::Lib),
             CompilerKind::Gcc | CompilerKind::Gpp => ("ar".to_string(), ArchiverKind::Ar),
             _ => ("ar".to_string(), ArchiverKind::Ar),
@@ -253,8 +262,11 @@ impl GccToolchain {
             let is_msvc = has_define(compiler_exe, &["-dM", "-E", "-"], "_MSC_VER");
 
             if is_clang && is_msvc {
-                let supports_cpp =
-                    has_define(compiler_exe, &["-x", "c++", "-dM", "-E", "-"], "__cplusplus");
+                let supports_cpp = has_define(
+                    compiler_exe,
+                    &["-x", "c++", "-dM", "-E", "-"],
+                    "__cplusplus",
+                );
                 if supports_cpp {
                     return Ok(CompilerKind::ClangPP);
                 } else {
@@ -266,7 +278,11 @@ impl GccToolchain {
                 return Ok(CompilerKind::Msvc);
             }
 
-            let supports_cpp = has_define(compiler_exe, &["-x", "c++", "-dM", "-E", "-"], "__cplusplus");
+            let supports_cpp = has_define(
+                compiler_exe,
+                &["-x", "c++", "-dM", "-E", "-"],
+                "__cplusplus",
+            );
 
             let kind = if is_clang {
                 if supports_cpp {
@@ -310,7 +326,11 @@ impl GccToolchain {
 
             if base_kind != CompilerKind::Unknown {
                 if base_kind == CompilerKind::Clang || base_kind == CompilerKind::Gcc {
-                    let supports_cpp = has_define(compiler_exe, &["-x", "c++", "-dM", "-E", "-"], "__cplusplus");
+                    let supports_cpp = has_define(
+                        compiler_exe,
+                        &["-x", "c++", "-dM", "-E", "-"],
+                        "__cplusplus",
+                    );
                     return Ok(match base_kind {
                         CompilerKind::Clang if supports_cpp => CompilerKind::ClangPP,
                         CompilerKind::Gcc if supports_cpp => CompilerKind::Gpp,
@@ -360,7 +380,10 @@ impl GccToolchain {
     fn extract_system_library_dirs(compiler_exe: &str) -> Result<Vec<PathBuf>> {
         let mut libraries = Vec::new();
 
-        if let Ok(output) = Command::new(compiler_exe).arg("-print-search-dirs").output() {
+        if let Ok(output) = Command::new(compiler_exe)
+            .arg("-print-search-dirs")
+            .output()
+        {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 if line.starts_with("libraries: =") {
@@ -408,7 +431,9 @@ impl GccToolchain {
 
                     #[cfg(target_os = "macos")]
                     {
-                        if line.contains("Library search paths:") || line.starts_with(' ') && line.contains('/') {
+                        if line.contains("Library search paths:")
+                            || line.starts_with(' ') && line.contains('/')
+                        {
                             let trimmed = line.trim();
                             if !trimmed.is_empty() && trimmed.starts_with('/') {
                                 let pb = PathBuf::from(trimmed);
@@ -446,7 +471,11 @@ impl GccToolchain {
         }
 
         if let Ok(output) = Command::new(compiler_exe)
-            .args(&["-print-multiarch", "-print-sysroot", "-print-file-name=libc.so"])
+            .args(&[
+                "-print-multiarch",
+                "-print-sysroot",
+                "-print-file-name=libc.so",
+            ])
             .output()
         {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -515,7 +544,10 @@ impl GccToolchain {
         let latest_version = Self::find_latest_msvc_version(&vc_tools_root)?;
         let tools_root = vc_tools_root.join(&latest_version);
 
-        let target_arch = if std::env::var("TARGET").unwrap_or_else(|_| "x86_64".into()).contains("64") {
+        let target_arch = if std::env::var("TARGET")
+            .unwrap_or_else(|_| "x86_64".into())
+            .contains("64")
+        {
             "x64"
         } else {
             "x86"
@@ -579,8 +611,8 @@ impl GccToolchain {
     }
 
     fn find_latest_msvc_version(vc_tools_root: &Path) -> Result<String> {
-        let entries = std::fs::read_dir(vc_tools_root)
-            .context("Failed to read VC tools directory")?;
+        let entries =
+            std::fs::read_dir(vc_tools_root).context("Failed to read VC tools directory")?;
         let mut versions = Vec::new();
         for entry in entries.flatten() {
             if entry.file_type().map_or(false, |ft| ft.is_dir()) {
@@ -597,7 +629,10 @@ impl GccToolchain {
             let b_parts = version_parts(b);
             a_parts.cmp(&b_parts)
         });
-        versions.last().cloned().ok_or_else(|| anyhow!("No MSVC toolchain found"))
+        versions
+            .last()
+            .cloned()
+            .ok_or_else(|| anyhow!("No MSVC toolchain found"))
     }
 
     fn add_windows_sdk_paths(
@@ -622,7 +657,10 @@ impl GccToolchain {
             }
         }
 
-        for sub in &[format!("ucrt/{}", target_arch), format!("um/{}", target_arch)] {
+        for sub in &[
+            format!("ucrt/{}", target_arch),
+            format!("um/{}", target_arch),
+        ] {
             let p = lib_root.join(&sdk_version).join(&sub);
             if p.exists() {
                 libraries.push(p);
@@ -633,7 +671,8 @@ impl GccToolchain {
     }
 
     fn find_latest_sdk_version(include_root: &Path) -> Result<String> {
-        let entries = std::fs::read_dir(include_root).context("Failed to read Windows SDK include directory")?;
+        let entries = std::fs::read_dir(include_root)
+            .context("Failed to read Windows SDK include directory")?;
         let mut versions = Vec::new();
         for entry in entries.flatten() {
             if entry.file_type().map_or(false, |ft| ft.is_dir()) {
@@ -652,7 +691,10 @@ impl GccToolchain {
             let b_parts = version_parts(b);
             a_parts.cmp(&b_parts)
         });
-        versions.last().cloned().ok_or_else(|| anyhow!("No Windows SDK found"))
+        versions
+            .last()
+            .cloned()
+            .ok_or_else(|| anyhow!("No Windows SDK found"))
     }
 
     fn find_vswhere() -> Option<PathBuf> {

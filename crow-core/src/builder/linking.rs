@@ -1,6 +1,6 @@
-use crate::builder::paths::{ObjectFilePath, PdbFileNaming};
-use crate::builder::flags::LinkerFlags;
 use crate::builder::flags::archiver_flags::ArchiverFlags;
+use crate::builder::flags::LinkerFlags;
+use crate::builder::paths::{ObjectFilePath, PdbFileNaming};
 use crate::project::Project;
 use anyhow::{Context, Result};
 use crow_utils::show_output;
@@ -16,17 +16,22 @@ pub struct LinkingBuilder<'a> {
 
 impl<'a> LinkingBuilder<'a> {
     pub fn new(
-        linker_exe: &'a str, 
-        archiver_exe: &'a str, 
-        project: &'a Project, 
-        objects: &'a [ObjectFilePath]
+        linker_exe: &'a str,
+        archiver_exe: &'a str,
+        project: &'a Project,
+        objects: &'a [ObjectFilePath],
     ) -> Self {
-        Self { linker_exe, archiver_exe, project, objects }
+        Self {
+            linker_exe,
+            archiver_exe,
+            project,
+            objects,
+        }
     }
 
     pub fn link(&self) -> Result<()> {
         let p_type = &self.project.package.r#type;
-        
+
         if p_type.is_bin() || p_type.is_shared() {
             self.link_dynamic()
         } else if p_type.is_static() {
@@ -39,6 +44,7 @@ impl<'a> LinkingBuilder<'a> {
     fn link_dynamic(&self) -> Result<()> {
         let mut flags = LinkerFlags::new(self.project.compiler_kind());
         let p_type = &self.project.package.r#type;
+        let is_msvc = self.project.compiler_kind().is_msvc();
 
         flags.output_file(self.project.output_path().to_string_lossy().into_owned());
 
@@ -53,14 +59,28 @@ impl<'a> LinkingBuilder<'a> {
 
         self.apply_library_flags(&mut flags);
 
-        let mut cmd = Command::new(self.linker_exe);
-        cmd.stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .args(flags.build());
+        let mut args = flags.build();
 
         for obj in self.objects {
-            cmd.arg(obj.as_path());
+            args.push(obj.as_path().to_string_lossy().into_owned());
         }
+
+        let response_filename = format!(
+            "{}_{}.args",
+            self.project.package.name,
+            if p_type.is_shared() { "shared" } else { "bin" }
+        );
+        let response_file_path = crow_utils::write_to(
+            self.project.profile_dir(),
+            &response_filename,
+            &args,
+            is_msvc,
+        )?;
+
+        let mut cmd = Command::new(self.linker_exe);
+        cmd.arg(format!("@{}", response_file_path.display()))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         self.execute(cmd, "linking")
     }
@@ -73,17 +93,27 @@ impl<'a> LinkingBuilder<'a> {
 
         let mut flags = ArchiverFlags::new(self.project.archiver_kind());
         flags.output_file(output_path.to_string_lossy().into_owned());
-        
+
+        let mut args = flags.build();
+
         for obj in self.objects {
-            flags.add_object(obj.as_path().to_string_lossy().into_owned());
+            args.push(obj.as_path().to_string_lossy().into_owned());
         }
 
         for raw in self.project.config.build.archiver.flags() {
-            flags.add_raw(raw.clone());
+            args.push(raw.clone());
         }
 
+        let response_filename = format!("{}_static.args", self.project.package.name);
+        let response_file_path = crow_utils::write_to(
+            self.project.profile_dir(),
+            &response_filename,
+            &args,
+            self.project.compiler_kind().is_msvc(),
+        )?;
+
         let mut cmd = Command::new(self.archiver_exe);
-        cmd.args(flags.build());
+        cmd.arg(format!("@{}", response_file_path.display()));
 
         self.execute(cmd, "archiving")
     }
@@ -102,13 +132,13 @@ impl<'a> LinkingBuilder<'a> {
 
         if p_type.generate_import_lib() {
             let output_name = p_type.output_name(pkg_name);
-            
+
             let ext = if kind.is_msvc() { "lib" } else { "a" };
             let prefix = if kind.is_gnu() { "lib" } else { "" };
-            
+
             let import_lib_name = format!("{}{}.{}", prefix, output_name, ext);
             let import_lib_path = self.project.profile_dir().join(import_lib_name);
-            
+
             flags.import_library(import_lib_path.to_string_lossy().into_owned());
         }
 
@@ -132,7 +162,9 @@ impl<'a> LinkingBuilder<'a> {
     }
 
     fn execute(&self, mut cmd: Command, action: &str) -> Result<()> {
-        let output = cmd.output().with_context(|| format!("failed to execute {}", action))?;
+        let output = cmd
+            .output()
+            .with_context(|| format!("failed to execute {}", action))?;
         if !output.status.success() {
             show_output!(output, self.project);
             anyhow::bail!(

@@ -1,26 +1,25 @@
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use anyhow::{Context, Result};
 
+mod archiver;
 mod build;
 mod compiler;
 mod linker;
 mod macros;
+mod package;
 pub mod profile;
 pub mod r#type;
 mod workspace;
-mod package;
-mod archiver;
 pub use archiver::ArchiverConfig;
-
 
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;
 pub use linker::LinkerConfig;
+pub use package::Package;
 pub use profile::{BenchProfile, DevProfile, Profile, Profiles, ReleaseProfile, TestProfile};
 pub use r#type::{BinaryConfig, LibraryConfig, ProjectType, TargetType};
 pub use workspace::Workspace;
-pub use package::Package;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct CrowConfig {

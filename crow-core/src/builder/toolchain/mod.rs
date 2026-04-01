@@ -4,7 +4,9 @@ mod msvc;
 pub use gcc::GccToolchain;
 pub use msvc::MsvcToolchain;
 
-use crate::builder::kinds::{archiver_kind::ArchiverKind, compiler_kind::CompilerKind, linker_kind::LinkerKind};
+use crate::builder::kinds::{
+    archiver_kind::ArchiverKind, compiler_kind::CompilerKind, linker_kind::LinkerKind,
+};
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 

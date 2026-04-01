@@ -1,7 +1,7 @@
+use crate::config::CrowConfig;
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::PathBuf;
-use anyhow::{Context, Result};
-use crate::config::CrowConfig;
 
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct WorkspaceConfig {
@@ -22,12 +22,15 @@ impl Workspace {
     /// If it is a regular package, it creates a workspace with that single package.
     pub fn from_config(config: CrowConfig, root: PathBuf) -> Result<Self> {
         let members = if config.is_virtual() {
-            let workspace = config.workspace.as_ref()
+            let workspace = config
+                .workspace
+                .as_ref()
                 .context("virtual manifest missing [workspace]")?;
             let mut members = Vec::new();
             for member_path in &workspace.members {
                 let member_full_path = root.join(member_path);
-                let (member_config, _) = CrowConfig::load_from(&member_full_path.join("crow.toml"))?;
+                let (member_config, _) =
+                    CrowConfig::load_from(&member_full_path.join("crow.toml"))?;
                 members.push((member_config, member_full_path));
             }
             members
@@ -55,12 +58,11 @@ impl Workspace {
         self.members
             .iter()
             .filter(|(cfg, _)| {
-    cfg.package
-        .as_ref()
-        .map(|p| p.r#type.is_bin())
-        .unwrap_or(false)
-})
-
+                cfg.package
+                    .as_ref()
+                    .map(|p| p.r#type.is_bin())
+                    .unwrap_or(false)
+            })
             .collect()
     }
 
@@ -68,11 +70,7 @@ impl Workspace {
     pub fn find_member_by_name(&self, name: &str) -> Option<&(CrowConfig, PathBuf)> {
         self.members
             .iter()
-            .find(|(cfg, _)| {
-                cfg.package
-                    .as_ref()
-                    .map(|p| p.name.as_str()) == Some(name)
-            })
+            .find(|(cfg, _)| cfg.package.as_ref().map(|p| p.name.as_str()) == Some(name))
     }
 
     /// Returns the number of members in the workspace.

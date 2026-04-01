@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ArchiverKind {
-    Ar,        // Unix ar
-    Lib,       // MSVC lib.exe
-    LlvmAr,    // llvm-ar
+    Ar,     // Unix ar
+    Lib,    // MSVC lib.exe
+    LlvmAr, // llvm-ar
     Unknown,
 }
 

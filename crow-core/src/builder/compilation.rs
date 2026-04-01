@@ -33,11 +33,13 @@ impl<'a> CompilationBuilder<'a> {
         let progress = ProgressBar::new(
             sources.len(),
             format!(
-    "{}({})",
-    self.project.package.r#type.display_name(&self.project.package.name),
-    self.project.package.r#type.type_str()
-),
-
+                "{}({})",
+                self.project
+                    .package
+                    .r#type
+                    .display_name(&self.project.package.name),
+                self.project.package.r#type.type_str()
+            ),
         );
 
         let compile_task = |path: &PathBuf| -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {

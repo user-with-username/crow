@@ -78,11 +78,7 @@ impl<'a> CompilationContext<'a> {
 
         let object_path = task.object.clone();
         let mut args = vec![self.compiler_exe.to_string()];
-        args.extend(
-            task.command
-                .get_args()
-                .map(|arg| arg.to_string_lossy().into_owned()),
-        );
+        args.extend(task.args.clone());
 
         let pre_hash = self._compute_hash_before_compile(&task)?;
 

@@ -34,10 +34,7 @@ impl MsvcToolchain {
             return Some(CompilerKind::Msvc);
         }
 
-        let version_check = Command::new(compiler_exe)
-            .arg("--version")
-            .output()
-            .ok()?;
+        let version_check = Command::new(compiler_exe).arg("--version").output().ok()?;
         let version_out = String::from_utf8_lossy(&version_check.stdout);
         if version_out.contains("clang") && version_out.contains("clang-cl") {
             return Some(CompilerKind::ClangCl);
@@ -85,7 +82,10 @@ impl MsvcToolchain {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let combined = format!("{}{}", stdout, stderr);
-                if combined.contains("GNU ld") || combined.contains("GNU gold") || combined.contains("LLD") {
+                if combined.contains("GNU ld")
+                    || combined.contains("GNU gold")
+                    || combined.contains("LLD")
+                {
                     supports_gcc = true;
                 } else if output.status.success() {
                     supports_gcc = true;
@@ -107,8 +107,17 @@ impl MsvcToolchain {
         }
 
         match preferred_compiler {
-            Some(path) => Self::from_compiler_path(&path, preferred_linker, preferred_archiver, preferred_archiver_kind),
-            None => Self::from_vs_installation_with_linker_and_archiver(preferred_linker, preferred_archiver, preferred_archiver_kind),
+            Some(path) => Self::from_compiler_path(
+                &path,
+                preferred_linker,
+                preferred_archiver,
+                preferred_archiver_kind,
+            ),
+            None => Self::from_vs_installation_with_linker_and_archiver(
+                preferred_linker,
+                preferred_archiver,
+                preferred_archiver_kind,
+            ),
         }
     }
 
@@ -147,7 +156,10 @@ impl MsvcToolchain {
             }
         }
 
-        Err(anyhow!("Could not find '{}' in PATH or current directory", spec))
+        Err(anyhow!(
+            "Could not find '{}' in PATH or current directory",
+            spec
+        ))
     }
 
     fn determine_target_arch(compiler_path: &Path) -> String {
@@ -189,7 +201,11 @@ impl MsvcToolchain {
             .unwrap_or(false);
 
         if is_clang_cl && !compiler_path.to_string_lossy().contains("VC\\Tools\\MSVC") {
-            return Self::from_vs_installation_with_linker_and_archiver(preferred_linker, preferred_archiver, preferred_archiver_kind);
+            return Self::from_vs_installation_with_linker_and_archiver(
+                preferred_linker,
+                preferred_archiver,
+                preferred_archiver_kind,
+            );
         }
 
         let target_arch = Self::determine_target_arch(&compiler_path);
@@ -221,7 +237,11 @@ impl MsvcToolchain {
             .and_then(|p| p.parent())
             .and_then(|p| p.parent())
             .and_then(|p| p.parent())
-            .ok_or_else(|| anyhow!("Could not derive tools root (expected .../bin/Host(x64|x86)/(x64|x86)/cl.exe)"))?;
+            .ok_or_else(|| {
+                anyhow!(
+                    "Could not derive tools root (expected .../bin/Host(x64|x86)/(x64|x86)/cl.exe)"
+                )
+            })?;
 
         let mut includes = Vec::new();
         let mut libraries = Vec::new();
@@ -319,8 +339,9 @@ impl MsvcToolchain {
     }
 
     fn find_vs_tools_root() -> Result<(PathBuf, String)> {
-        let vswhere = Self::find_vswhere()
-            .ok_or_else(|| anyhow!("vswhere.exe not found. Is Visual Studio / Build Tools installed?"))?;
+        let vswhere = Self::find_vswhere().ok_or_else(|| {
+            anyhow!("vswhere.exe not found. Is Visual Studio / Build Tools installed?")
+        })?;
 
         let output = Command::new(&vswhere)
             .args(&[
@@ -345,15 +366,18 @@ impl MsvcToolchain {
             .join("Tools")
             .join("MSVC");
 
-        let vc_versions = std::fs::read_dir(&vc_tools_path)
-            .context("Failed to read VC tools directory")?;
+        let vc_versions =
+            std::fs::read_dir(&vc_tools_path).context("Failed to read VC tools directory")?;
 
         let mut latest_version = None;
         for entry in vc_versions {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
                 let version = entry.file_name().to_string_lossy().to_string();
-                if latest_version.as_ref().map_or(true, |v: &String| &version > v) {
+                if latest_version
+                    .as_ref()
+                    .map_or(true, |v: &String| &version > v)
+                {
                     latest_version = Some(version);
                 }
             }

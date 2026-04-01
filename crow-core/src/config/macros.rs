@@ -108,10 +108,20 @@ macro_rules! type_enum {
                             }
                             "module" => Ok($crate::config::ProjectType::Module(Default::default())),
                             "header-only" => Ok($crate::config::ProjectType::HeaderOnly),
-                            _ => Err(E::unknown_variant(value, &[
-                                "bin", "exe", "lib", "static-lib", "shared-lib",
-                                "static-library", "shared-library", "module", "header-only"
-                            ])),
+                            _ => Err(E::unknown_variant(
+                                value,
+                                &[
+                                    "bin",
+                                    "exe",
+                                    "lib",
+                                    "static-lib",
+                                    "shared-lib",
+                                    "static-library",
+                                    "shared-library",
+                                    "module",
+                                    "header-only",
+                                ],
+                            )),
                         }
                     }
 
@@ -120,7 +130,7 @@ macro_rules! type_enum {
                         M: ::serde::de::MapAccess<'de>,
                     {
                         $crate::config::ProjectType::deserialize(
-                            ::serde::de::value::MapAccessDeserializer::new(map)
+                            ::serde::de::value::MapAccessDeserializer::new(map),
                         )
                     }
                 }
@@ -131,5 +141,5 @@ macro_rules! type_enum {
     };
 }
 
-pub(crate) use type_enum;
 pub(crate) use config_enum;
+pub(crate) use type_enum;
