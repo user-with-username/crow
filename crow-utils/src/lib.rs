@@ -4,6 +4,7 @@ pub mod files;
 pub mod helpers;
 pub mod logger;
 pub mod progress;
+pub mod msvc;
 
 pub use diagnostic_highlighter::DiagnosticHighlighter;
 pub use files::write_to;

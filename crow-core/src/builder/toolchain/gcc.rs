@@ -2,8 +2,9 @@ use crate::builder::kinds::archiver_kind::ArchiverKind;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::toolchain::Toolchain;
-use anyhow::{anyhow, Context, Result};
-use std::path::{Path, PathBuf};
+use crow_utils::msvc;
+use anyhow::{Context, Result};
+use std::path::PathBuf;
 use std::process::Command;
 
 pub struct GccToolchain {
@@ -24,19 +25,7 @@ impl GccToolchain {
     }
 
     pub fn identify_linker(linker_exe: &str) -> bool {
-        let mut supports_msvc = false;
         let mut supports_gcc = false;
-
-        if let Ok(output) = Command::new(linker_exe).arg("/?").output() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let combined = format!("{}{}", stdout, stderr);
-            if combined.contains("Microsoft (R) Incremental Linker") {
-                supports_msvc = true;
-            } else if output.status.success() {
-                supports_msvc = true;
-            }
-        }
 
         if let Ok(output) = Command::new(linker_exe).arg("--version").output() {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -69,7 +58,7 @@ impl GccToolchain {
             }
         }
 
-        supports_gcc || (supports_msvc && supports_gcc)
+        supports_gcc
     }
 
     pub fn detect(
@@ -130,7 +119,9 @@ impl GccToolchain {
         let (system_includes, system_libraries) = if compiler_kind == CompilerKind::ClangCl
             && cfg!(target_os = "windows")
         {
-            match Self::get_msvc_paths() {
+            let compiler_path = PathBuf::from(&compiler_exe);
+            let target_arch = msvc::determine_target_arch(&compiler_path);
+            match msvc::get_msvc_system_paths(&target_arch) {
                 Ok((includes, libs)) => (includes, libs),
                 Err(e) => {
                     eprintln!("Warning: Could not get MSVC paths for clang-cl: {}. Falling back to compiler extraction.", e);
@@ -164,19 +155,7 @@ impl GccToolchain {
             let kind = if let Some(k) = preferred_archiver_kind {
                 k
             } else {
-                let base = Path::new(&path)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("");
-                if base == "lib" || path.contains("lib.exe") {
-                    ArchiverKind::Lib
-                } else if base == "llvm-ar" {
-                    ArchiverKind::LlvmAr
-                } else if base == "ar" {
-                    ArchiverKind::Ar
-                } else {
-                    ArchiverKind::Ar
-                }
+                Self::detect_archiver_kind(&path)?
             };
             return Ok((path, kind));
         }
@@ -200,6 +179,37 @@ impl GccToolchain {
         }
 
         Ok((default_path, default_kind))
+    }
+
+    fn detect_archiver_kind(archiver_exe: &str) -> Result<ArchiverKind> {
+        if let Ok(output) = Command::new(archiver_exe).arg("--version").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let combined = format!("{}{}", stdout, stderr).to_lowercase();
+            if combined.contains("llvm") {
+                return Ok(ArchiverKind::LlvmAr);
+            } else if combined.contains("gnu ar") || combined.contains("gcc-ar") {
+                return Ok(ArchiverKind::Ar);
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(output) = Command::new(archiver_exe).arg("/?").output() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let combined = format!("{}{}", stdout, stderr);
+                if combined.contains("Microsoft (R) Library Manager") {
+                    return Ok(ArchiverKind::Lib);
+                }
+            }
+        }
+
+        eprintln!(
+            "Warning: Could not determine archiver kind for '{}', assuming 'ar'",
+            archiver_exe
+        );
+        Ok(ArchiverKind::Ar)
     }
 
     fn find_linker_in_path(exe_name: &str) -> Option<String> {
@@ -531,183 +541,6 @@ impl GccToolchain {
             .collect();
 
         Ok(filtered)
-    }
-
-    fn get_msvc_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
-        if !cfg!(target_os = "windows") {
-            return Ok((Vec::new(), Vec::new()));
-        }
-
-        let vs_root = Self::find_vs_root()?;
-        let vc_tools_root = vs_root.join("VC").join("Tools").join("MSVC");
-
-        let latest_version = Self::find_latest_msvc_version(&vc_tools_root)?;
-        let tools_root = vc_tools_root.join(&latest_version);
-
-        let target_arch = if std::env::var("TARGET")
-            .unwrap_or_else(|_| "x86_64".into())
-            .contains("64")
-        {
-            "x64"
-        } else {
-            "x86"
-        };
-
-        let mut includes = Vec::new();
-        let mut libraries = Vec::new();
-
-        let vc_include = tools_root.join("include");
-        if vc_include.exists() {
-            includes.push(vc_include);
-        }
-
-        let vc_lib = tools_root.join("lib").join(target_arch);
-        if vc_lib.exists() {
-            libraries.push(vc_lib);
-        }
-
-        Self::add_windows_sdk_paths(&mut includes, &mut libraries, target_arch)?;
-
-        Ok((includes, libraries))
-    }
-
-    fn find_vs_root() -> Result<PathBuf> {
-        if let Some(vswhere) = Self::find_vswhere() {
-            let output = Command::new(&vswhere)
-                .args(&[
-                    "-latest",
-                    "-products",
-                    "*",
-                    "-requires",
-                    "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-                    "-property",
-                    "installationPath",
-                ])
-                .output()
-                .context("Failed to run vswhere")?;
-
-            let stdout = String::from_utf8(output.stdout)?;
-            let vs_path = stdout.trim();
-            if !vs_path.is_empty() && Path::new(vs_path).exists() {
-                return Ok(PathBuf::from(vs_path));
-            }
-        }
-
-        let candidates = [
-            r"C:\Program Files\Microsoft Visual Studio\2022\Community",
-            r"C:\Program Files\Microsoft Visual Studio\2022\Professional",
-            r"C:\Program Files\Microsoft Visual Studio\2022\Enterprise",
-            r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community",
-            r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional",
-            r"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise",
-        ];
-        for candidate in candidates.iter() {
-            if Path::new(candidate).exists() {
-                return Ok(PathBuf::from(candidate));
-            }
-        }
-
-        Err(anyhow!("Could not locate Visual Studio installation"))
-    }
-
-    fn find_latest_msvc_version(vc_tools_root: &Path) -> Result<String> {
-        let entries =
-            std::fs::read_dir(vc_tools_root).context("Failed to read VC tools directory")?;
-        let mut versions = Vec::new();
-        for entry in entries.flatten() {
-            if entry.file_type().map_or(false, |ft| ft.is_dir()) {
-                if let Some(version) = entry.file_name().to_str() {
-                    versions.push(version.to_string());
-                }
-            }
-        }
-        versions.sort_by(|a, b| {
-            fn version_parts(v: &str) -> Vec<u32> {
-                v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
-            }
-            let a_parts = version_parts(a);
-            let b_parts = version_parts(b);
-            a_parts.cmp(&b_parts)
-        });
-        versions
-            .last()
-            .cloned()
-            .ok_or_else(|| anyhow!("No MSVC toolchain found"))
-    }
-
-    fn add_windows_sdk_paths(
-        includes: &mut Vec<PathBuf>,
-        libraries: &mut Vec<PathBuf>,
-        target_arch: &str,
-    ) -> Result<()> {
-        let sdk_root = PathBuf::from(r"C:\Program Files (x86)\Windows Kits\10");
-        if !sdk_root.exists() {
-            return Ok(());
-        }
-
-        let include_root = sdk_root.join("Include");
-        let lib_root = sdk_root.join("Lib");
-
-        let sdk_version = Self::find_latest_sdk_version(&include_root)?;
-
-        for sub in &["um", "shared", "winrt", "ucrt"] {
-            let p = include_root.join(&sdk_version).join(sub);
-            if p.exists() {
-                includes.push(p);
-            }
-        }
-
-        for sub in &[
-            format!("ucrt/{}", target_arch),
-            format!("um/{}", target_arch),
-        ] {
-            let p = lib_root.join(&sdk_version).join(&sub);
-            if p.exists() {
-                libraries.push(p);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn find_latest_sdk_version(include_root: &Path) -> Result<String> {
-        let entries = std::fs::read_dir(include_root)
-            .context("Failed to read Windows SDK include directory")?;
-        let mut versions = Vec::new();
-        for entry in entries.flatten() {
-            if entry.file_type().map_or(false, |ft| ft.is_dir()) {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.starts_with("10.") {
-                        versions.push(name.to_string());
-                    }
-                }
-            }
-        }
-        versions.sort_by(|a, b| {
-            fn version_parts(v: &str) -> Vec<u32> {
-                v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
-            }
-            let a_parts = version_parts(a);
-            let b_parts = version_parts(b);
-            a_parts.cmp(&b_parts)
-        });
-        versions
-            .last()
-            .cloned()
-            .ok_or_else(|| anyhow!("No Windows SDK found"))
-    }
-
-    fn find_vswhere() -> Option<PathBuf> {
-        let candidates = [
-            r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe",
-            r"C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe",
-        ];
-        for path in candidates.iter() {
-            if Path::new(path).exists() {
-                return Some(PathBuf::from(path));
-            }
-        }
-        None
     }
 }
 
