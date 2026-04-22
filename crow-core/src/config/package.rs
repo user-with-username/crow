@@ -15,11 +15,12 @@ pub struct Package {
     #[serde(default)]
     #[default(ProjectType::default())]
     pub r#type: ProjectType,
+    
+    #[serde(default)]
+    pub standard: Option<String>,
 }
 
 impl Package {
-    /// Creates a new package with the given name and version.
-    /// Useful for testing or programmatic creation.
     pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -28,13 +29,15 @@ impl Package {
         }
     }
 
-    /// Returns the package name as a string slice.
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    /// Returns the package version as a string slice.
     pub fn version(&self) -> &str {
         &self.version
+    }
+
+    pub fn standard(&self) -> Option<&str> {
+        self.standard.as_deref()
     }
 }
