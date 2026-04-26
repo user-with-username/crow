@@ -261,110 +261,125 @@ impl DependencyResolver {
     }
 
     fn prepare_git_dependency(&self, dep_name: &str, git_url: &str) -> Result<PathBuf> {
-        use git2::build::CheckoutBuilder;
+    use git2::build::CheckoutBuilder;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
-        let hash = {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-            let mut hasher = DefaultHasher::new();
-            git_url.hash(&mut hasher);
-            hasher.finish()
-        };
-        let dep_dir = self.cache_root.join(format!("{}-{:016x}", dep_name, hash));
+    let hash = {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        git_url.hash(&mut hasher);
+        hasher.finish()
+    };
+    let dep_dir = self.cache_root.join(format!("{}-{:016x}", dep_name, hash));
 
-        if dep_dir.join(".git").exists() {
-            // Update existing repository
-            let repo = Repository::open(&dep_dir).with_context(|| {
-                format!("failed to open git repository at {}", dep_dir.display())
-            })?;
+    // Флаг для однократного вывода сообщения
+    let resolving_printed = Arc::new(AtomicBool::new(false));
 
-            let mut remote = repo
-                .find_remote("origin")
-                .context("failed to find remote 'origin'")?;
+    if dep_dir.join(".git").exists() {
+        // Update existing repository
+        let repo = Repository::open(&dep_dir).with_context(|| {
+            format!("failed to open git repository at {}", dep_dir.display())
+        })?;
 
-            // Create fetch options with callbacks
-            let mut callbacks = RemoteCallbacks::new();
-            callbacks.transfer_progress(|stats| {
-                if stats.received_objects() == stats.total_objects() {
+        let mut remote = repo
+            .find_remote("origin")
+            .context("failed to find remote 'origin'")?;
+
+        let mut callbacks = RemoteCallbacks::new();
+        let resolving_printed_clone = resolving_printed.clone();
+        callbacks.transfer_progress(move |stats| {
+            if stats.received_objects() == stats.total_objects() && stats.total_objects() > 0 {
+                if !resolving_printed_clone.swap(true, Ordering::Relaxed) {
+                }
+            } else {
+                resolving_printed_clone.store(false, Ordering::Relaxed);
+            }
+            true
+        });
+
+        let mut fetch_opts = FetchOptions::new();
+        fetch_opts.remote_callbacks(callbacks);
+
+        remote
+            .fetch(
+                &["refs/heads/*:refs/remotes/origin/*"],
+                Some(&mut fetch_opts),
+                None,
+            )
+            .with_context(|| format!("failed to fetch from {git_url}"))?;
+
+        eprintln!(); 
+
+        let commit = repo
+            .revparse_single("origin/HEAD")
+            .or_else(|_| repo.revparse_single("origin/master"))
+            .or_else(|_| repo.revparse_single("origin/main"))
+            .with_context(|| format!("failed to find default branch for {git_url}"))?;
+
+        let commit_id = commit.id();
+        let obj = repo.find_object(commit_id, None)?;
+        repo.checkout_tree(&obj, Some(CheckoutBuilder::new().force()))
+            .with_context(|| format!("failed to checkout commit {commit_id}"))?;
+
+        repo.set_head("refs/remotes/origin/HEAD")
+            .or_else(|_| repo.set_head("refs/remotes/origin/master"))
+            .or_else(|_| repo.set_head("refs/remotes/origin/main"))?;
+    } else {
+        // Clone new repository
+        let mut callbacks = RemoteCallbacks::new();
+        let resolving_printed_clone = resolving_printed.clone();
+        callbacks.transfer_progress(move |stats| {
+            if stats.received_objects() == stats.total_objects() && stats.total_objects() > 0 {
+                if !resolving_printed_clone.swap(true, Ordering::Relaxed) {
                     eprint!("Resolving deltas...");
                 }
-                true
-            });
+            } else {
+                resolving_printed_clone.store(false, Ordering::Relaxed);
+            }
+            true
+        });
 
-            let mut fetch_opts = FetchOptions::new();
-            fetch_opts.remote_callbacks(callbacks);
+        let mut fetch_opts = FetchOptions::new();
+        fetch_opts.remote_callbacks(callbacks);
 
-            remote
-                .fetch(
-                    &["refs/heads/*:refs/remotes/origin/*"],
-                    Some(&mut fetch_opts),
-                    None,
-                )
-                .with_context(|| format!("failed to fetch from {git_url}"))?;
+        let repo = Repository::init(&dep_dir).with_context(|| {
+            format!("failed to initialize repository at {}", dep_dir.display())
+        })?;
 
-            // Update the checkout
-            let commit = repo
-                .revparse_single("origin/HEAD")
-                .or_else(|_| repo.revparse_single("origin/master"))
-                .or_else(|_| repo.revparse_single("origin/main"))
-                .with_context(|| format!("failed to find default branch for {git_url}"))?;
+        let mut remote = repo
+            .remote("origin", git_url)
+            .with_context(|| format!("failed to add remote origin for {git_url}"))?;
 
-            let commit_id = commit.id();
-            let obj = repo.find_object(commit_id, None)?;
-            repo.checkout_tree(&obj, Some(CheckoutBuilder::new().force()))
-                .with_context(|| format!("failed to checkout commit {commit_id}"))?;
+        remote
+            .fetch(
+                &["refs/heads/*:refs/remotes/origin/*"],
+                Some(&mut fetch_opts),
+                None,
+            )
+            .with_context(|| format!("failed to fetch from {git_url}"))?;
 
-            repo.set_head("refs/remotes/origin/HEAD")
-                .or_else(|_| repo.set_head("refs/remotes/origin/master"))
-                .or_else(|_| repo.set_head("refs/remotes/origin/main"))?;
-        } else {
-            // Clone new repository
-            let mut callbacks = RemoteCallbacks::new();
-            callbacks.transfer_progress(|stats| {
-                if stats.received_objects() == stats.total_objects() {
-                    eprint!("Resolving deltas...");
-                }
-                true
-            });
+        eprintln!();
 
-            let mut fetch_opts = FetchOptions::new();
-            fetch_opts.remote_callbacks(callbacks);
+        let commit = repo
+            .revparse_single("origin/HEAD")
+            .or_else(|_| repo.revparse_single("origin/master"))
+            .or_else(|_| repo.revparse_single("origin/main"))
+            .with_context(|| format!("failed to find default branch for {git_url}"))?;
 
-            let repo = Repository::init(&dep_dir).with_context(|| {
-                format!("failed to initialize repository at {}", dep_dir.display())
-            })?;
+        let commit_id = commit.id();
+        let obj = repo.find_object(commit_id, None)?;
+        repo.checkout_tree(&obj, Some(CheckoutBuilder::new().force()))
+            .with_context(|| format!("failed to checkout commit {commit_id}"))?;
 
-            let mut remote = repo
-                .remote("origin", git_url)
-                .with_context(|| format!("failed to add remote origin for {git_url}"))?;
-
-            remote
-                .fetch(
-                    &["refs/heads/*:refs/remotes/origin/*"],
-                    Some(&mut fetch_opts),
-                    None,
-                )
-                .with_context(|| format!("failed to fetch from {git_url}"))?;
-
-            // Get the default branch and checkout
-            let commit = repo
-                .revparse_single("origin/HEAD")
-                .or_else(|_| repo.revparse_single("origin/master"))
-                .or_else(|_| repo.revparse_single("origin/main"))
-                .with_context(|| format!("failed to find default branch for {git_url}"))?;
-
-            let commit_id = commit.id();
-            let obj = repo.find_object(commit_id, None)?;
-            repo.checkout_tree(&obj, Some(CheckoutBuilder::new().force()))
-                .with_context(|| format!("failed to checkout commit {commit_id}"))?;
-
-            repo.set_head("refs/remotes/origin/HEAD")
-                .or_else(|_| repo.set_head("refs/remotes/origin/master"))
-                .or_else(|_| repo.set_head("refs/remotes/origin/main"))?;
-        }
-
-        Ok(dep_dir)
+        repo.set_head("refs/remotes/origin/HEAD")
+            .or_else(|_| repo.set_head("refs/remotes/origin/master"))
+            .or_else(|_| repo.set_head("refs/remotes/origin/main"))?;
     }
+
+    Ok(dep_dir)
+}
 
     fn find_manifest(&self, dep_root: &Path) -> Result<PathBuf> {
         let direct = dep_root.join(CROW_MANIFEST);
