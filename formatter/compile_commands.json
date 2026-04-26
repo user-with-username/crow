@@ -1,0 +1,30 @@
+[
+  {
+    "directory": "C:\\Users\\user\\Documents\\GitHub\\crow\\formatter",
+    "arguments": [
+      "C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\bin\\Hostx64\\x64\\cl.exe",
+      "--driver-mode=cl",
+      "/c",
+      "/nologo",
+      "/EHsc",
+      "/W4",
+      "/Od",
+      "/Zi",
+      "/D_DEBUG",
+      "/MDd",
+      "/Zi",
+      "/IC:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\VC\\Tools\\MSVC\\14.50.35717\\include",
+      "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\um",
+      "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared",
+      "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt",
+      "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt",
+      "/IC:\\Users\\user\\Documents\\GitHub\\crow\\formatter\\include",
+      "/showIncludes",
+      "/Fo:target\\debug\\text_formatter.obj",
+      "/Fdtarget\\debug\\pdb\\text_formatter.pdb",
+      "C:\\Users\\user\\Documents\\GitHub\\crow\\formatter\\src\\text_formatter.cpp",
+      "/std:c++20"
+    ],
+    "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\formatter\\src\\text_formatter.cpp"
+  }
+]

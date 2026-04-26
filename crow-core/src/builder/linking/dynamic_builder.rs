@@ -43,12 +43,8 @@ impl<'a> DynamicLinkBuilder<'a> {
             project.package.name,
             if p_type.is_shared() { "shared" } else { "bin" }
         );
-        let response_file_path = crow_utils::write_to(
-            project.profile_dir(),
-            &response_filename,
-            &args,
-            is_msvc,
-        )?;
+        let response_file_path =
+            crow_utils::write_to(project.profile_dir(), &response_filename, &args, is_msvc)?;
 
         let mut cmd = Command::new(self.builder.linker_exe());
         cmd.arg(format!("@{}", response_file_path.display()))

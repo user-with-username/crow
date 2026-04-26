@@ -12,15 +12,11 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 /// Apply appropriate language standard based on file extension
-fn apply_language_standard(
-    flags: &mut CompilerFlags,
-    source_path: &Path,
-    standard: Option<&str>,
-) {
+fn apply_language_standard(flags: &mut CompilerFlags, source_path: &Path, standard: Option<&str>) {
     let Some(standard) = standard else { return };
-    
+
     let extension = source_path.extension().and_then(|ext| ext.to_str());
-    
+
     match extension {
         Some(ext) if ["cpp", "cc", "cxx", "c++"].contains(&ext) => {
             flags.cxx_standard(format!("c++{}", standard));
@@ -88,12 +84,16 @@ impl<'a> CompilationContext<'a> {
         progress: &ProgressBar,
     ) -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
         let source = SourceFilePath(source_path.to_path_buf());
-        
+
         // Create temporary flags to apply language standard
         let mut lang_flags = CompilerFlags::new(self.project.compiler_kind());
-        apply_language_standard(&mut lang_flags, source_path, self.project.package.standard());
+        apply_language_standard(
+            &mut lang_flags,
+            source_path,
+            self.project.package.standard(),
+        );
         let extra_flags = lang_flags.build();
-        
+
         let mut task = SourceCompilationTask::prepare(
             &source,
             self.compiler_exe,
@@ -102,7 +102,7 @@ impl<'a> CompilationContext<'a> {
             self.project,
             &self.project.profile,
         )?;
-        
+
         // Add language standard flags to task args
         for flag in extra_flags {
             task.args.push(flag);

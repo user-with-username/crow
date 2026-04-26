@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 mod archiver;
 mod build;
 mod compiler;
+mod dependencies;
 mod linker;
 mod macros;
 mod package;
@@ -15,6 +16,7 @@ pub use archiver::ArchiverConfig;
 
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;
+pub use dependencies::{Dependencies, DependencySource, DependencySpec};
 pub use linker::LinkerConfig;
 pub use package::Package;
 pub use profile::{BenchProfile, DevProfile, Profile, Profiles, ReleaseProfile, TestProfile};
@@ -33,41 +35,41 @@ pub struct CrowConfig {
     pub build: BuildConfig,
 
     #[serde(default)]
+    pub dependencies: Dependencies,
+
+    #[serde(default)]
     pub profile: Profiles,
 }
 
 impl CrowConfig {
-    /// Loads configuration by searching for `crow.toml` upwards from the current directory.
-    /// Returns the config and the path to the directory containing it.
-    pub fn load() -> Result<(Self, PathBuf)> {
-        let current_dir = std::env::current_dir().context("failed to get current directory")?;
-        Self::find_in_tree(&current_dir)
-    }
-
     /// Loads configuration from a specific file path.
-    pub fn load_from(path: &Path) -> Result<(Self, PathBuf)> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("failed to read config at {}", path.display()))?;
+    pub fn load_from(dir: &Path, is_dep: bool) -> Result<(Self, PathBuf)> {
+        let config_path = dir.join("crow.toml");
 
-        let config: Self = toml::from_str(&content)
-            .with_context(|| format!("failed to parse {}", path.display()))?;
+        let content = std::fs::read_to_string(&config_path)
+            .with_context(|| format!("failed to read config at {}", config_path.display()))?;
 
-        let parent = path
-            .parent()
-            .context("failed to get parent directory of config file")?
-            .to_path_buf();
+        let mut config: Self = toml::from_str(&content)
+            .with_context(|| format!("failed to parse {}", config_path.display()))?;
 
-        Ok((config, parent))
+        if !has_explicit_package_type(&content)? && is_dep {
+            if let Some(package) = config.package.as_mut() {
+                package.r#type = ProjectType::StaticLib(Default::default());
+            }
+        }
+
+        Ok((config, dir.to_path_buf()))
     }
 
     /// Recursively searches upwards for `crow.toml`.
-    fn find_in_tree(start_path: &Path) -> Result<(Self, PathBuf)> {
+    pub fn find_in_tree(start_path: &Path) -> Result<(Self, PathBuf)> {
         let mut check_path = start_path.to_path_buf();
 
         loop {
             let config_path = check_path.join("crow.toml");
+
             if config_path.exists() {
-                return Self::load_from(&config_path);
+                return Self::load_from(&check_path, false);
             }
 
             if let Some(parent) = check_path.parent() {
@@ -87,4 +89,16 @@ impl CrowConfig {
     pub fn is_virtual(&self) -> bool {
         self.package.is_none() && self.workspace.is_some()
     }
+}
+
+fn has_explicit_package_type(content: &str) -> Result<bool> {
+    let value: toml::Value = toml::from_str(content).context("failed to parse TOML value")?;
+    Ok(value
+        .get("package")
+        .and_then(|pkg| pkg.get("type"))
+        .is_some())
+}
+
+pub fn parse_standard(standard: Option<&str>) -> Option<u32> {
+    standard.and_then(|s| s.trim().parse::<u32>().ok())
 }

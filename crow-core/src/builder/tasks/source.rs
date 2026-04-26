@@ -50,7 +50,12 @@ impl SourceCompilationTask {
         }
 
         for inc in build_config.include_dirs.iter() {
-            let inc_str = inc.to_string_lossy().to_string();
+            let resolved_inc = if inc.is_relative() {
+                project.root.join(inc)
+            } else {
+                inc.clone()
+            };
+            let inc_str = resolved_inc.to_string_lossy().to_string();
             flags.include_path(inc_str);
         }
 

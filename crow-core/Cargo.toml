@@ -20,3 +20,4 @@ smart-default = "0.7.1"
 rayon = { workspace = true }
 which = "8.0.0"
 petgraph = "0.8.3"
+git2 = { version = "0.18", features = ["vendored-libgit2", "vendored-openssl", "ssh"] }

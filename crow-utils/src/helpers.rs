@@ -7,10 +7,21 @@ pub fn change_directory(path: &Path) -> Result<()> {
 }
 
 pub fn normalize_path(path: &str) -> String {
+    let mut result = path.to_string();
+
     if cfg!(windows) {
-        path.trim().to_string()
+        if result.starts_with(r"\\?\") {
+            result = result[4..].to_string();
+        }
+        if result.starts_with(r"UNC\") {
+            result = format!(r"\\{}", &result[4..]);
+        }
+    }
+
+    if cfg!(windows) {
+        result.replace("/", "\\")
     } else {
-        path.replace("\\", "/")
+        result.replace("\\", "/")
     }
 }
 

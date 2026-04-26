@@ -56,16 +56,28 @@ impl Project {
 
     pub fn find_sources(&self) -> Vec<PathBuf> {
         let extensions = &self.config.build.src_extensions;
-        WalkDir::new(self.root.join("src"))
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|entry| {
-                entry
-                    .path()
-                    .extension()
-                    .map_or(false, |ext| extensions.iter().any(|e| e.as_str() == ext))
+        self.config
+            .build
+            .src_dirs
+            .iter()
+            .flat_map(|src_dir| {
+                let dir = if src_dir.is_relative() {
+                    self.root.join(src_dir)
+                } else {
+                    src_dir.clone()
+                };
+                WalkDir::new(dir)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .filter(|entry| {
+                        entry
+                            .path()
+                            .extension()
+                            .map_or(false, |ext| extensions.iter().any(|e| e.as_str() == ext))
+                    })
+                    .map(|entry| entry.path().to_path_buf())
+                    .collect::<Vec<_>>()
             })
-            .map(|entry| entry.path().to_path_buf())
             .collect()
     }
 
@@ -82,31 +94,11 @@ impl Project {
     }
 
     pub fn output_path(&self) -> PathBuf {
-        let base_name = self.package.r#type.display_name(&self.package.name);
-        let filename = if self.package.r#type.needs_prefix() {
-            format!("lib{}", base_name)
-        } else {
-            base_name.to_string()
-        };
-
-        self.profile_dir()
-            .join(filename)
-            .with_extension(self.package.r#type.extension())
+        self.package.output_path_in(&self.profile_dir())
     }
 
     pub fn output_name(&self) -> String {
-        let base_name = self.package.r#type.display_name(&self.package.name);
-        let filename = if self.package.r#type.needs_prefix() {
-            format!("lib{}", base_name)
-        } else {
-            base_name.to_string()
-        };
-        let extension = self.package.r#type.extension();
-        if extension.is_empty() {
-            filename
-        } else {
-            format!("{}.{}", filename, extension)
-        }
+        self.package.output_name()
     }
 
     pub fn create_dirs(&self) -> Result<(), std::io::Error> {

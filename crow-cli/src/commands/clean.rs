@@ -16,7 +16,8 @@ impl CleanCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let (config, manifest_dir) = CrowConfig::load()?;
+        let current_dir = std::env::current_dir()?;
+        let (config, manifest_dir) = CrowConfig::find_in_tree(&current_dir)?;
         let project = Project::new(config, manifest_dir, "dev")?;
 
         let target_dir = project.target_dir();
@@ -24,7 +25,6 @@ impl CleanCommand {
         if target_dir.exists() {
             status!("Cleaning", "{}", target_dir.display());
             project.clean()?;
-
             status!("Deleted", "target directory");
         } else {
             status!("Finished", "nothing to clean");

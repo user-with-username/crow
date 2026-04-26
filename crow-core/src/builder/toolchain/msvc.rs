@@ -2,8 +2,8 @@ use crate::builder::kinds::archiver_kind::ArchiverKind;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::toolchain::Toolchain;
-use crow_utils::msvc;
 use anyhow::{anyhow, Context, Result};
+use crow_utils::msvc;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
