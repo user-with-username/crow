@@ -10,6 +10,10 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub release: bool,
 
+    /// Number of parallel jobs
+    #[arg(short = 'j', long)]
+    pub jobs: Option<usize>,
+
     /// Build profile (debug, release, test, bench)
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
@@ -39,19 +43,6 @@ impl RunCommand {
             &self.args.profile
         };
 
-        let build_args = crate::commands::build::BuildArgs {
-            release: self.args.release,
-            target: None,
-            jobs: None,
-            bin: self.args.bin.clone(),
-            profile: self.args.profile.clone(),
-        };
-        crate::commands::build::BuildCommand::new(build_args).execute()?;
-
-        self.run_binary(profile_name)
-    }
-
-    fn run_binary(&self, profile_name: &str) -> Result<()> {
         let workspace = Workspace::load()?;
         let binary_members = workspace.binary_members();
 
@@ -59,7 +50,7 @@ impl RunCommand {
             anyhow::bail!("No binary packages found to run");
         }
 
-        let (selected_config, selected_root) = match &self.args.bin {
+        let (_, selected_root) = match &self.args.bin {
             Some(name) => workspace
                 .find_member_by_name(name)
                 .map(|(cfg, root)| (cfg.clone(), root.clone()))
@@ -81,7 +72,8 @@ impl RunCommand {
             }
         };
 
-        let project = Project::new(selected_config, selected_root, profile_name)?;
+        let project = Project::build(&selected_root, profile_name, self.args.jobs)?;
+        
         self.execute_project_binary(project)
     }
 

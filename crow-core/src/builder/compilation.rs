@@ -4,7 +4,6 @@ use crate::builder::paths::ObjectFilePath;
 use crate::builder::tasks::database::CompilationDatabase;
 use crate::project::Project;
 use anyhow::Result;
-use crow_utils::ProgressBar;
 use rayon::prelude::*;
 use std::path::PathBuf;
 
@@ -25,25 +24,17 @@ impl<'a> CompilationBuilder<'a> {
         self.project.create_dirs()?;
 
         let context = CompilationContext::new(self.compiler_exe, self.project)?;
-        let cache_path = self.project.profile_dir().join(".fingerprint.json");
+        let cache_path = self.project.profile_dir().join(format!(
+            ".{}.fingerprint.json",
+            self.project.package.output_stem()
+        ));
         let cache_manager =
             IncrementalManager::new(&cache_path, self.project.profile.incremental());
 
         let sources = self.project.find_sources();
-        let progress = ProgressBar::new(
-            sources.len(),
-            format!(
-                "{}({})",
-                self.project
-                    .package
-                    .r#type
-                    .display_name(&self.project.package.name),
-                self.project.package.r#type.type_str()
-            ),
-        );
 
         let compile_task = |path: &PathBuf| -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
-            context.compile_unit(path, &cache_manager, &progress)
+            context.compile_unit(path, &cache_manager)
         };
 
         let results: Result<Vec<(ObjectFilePath, PathBuf, Vec<String>)>> =
@@ -52,8 +43,6 @@ impl<'a> CompilationBuilder<'a> {
             } else {
                 sources.iter().map(compile_task).collect()
             };
-
-        progress.finish();
 
         match results {
             Ok(res) => {

@@ -6,7 +6,7 @@ use crate::builder::{
 };
 use crate::project::Project;
 use anyhow::{anyhow, Result};
-use crow_utils::{show_output, ProgressBar};
+use crow_utils::show_output;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -81,7 +81,6 @@ impl<'a> CompilationContext<'a> {
         &self,
         source_path: &Path,
         cache_manager: &IncrementalManager,
-        progress: &ProgressBar,
     ) -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
         let source = SourceFilePath(source_path.to_path_buf());
 
@@ -115,7 +114,7 @@ impl<'a> CompilationContext<'a> {
         let pre_hash = self._compute_hash_before_compile(&task)?;
 
         if cache_manager.should_compile(&source, &Some(pre_hash), &object_path) {
-            let stdout_lines = self.execute_compilation(&mut task, progress)?;
+            let stdout_lines = self.execute_compilation(&mut task)?;
 
             if self.is_msvc {
                 IncludeTask::save_deps(task.dep_file.as_path(), &stdout_lines)?;
@@ -125,15 +124,10 @@ impl<'a> CompilationContext<'a> {
             cache_manager.record_success(&source, task.to_cache_entry(final_hash));
         }
 
-        progress.inc();
         Ok((object_path, source_path.to_path_buf(), args))
     }
 
-    fn execute_compilation(
-        &self,
-        task: &mut SourceCompilationTask,
-        progress: &ProgressBar,
-    ) -> Result<Vec<String>> {
+    fn execute_compilation(&self, task: &mut SourceCompilationTask) -> Result<Vec<String>> {
         let output = task
             .command
             .stdout(std::process::Stdio::piped())
@@ -141,7 +135,6 @@ impl<'a> CompilationContext<'a> {
             .output()?;
 
         if !output.status.success() {
-            progress.finish();
             show_output!(output, self.project);
             return Err(anyhow!(
                 "Compilation failed for {}",

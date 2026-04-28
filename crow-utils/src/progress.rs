@@ -6,7 +6,7 @@ pub struct ProgressBar {
     total: usize,
     current: AtomicUsize,
     last_drawn: AtomicUsize,
-    label: String,
+    label: Mutex<String>,
     io_lock: Mutex<()>,
 }
 
@@ -16,7 +16,7 @@ impl ProgressBar {
             total,
             current: AtomicUsize::new(0),
             last_drawn: AtomicUsize::new(0),
-            label: label.into(),
+            label: Mutex::new(label.into()),
             io_lock: Mutex::new(()),
         }
     }
@@ -24,6 +24,16 @@ impl ProgressBar {
     pub fn inc(&self) {
         let val = self.current.fetch_add(1, Ordering::SeqCst) + 1;
         self.draw(val);
+    }
+
+    pub fn inc_with_label(&self, label: impl Into<String>) {
+        self.set_label(label);
+        self.inc();
+    }
+
+    pub fn set_label(&self, label: impl Into<String>) {
+        let mut current = self.label.lock().unwrap();
+        *current = label.into();
     }
 
     pub fn finish(&self) {
@@ -34,6 +44,7 @@ impl ProgressBar {
 
     fn draw(&self, current: usize) {
         let _lock = self.io_lock.lock().unwrap();
+        let label = self.label.lock().unwrap().clone();
 
         let last = self.last_drawn.load(Ordering::SeqCst);
         if current < last && current < self.total {
@@ -58,7 +69,7 @@ impl ProgressBar {
 
         print!(
             "\r\x1b[1;96m{:>12}\x1b[0m [{}] {}/{}: {}",
-            "Building", bar_content, current, self.total, self.label
+            "Building", bar_content, current, self.total, label
         );
         let _ = io::stdout().flush();
     }

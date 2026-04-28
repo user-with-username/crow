@@ -37,3 +37,24 @@ pub fn hash_source(
 
     Ok(hasher.finalize().to_hex().to_string())
 }
+
+pub fn hash_files(paths: &[PathBuf]) -> anyhow::Result<String> {
+    let mut sorted_paths = paths.to_vec();
+    sorted_paths.sort();
+
+    let mut hasher = Hasher::new();
+    for path in sorted_paths {
+        hasher.update(path.to_string_lossy().as_bytes());
+        match fs::read(&path) {
+            Ok(data) => {
+                hasher.update(&data);
+            }
+            Err(_) => {
+                hasher.update(b"<missing-file>");
+                hasher.update(path.to_string_lossy().as_bytes());
+            }
+        }
+    }
+
+    Ok(hasher.finalize().to_hex().to_string())
+}

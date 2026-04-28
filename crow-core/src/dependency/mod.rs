@@ -16,6 +16,8 @@ pub struct ResolvedPackage {
     pub name: String,
     pub root: PathBuf,
     pub config: CrowConfig,
+    pub source: Option<String>,
+    pub checksum: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -30,6 +32,8 @@ pub struct ResolvedDependencyBuild {
 struct NodePayload {
     root: PathBuf,
     config: CrowConfig,
+    source: Option<String>,
+    checksum: Option<String>,
 }
 
 #[derive(Debug)]
@@ -74,6 +78,8 @@ impl DependencyResolver {
             &mut node_by_root,
             root_dir.clone(),
             root_config.clone(),
+            None,
+            None,
         )?;
         self.visit_dependencies(
             root_idx,
@@ -132,6 +138,8 @@ impl DependencyResolver {
                 name: package.name.clone(),
                 root: payload.root.clone(),
                 config: payload.config.clone(),
+                source: payload.source.clone(),
+                checksum: payload.checksum.clone(),
             });
             max_standard = max_standard.max(parse_standard(package.standard.as_deref()));
 
@@ -160,6 +168,8 @@ impl DependencyResolver {
         node_by_root: &mut HashMap<PathBuf, NodeIndex>,
         root: PathBuf,
         config: CrowConfig,
+        source: Option<String>,
+        checksum: Option<String>,
     ) -> Result<NodeIndex> {
         if let Some(existing) = node_by_root.get(&root) {
             return Ok(*existing);
@@ -168,6 +178,8 @@ impl DependencyResolver {
         let idx = graph.add_node(NodePayload {
             root: root.clone(),
             config,
+            source,
+            checksum,
         });
         node_by_root.insert(root, idx);
         Ok(idx)
@@ -183,63 +195,16 @@ impl DependencyResolver {
         visiting: &mut HashSet<PathBuf>,
     ) -> Result<()> {
         for (dep_name, spec) in deps.iter() {
-            let source = spec.source();
-            let dep_root = match (source.git, source.path, source.registry) {
-                (Some(git_url), None, None) => self.prepare_git_dependency(dep_name, &git_url)?,
-                (None, Some(path), None) => {
-                    let candidate = if path.is_relative() {
-                        owner_root.join(path)
-                    } else {
-                        path
-                    };
-                    let canonical = candidate.canonicalize().with_context(|| {
-                        format!(
-                            "failed to resolve path dependency `{dep_name}` from {}",
-                            owner_root.display()
-                        )
-                    })?;
-                    PathBuf::from(normalize_path(&canonical.display().to_string()))
-                }
-                (None, None, Some(_)) => {
-                    bail!("dependency `{dep_name}` uses `registry`, which is not implemented yet")
-                }
-                _ => bail!(
-                    "dependency `{dep_name}` has unsupported source; expected exactly one of git/path/registry"
-                ),
-            };
-
-            // Find the manifest file
-            let manifest = self.find_manifest(&dep_root).with_context(|| {
-                format!(
-                    "failed to locate `{CROW_MANIFEST}` for dependency `{dep_name}` at {}",
-                    dep_root.display()
-                )
-            })?;
-
-            // Get the directory containing the manifest
-            let manifest_dir = manifest
-                .parent()
-                .context("failed to get dependency manifest parent directory")?
-                .to_path_buf();
-
-            // Load config from the directory (not from the file directly)
-            let dep_config =
-                CrowConfig::load_from(&manifest_dir, true).map(|(config, _)| config)?;
-
-            let canonical_root = manifest_dir.canonicalize().with_context(|| {
-                format!(
-                    "failed to resolve dependency root {}",
-                    manifest_dir.display()
-                )
-            })?;
-            let canonical_root =
-                PathBuf::from(normalize_path(&canonical_root.display().to_string()));
+            let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root)?;
+            let canonical_root = resolved_dep.root.clone();
 
             let dep_idx = self.add_node(
                 graph,
                 node_by_root,
                 canonical_root.clone(),
-                dep_config.clone(),
+                resolved_dep.config.clone(),
+                resolved_dep.source.clone(),
+                resolved_dep.checksum.clone(),
             )?;
             if graph.find_edge(owner_idx, dep_idx).is_none() {
                 graph.add_edge(owner_idx, dep_idx, ());
@@ -248,7 +213,7 @@ impl DependencyResolver {
             if visiting.insert(canonical_root.clone()) {
                 self.visit_dependencies(
                     dep_idx,
-                    &dep_config.dependencies,
+                    &resolved_dep.config.dependencies,
                     &canonical_root,
                     graph,
                     node_by_root,
@@ -260,7 +225,82 @@ impl DependencyResolver {
         Ok(())
     }
 
-    fn prepare_git_dependency(&self, dep_name: &str, git_url: &str) -> Result<PathBuf> {
+    fn resolve_dependency(
+        &self,
+        dep_name: &str,
+        spec: &crate::config::DependencySpec,
+        owner_root: &Path,
+    ) -> Result<ResolvedPackage> {
+        let source = spec.source();
+        let (dep_root, source_repr, checksum) = match (source.git, source.path, source.registry) {
+            (Some(git_url), None, None) => {
+                let (dep_root, rev) = self.prepare_git_dependency(dep_name, &git_url)?;
+                (dep_root, Some(format!("git+{}#{}", git_url, rev)), None)
+            }
+            (None, Some(path), None) => {
+                let candidate = if path.is_relative() {
+                    owner_root.join(path)
+                } else {
+                    path
+                };
+                let canonical = candidate.canonicalize().with_context(|| {
+                    format!(
+                        "failed to resolve path dependency `{dep_name}` from {}",
+                        owner_root.display()
+                    )
+                })?;
+                (
+                    PathBuf::from(normalize_path(&canonical.display().to_string())),
+                    None,
+                    None,
+                )
+            }
+            (None, None, Some(_)) => {
+                bail!("dependency `{dep_name}` uses `registry`, which is not implemented yet")
+            }
+            _ => bail!(
+                "dependency `{dep_name}` has unsupported source; expected exactly one of git/path/registry"
+            ),
+        };
+
+        let manifest = self.find_manifest(&dep_root).with_context(|| {
+            format!(
+                "failed to locate `{CROW_MANIFEST}` for dependency `{dep_name}` at {}",
+                dep_root.display()
+            )
+        })?;
+
+        let manifest_dir = manifest
+            .parent()
+            .context("failed to get dependency manifest parent directory")?
+            .to_path_buf();
+
+        let dep_config = CrowConfig::load_from(&manifest_dir, true).map(|(config, _)| config)?;
+
+        let canonical_root = manifest_dir.canonicalize().with_context(|| {
+            format!(
+                "failed to resolve dependency root {}",
+                manifest_dir.display()
+            )
+        })?;
+        let canonical_root = PathBuf::from(normalize_path(&canonical_root.display().to_string()));
+
+        let package_name = dep_config
+            .package
+            .as_ref()
+            .map(|pkg| pkg.name.clone())
+            .unwrap_or_else(|| dep_name.to_string());
+
+        Ok(ResolvedPackage {
+            name: package_name,
+            root: canonical_root,
+            config: dep_config,
+            source: source_repr,
+            checksum,
+        })
+    }
+
+    fn prepare_git_dependency(&self, dep_name: &str, git_url: &str) -> Result<(PathBuf, String)> {
         use git2::build::CheckoutBuilder;
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
@@ -377,7 +417,14 @@ impl DependencyResolver {
                 .or_else(|_| repo.set_head("refs/remotes/origin/main"))?;
         }
 
-        Ok(dep_dir)
+        let repo = Repository::open(&dep_dir)
+            .with_context(|| format!("failed to open git repository at {}", dep_dir.display()))?;
+        let head = repo.head().context("failed to read git dependency HEAD")?;
+        let oid = head
+            .target()
+            .context("git dependency HEAD does not point to a direct commit")?;
+
+        Ok((dep_dir, oid.to_string()))
     }
 
     fn find_manifest(&self, dep_root: &Path) -> Result<PathBuf> {

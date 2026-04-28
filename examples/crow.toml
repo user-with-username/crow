@@ -4,4 +4,4 @@ version = "0.1.0"
 standard = "20"
 
 [dependencies]
-fmt = { git = "https://github.com/fmtlib/fmt" } 
+fmt = { path = "../formatter" } 
