@@ -1,77 +1,49 @@
-use std::io::{self, Write};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use indicatif::{MultiProgress, ProgressBar as NativeProgressBar, ProgressStyle};
+use std::sync::Arc;
 
 pub struct ProgressBar {
-    total: usize,
-    current: AtomicUsize,
-    last_drawn: AtomicUsize,
-    label: Mutex<String>,
-    io_lock: Mutex<()>,
+    pb: NativeProgressBar,
+    _mp: Arc<MultiProgress>,
 }
 
 impl ProgressBar {
     pub fn new(total: usize, label: impl Into<String>) -> Self {
-        Self {
-            total,
-            current: AtomicUsize::new(0),
-            last_drawn: AtomicUsize::new(0),
-            label: Mutex::new(label.into()),
-            io_lock: Mutex::new(()),
-        }
+        let mp = Arc::new(MultiProgress::new());
+        let pb = mp.add(NativeProgressBar::new(total as u64));
+
+        let style = ProgressStyle::with_template(
+            "\x1b[1;96m{prefix:>12}\x1b[0m [{bar:30}] {pos}/{len}: {msg}"
+        )
+        .unwrap()
+        .progress_chars("=> ");
+
+        pb.set_style(style);
+        pb.set_prefix("Building");
+        pb.set_message(label.into());
+
+        Self { pb, _mp: mp }
     }
 
     pub fn inc(&self) {
-        let val = self.current.fetch_add(1, Ordering::SeqCst) + 1;
-        self.draw(val);
+        self.pb.inc(1);
     }
 
     pub fn inc_with_label(&self, label: impl Into<String>) {
-        self.set_label(label);
-        self.inc();
+        self.pb.set_message(label.into());
+        self.pb.inc(1);
     }
 
     pub fn set_label(&self, label: impl Into<String>) {
-        let mut current = self.label.lock().unwrap();
-        *current = label.into();
+        self.pb.set_message(label.into());
     }
 
     pub fn finish(&self) {
-        let _lock = self.io_lock.lock().unwrap();
-        print!("\r\x1b[2K");
-        let _ = io::stdout().flush();
+        self.pb.finish_and_clear();
     }
 
-    fn draw(&self, current: usize) {
-        let _lock = self.io_lock.lock().unwrap();
-        let label = self.label.lock().unwrap().clone();
-
-        let last = self.last_drawn.load(Ordering::SeqCst);
-        if current < last && current < self.total {
-            return;
-        }
-        self.last_drawn.store(current, Ordering::SeqCst);
-
-        let width = 30;
-        let total_safe = self.total.max(1);
-        let filled = (current * width) / total_safe;
-        let filled = filled.min(width);
-
-        let mut bar_content = "=".repeat(filled);
-        if filled < width {
-            bar_content.push('>');
-            bar_content.push_str(&" ".repeat(width - filled - 1));
-        } else {
-            if bar_content.len() < width {
-                bar_content.push('=');
-            }
-        }
-
-        print!(
-            "\r\x1b[2K\x1b[1;96m{:>12}\x1b[0m [{}] {}/{}: {}{}",
-            "Building", bar_content, current, self.total, label,
-            " ".repeat(10)
-        );
-        let _ = io::stdout().flush();
+    pub fn status(&self, status: &str, msg: &str) {
+        self.pb.suspend(|| {
+            println!("\x1b[1;92m{:>12}\x1b[0m {}", status, msg);
+        });
     }
 }

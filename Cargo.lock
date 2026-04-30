@@ -271,6 +271,7 @@ name = "crow-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "indicatif",
  "regex",
 ]
 
