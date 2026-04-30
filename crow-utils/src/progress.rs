@@ -38,7 +38,7 @@ impl ProgressBar {
 
     pub fn finish(&self) {
         let _lock = self.io_lock.lock().unwrap();
-        print!("\r\x1b[2K");
+        print!("\r\x1b[2K\n");
         let _ = io::stdout().flush();
     }
 
@@ -68,8 +68,9 @@ impl ProgressBar {
         }
 
         print!(
-            "\r\x1b[1;96m{:>12}\x1b[0m [{}] {}/{}: {}",
-            "Building", bar_content, current, self.total, label
+            "\r\x1b[2K\x1b[1;96m{:>12}\x1b[0m [{}] {}/{}: {}{}",
+            "Building", bar_content, current, self.total, label,
+            " ".repeat(10)
         );
         let _ = io::stdout().flush();
     }

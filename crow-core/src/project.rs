@@ -116,14 +116,7 @@ impl<'a> BuildSession<'a> {
             if let Some(pb) = &self.progress {
                 pb.set_label(&label);
             }
-            if is_dependency {
-                status!(
-                    "Compiling",
-                    "{} v{}",
-                    project.package.name,
-                    project.package.version
-                );
-            } else {
+            // For dependencies, the progress bar shows the status; for root, show Compiling
                 status!(
                     "Compiling",
                     "{} v{} ({})",
@@ -131,7 +124,6 @@ impl<'a> BuildSession<'a> {
                     project.package.version,
                     project.root.display()
                 );
-            }
             project.compile_and_link(&lock_hash)?;
         }
 
@@ -157,6 +149,10 @@ impl<'a> BuildSession<'a> {
                 ""
             };
             
+            // Clear the progress bar line before printing Finished
+            if let Some(pb) = &self.progress {
+                pb.finish();
+            }
             status!(
                 "Finished",
                 "{} `{}` profile [{}{}] target(s) in {:.2}s",
@@ -166,11 +162,6 @@ impl<'a> BuildSession<'a> {
                 debug_info,
                 duration.as_secs_f32()
             );
-
-            // Finish the progress bar for the root build
-            if let Some(pb) = &self.progress {
-                pb.finish();
-            }
         }
 
         Ok(project)
