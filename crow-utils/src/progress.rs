@@ -38,7 +38,7 @@ impl ProgressBar {
 
     pub fn finish(&self) {
         let _lock = self.io_lock.lock().unwrap();
-        print!("\r\x1b[2K\n");
+        print!("\r\x1b[2K");
         let _ = io::stdout().flush();
     }
 
