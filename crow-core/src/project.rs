@@ -26,10 +26,10 @@ pub struct Project {
 struct BuildSession<'a> {
     profile_name: &'a str,
     jobs: Option<usize>,
-    built_roots: HashSet<PathBuf>,
     progress: Option<ProgressBar>,
     built_count: usize,
     total_count: usize,
+    total_duration: std::time::Duration,
 }
 
 impl<'a> BuildSession<'a> {
@@ -37,134 +37,173 @@ impl<'a> BuildSession<'a> {
         Self {
             profile_name,
             jobs,
-            built_roots: HashSet::new(),
             progress: None,
             built_count: 0,
             total_count: 0,
+            total_duration: std::time::Duration::from_secs(0),
         }
     }
 
-    fn build_root(
-        &mut self,
+    pub fn build_root(
+        mut self,
         config: CrowConfig,
         manifest_dir: PathBuf,
         resolved: ResolvedDependencyBuild,
     ) -> Result<Project> {
-        // Total packages = root + all dependencies
-        self.total_count = 1 + resolved.packages.len();
-        self.progress = Some(ProgressBar::new(self.total_count, ""));
-        self.built_count = 0;
-        self.build_project(config, manifest_dir, resolved, false)
-    }
+        let mut buildable = Vec::new();
+        let mut visited = HashSet::new();
+        self.collect_buildable(
+            &config,
+            &manifest_dir,
+            &resolved,
+            &mut buildable,
+            &mut visited,
+        )?;
 
-    fn build_project(
-        &mut self,
-        config: CrowConfig,
-        manifest_dir: PathBuf,
-        resolved: ResolvedDependencyBuild,
-        is_dependency: bool,
-    ) -> Result<Project> {
-        let canonical_root = Project::canonicalize_path(&manifest_dir)?;
-        let mut merged_config = config.clone();
-        Project::apply_dependency_standard(&mut merged_config, &resolved);
-        Project::merge_dependency_inputs(&mut merged_config, &resolved);
-        let merged_project = Project::new(merged_config, manifest_dir.clone(), self.profile_name)?;
-
-        if self.built_roots.contains(&canonical_root) {
-            return Ok(merged_project);
+        self.total_count = buildable.len();
+        
+        if self.total_count > 0 {
+            let first_label = buildable[0].1.clone();
+            self.progress = Some(ProgressBar::new(self.total_count, first_label));
         }
 
-        for dependency in &resolved.packages {
+        let mut root_project = None;
+        for (project, _) in buildable {
+            let is_root = project.root == manifest_dir;
+            let start = Instant::now();
+            self.compile_project(&project)?;
+            let duration = start.elapsed();
+            self.total_duration += duration;
+            
+            self.built_count += 1;
+            if let Some(pb) = &self.progress {
+                pb.inc();
+            }
+            if is_root {
+                root_project = Some(project);
+            }
+        }
+
+        let root_project = match root_project {
+            Some(p) => p,
+            None => Project::new(config, manifest_dir, self.profile_name)?,
+        };
+
+        let opt_level = if root_project.profile.opt_level() != "0" {
+            "optimized"
+        } else {
+            "unoptimized"
+        };
+        let debug_info = if root_project.profile.debug() {
+            " + debuginfo"
+        } else {
+            ""
+        };
+        
+        if let Some(pb) = &self.progress {
+            pb.finish();
+            println!(
+                "\x1b[1;92m{:>12}\x1b[0m {} `{}` profile [{}{}] target(s) in {:.2}s",
+                "Finished",
+                root_project.package.name,
+                self.profile_name,
+                opt_level,
+                debug_info,
+                self.total_duration.as_secs_f32()
+            );
+        } else {
+            status!(
+                "Finished",
+                "{} `{}` profile [{}{}] target(s)",
+                root_project.package.name,
+                self.profile_name,
+                opt_level,
+                debug_info
+            );
+        }
+
+        Ok(root_project)
+    }
+
+    fn collect_buildable(
+        &mut self,
+        config: &CrowConfig,
+        manifest_dir: &Path,
+        resolved: &ResolvedDependencyBuild,
+        out: &mut Vec<(Project, String)>,
+        visited: &mut HashSet<PathBuf>,
+    ) -> Result<()> {
+        let canonical = Project::canonicalize_path(manifest_dir)?;
+        if visited.contains(&canonical) {
+            return Ok(());
+        }
+        visited.insert(canonical);
+
+        for dep in &resolved.packages {
             if matches!(
-                dependency.config.package.as_ref().map(|p| &p.r#type),
+                dep.config.package.as_ref().map(|p| &p.r#type),
                 Some(ProjectType::HeaderOnly)
             ) {
                 continue;
             }
-
             let dep_resolved = Project::resolve_dependencies(
-                &dependency.config,
-                &dependency.root,
+                &dep.config,
+                &dep.root,
                 self.profile_name,
             )?;
-            let _ = self.build_project(
-                dependency.config.clone(),
-                dependency.root.clone(),
-                dep_resolved,
-                true,
-            )?;
+            self.collect_buildable(&dep.config, &dep.root, &dep_resolved, out, visited)?;
         }
 
-        let mut config = config;
-        Project::apply_dependency_standard(&mut config, &resolved);
-        let lockfile = Project::build_lockfile(&config, &resolved)?;
         let lockfile_path = manifest_dir.join("crow.lock");
-        lockfile.save(&lockfile_path)?;
+        if !lockfile_path.exists() {
+            let lockfile = Project::build_lockfile(config, resolved)?;
+            lockfile.save(&lockfile_path)?;
+        }
 
-        Project::merge_dependency_inputs(&mut config, &resolved);
-        let project = Project::new(config, manifest_dir, self.profile_name)?;
+        let mut config_clone = config.clone();
+        Project::apply_dependency_standard(&mut config_clone, resolved);
+        Project::merge_dependency_inputs(&mut config_clone, resolved);
+        
+        let project = Project::new(config_clone, manifest_dir.to_path_buf(), self.profile_name)?;
         project.configure_parallelism(self.jobs);
 
-        self.built_roots.insert(canonical_root);
         let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
 
-        let should_build = project.should_build(&lock_hash)?;
-        let start = Instant::now();
-
-        if should_build {
+        if project.should_build(&lock_hash)? {
             let label = format!("{} v{}", project.package.name, project.package.version);
-            if let Some(pb) = &self.progress {
-                pb.set_label(&label);
-            }
-            // For dependencies, the progress bar shows the status; for root, show Compiling
-                status!(
-                    "Compiling",
+            out.push((project, label));
+        }
+
+        Ok(())
+    }
+
+    fn compile_project(&self, project: &Project) -> Result<()> {
+        let lockfile_path = project.root.join("crow.lock");
+        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+
+        if let Some(pb) = &self.progress {
+            pb.set_label(&format!("{} v{}", project.package.name, project.package.version));
+            pb.status(
+                "Compiling",
+                &format!(
                     "{} v{} ({})",
                     project.package.name,
                     project.package.version,
                     project.root.display()
-                );
-            project.compile_and_link(&lock_hash)?;
-        }
-
-        // Increment progress bar whether it was built or already up-to-date
-        self.built_count += 1;
-        if let Some(pb) = &self.progress {
-            pb.inc();
-        }
-
-        if !is_dependency {
-            let duration = start.elapsed();
-            let opt_level = if project.profile.opt_level() != "0" {
-                "optimized"
-            } else {
-                "unoptimized"
-            };
-            
-            let debug_info = if project.profile.debug() && project.profile.opt_level() == "0" {
-                " + debuginfo"
-            } else if project.profile.debug() {
-                " + debuginfo"
-            } else {
-                ""
-            };
-            
-            // Clear the progress bar line before printing Finished
-            if let Some(pb) = &self.progress {
-                pb.finish();
-            }
+                ),
+            );
+        } else {
             status!(
-                "Finished",
-                "{} `{}` profile [{}{}] target(s) in {:.2}s",
+                "Compiling",
+                "{} v{} ({})",
                 project.package.name,
-                self.profile_name,
-                opt_level,
-                debug_info,
-                duration.as_secs_f32()
+                project.package.version,
+                project.root.display()
             );
         }
 
-        Ok(project)
+        project.compile_and_link(&lock_hash)?;
+        Ok(())
     }
 }
 
@@ -172,7 +211,7 @@ impl Project {
     pub fn build(path: impl AsRef<Path>, profile_name: &str, jobs: Option<usize>) -> Result<Self> {
         let (config, manifest_dir) = CrowConfig::find_in_tree(path.as_ref())?;
         let resolved = Self::resolve_dependencies(&config, &manifest_dir, profile_name)?;
-        let mut session = BuildSession::new(profile_name, jobs);
+        let session = BuildSession::new(profile_name, jobs);
         session.build_root(config, manifest_dir, resolved)
     }
 
