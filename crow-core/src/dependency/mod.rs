@@ -314,11 +314,9 @@ impl DependencyResolver {
         };
         let dep_dir = self.cache_root.join(format!("{}-{:016x}", dep_name, hash));
 
-        // Флаг для однократного вывода сообщения
         let resolving_printed = Arc::new(AtomicBool::new(false));
 
         if dep_dir.join(".git").exists() {
-            // Update existing repository
             let repo = Repository::open(&dep_dir).with_context(|| {
                 format!("failed to open git repository at {}", dep_dir.display())
             })?;

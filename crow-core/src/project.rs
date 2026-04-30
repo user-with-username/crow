@@ -6,7 +6,7 @@ use crate::dependency::{DependencyResolver, ResolvedDependencyBuild, ResolvedPac
 use crate::lockfile::{CrowLockfile, LockedPackage};
 use anyhow::{Context, Result};
 use crow_utils::enviroment::Enviroment;
-use crow_utils::{normalize_path, status};
+use crow_utils::{normalize_path, status, ProgressBar};
 use rayon;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -27,6 +27,9 @@ struct BuildSession<'a> {
     profile_name: &'a str,
     jobs: Option<usize>,
     built_roots: HashSet<PathBuf>,
+    progress: Option<ProgressBar>,
+    built_count: usize,
+    total_count: usize,
 }
 
 impl<'a> BuildSession<'a> {
@@ -35,6 +38,9 @@ impl<'a> BuildSession<'a> {
             profile_name,
             jobs,
             built_roots: HashSet::new(),
+            progress: None,
+            built_count: 0,
+            total_count: 0,
         }
     }
 
@@ -44,6 +50,10 @@ impl<'a> BuildSession<'a> {
         manifest_dir: PathBuf,
         resolved: ResolvedDependencyBuild,
     ) -> Result<Project> {
+        // Total packages = root + all dependencies
+        self.total_count = 1 + resolved.packages.len();
+        self.progress = Some(ProgressBar::new(self.total_count, ""));
+        self.built_count = 0;
         self.build_project(config, manifest_dir, resolved, false)
     }
 
@@ -100,8 +110,12 @@ impl<'a> BuildSession<'a> {
 
         let should_build = project.should_build(&lock_hash)?;
         let start = Instant::now();
-        
+
         if should_build {
+            let label = format!("{} v{}", project.package.name, project.package.version);
+            if let Some(pb) = &self.progress {
+                pb.set_label(&label);
+            }
             if is_dependency {
                 status!(
                     "Compiling",
@@ -120,7 +134,13 @@ impl<'a> BuildSession<'a> {
             }
             project.compile_and_link(&lock_hash)?;
         }
-        
+
+        // Increment progress bar whether it was built or already up-to-date
+        self.built_count += 1;
+        if let Some(pb) = &self.progress {
+            pb.inc();
+        }
+
         if !is_dependency {
             let duration = start.elapsed();
             let opt_level = if project.profile.opt_level() != "0" {
@@ -146,6 +166,11 @@ impl<'a> BuildSession<'a> {
                 debug_info,
                 duration.as_secs_f32()
             );
+
+            // Finish the progress bar for the root build
+            if let Some(pb) = &self.progress {
+                pb.finish();
+            }
         }
 
         Ok(project)
