@@ -4,13 +4,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectState {
+pub struct BuildState {
     pub build_hash: String,
     pub lock_hash: String,
     pub output: Option<PathBuf>,
 }
 
-impl ProjectState {
+impl BuildState {
     pub fn load_or_default(path: &Path) -> Self {
         Self::load(path).unwrap_or_default()
     }
@@ -28,7 +28,7 @@ impl ProjectState {
         Ok(())
     }
 
-    pub fn should_build(
+    pub fn requires_rebuild(
         &self,
         build_hash: &str,
         lock_hash: &str,

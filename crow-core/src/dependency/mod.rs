@@ -1,5 +1,6 @@
 use crate::config::parse_standard;
 use crate::config::{CrowConfig, Dependencies, ProjectType};
+use crate::lockfile::{CrowLockfile, LockedPackage};
 use anyhow::{anyhow, bail, Context, Result};
 use crow_utils::normalize_path;
 use git2::{FetchOptions, RemoteCallbacks, Repository};
@@ -445,4 +446,96 @@ impl DependencyResolver {
             || project_type.is_shared()
             || matches!(project_type, ProjectType::Lib(_))
     }
+}
+
+/// Merges dependency include directories and libs into the config's build section
+pub(crate) fn merge_dependency_inputs(config: &mut CrowConfig, resolved: &ResolvedDependencyBuild) {
+    let mut include_seen: HashSet<_> = config.build.include_dirs.iter().cloned().collect();
+    for include_dir in &resolved.include_dirs {
+        if include_seen.insert(include_dir.clone()) {
+            config.build.include_dirs.push(include_dir.clone());
+        }
+    }
+
+    let mut libs_seen: HashSet<_> = config.build.libs.iter().cloned().collect();
+    for lib in &resolved.libs {
+        if libs_seen.insert(lib.clone()) {
+            config.build.libs.push(lib.clone());
+        }
+    }
+}
+
+/// Applies the maximum C++ standard from dependencies to the config's package
+pub(crate) fn apply_dependency_standard(config: &mut CrowConfig, resolved: &ResolvedDependencyBuild) {
+    if let Some(max_standard) = &resolved.max_standard {
+        if let Some(package) = config.package.as_mut() {
+            package.standard = Some(max_standard.clone());
+        }
+    }
+}
+
+/// Formats the dependency list for lockfile entry
+pub(crate) fn format_lock_dependencies(
+    dependencies: &Dependencies,
+    by_name: &HashMap<String, &ResolvedPackage>,
+) -> Vec<String> {
+    dependencies
+        .iter()
+        .map(|(dep_name, _)| {
+            if let Some(dep) = by_name.get(dep_name) {
+                let mut entry = format!(
+                    "{} {}",
+                    dep.name,
+                    dep.config.package.as_ref().map(|pkg| pkg.version.as_str()).unwrap_or("0.0.0")
+                );
+                if let Some(source) = &dep.source {
+                    entry.push_str(&format!(" ({source})"));
+                }
+                entry
+            } else {
+                dep_name.clone()
+            }
+        })
+        .collect()
+}
+
+/// Builds the lockfile from the resolved dependencies
+pub(crate) fn build_lockfile(
+    config: &CrowConfig,
+    resolved: &ResolvedDependencyBuild,
+) -> Result<CrowLockfile> {
+    let mut packages = Vec::new();
+    let mut by_name: HashMap<String, &ResolvedPackage> = HashMap::new();
+
+    for package in &resolved.packages {
+        by_name.entry(package.name.clone()).or_insert(package);
+    }
+
+    if let Some(root_package) = config.package.as_ref() {
+        packages.push(LockedPackage {
+            name: root_package.name.clone(),
+            version: root_package.version.clone(),
+            source: None,
+            checksum: None,
+            dependencies: format_lock_dependencies(&config.dependencies, &by_name),
+        });
+    }
+
+    for dependency in &resolved.packages {
+        let package = dependency
+            .config
+            .package
+            .as_ref()
+            .context("dependency manifest must have [package]")?;
+
+        packages.push(LockedPackage {
+            name: package.name.clone(),
+            version: package.version.clone(),
+            source: dependency.source.clone(),
+            checksum: dependency.checksum.clone(),
+            dependencies: format_lock_dependencies(&dependency.config.dependencies, &by_name),
+        });
+    }
+
+    Ok(CrowLockfile::new(packages))
 }

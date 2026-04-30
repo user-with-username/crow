@@ -1,0 +1,98 @@
+
+use crate::builder::{CompilationBuilder, LinkingBuilder};
+use crate::project::Project;
+use anyhow::Result;
+use std::path::PathBuf;
+
+impl Project {
+    pub fn compiler_kind(&self) -> crate::builder::kinds::compiler_kind::CompilerKind {
+        self.toolchain.compiler_kind()
+    }
+
+    pub fn linker_kind(&self) -> crate::builder::kinds::linker_kind::LinkerKind {
+        self.toolchain.linker_kind()
+    }
+
+    pub fn compiler_path(&self) -> &str {
+        self.toolchain.compiler_path()
+    }
+
+    pub fn linker_path(&self) -> &str {
+        if let Some(path) = self.config.build.linker.path() {
+            return path;
+        }
+        if self.compiler_kind().is_msvc() {
+            self.toolchain.linker_path()
+        } else {
+            self.toolchain.compiler_path()
+        }
+    }
+
+    pub fn archiver_path(&self) -> &str {
+        self.toolchain.archiver_path()
+    }
+
+    pub fn archiver_kind(&self) -> crate::builder::kinds::archiver_kind::ArchiverKind {
+        self.toolchain.archiver_kind()
+    }
+
+    pub fn system_include_dirs(&self) -> Vec<PathBuf> {
+        self.toolchain.system_include_dirs()
+    }
+
+     pub fn configure_parallelism(&self, jobs: Option<usize>) {
+        if self.config.build.parallelism {
+            if let Some(jobs) = jobs {
+                let _ = rayon::ThreadPoolBuilder::new()
+                    .num_threads(jobs)
+                    .build_global();
+            }
+        }
+    }
+
+    pub fn compile_and_link(&self, lock_hash: &str) -> Result<()> {
+        let compiler_exe = self
+            .config
+            .build
+            .compiler
+            .path()
+            .map(|p| p.as_str())
+            .unwrap_or_else(|| self.compiler_path());
+
+        let archiver_exe = self
+            .config
+            .build
+            .archiver
+            .path()
+            .map(|p| p.as_str())
+            .unwrap_or_else(|| self.archiver_path());
+
+        let linker_exe = self
+            .config
+            .build
+            .linker
+            .path()
+            .map(|p| p.as_str())
+            .unwrap_or_else(|| self.linker_path());
+
+        self.compile_and_link_with_tools(compiler_exe, linker_exe, archiver_exe, lock_hash)
+    }
+
+    fn compile_and_link_with_tools(
+        &self,
+        compiler_exe: &str,
+        linker_exe: &str,
+        archiver_exe: &str,
+        lock_hash: &str,
+    ) -> Result<()> {
+        self.create_dirs()?;
+
+        let objects = CompilationBuilder::new(compiler_exe, self).compile()?;
+
+        LinkingBuilder::new(linker_exe, archiver_exe, self, &objects).link()?;
+
+        self.save_project_state(lock_hash)?;
+
+        Ok(())
+    }
+}
