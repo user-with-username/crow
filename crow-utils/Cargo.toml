@@ -7,3 +7,4 @@ edition = "2021"
 anyhow = { workspace = true }
 regex = { workspace = true }
 indicatif = "0.18"
+which = "8.0.0"

@@ -31,6 +31,7 @@ impl CompilerFlags {
             self.no_logo();
             self.exception_handling();
             self.all_warnings();
+            self.add_feature_flag("utf-8");
         }
         self
     }
@@ -434,7 +435,7 @@ impl CompilerFlags {
                     vec![format!("/{}", f)]
                 }
             }
-            Flag::FeatureFlag(_) => vec![],
+            Flag::FeatureFlag(f) => vec![format!("/{}", f)],
 
             Flag::ProgramDatabase(pdb_path) => vec![format!("/Fd{}", normalize_path(pdb_path))],
             Flag::LinkProgramDatabase(_) => vec![],

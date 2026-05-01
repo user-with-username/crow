@@ -18,6 +18,13 @@ pub fn merge_dependency_inputs(config: &mut CrowConfig, resolved: &ResolvedDepen
             config.build.libs.push(lib.clone());
         }
     }
+
+    let mut lib_paths_seen: HashSet<_> = config.build.lib_dirs.iter().cloned().collect();
+    for lib_path in &resolved.lib_paths {
+        if lib_paths_seen.insert(lib_path.clone()) {
+            config.build.lib_dirs.push(lib_path.clone());
+        }
+    }
 }
 
 pub fn apply_dependency_standard(config: &mut CrowConfig, resolved: &ResolvedDependencyBuild) {

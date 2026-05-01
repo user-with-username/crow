@@ -46,6 +46,8 @@ impl GitDependencyFetcher {
         let repo = Repository::open(dep_dir).with_context(|| {
             format!("failed to open git repository at {}", dep_dir.display())
         })?;
+        
+        self.disable_ssl_verify(&repo)?;
 
         let mut remote = repo
             .find_remote("origin")
