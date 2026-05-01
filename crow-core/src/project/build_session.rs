@@ -1,4 +1,3 @@
-
 use crate::builder::incremental::hash_files;
 use crate::config::CrowConfig;
 use crate::dependency::ResolvedDependencyBuild;
@@ -57,7 +56,7 @@ impl<'a> BuildSession<'a> {
         for (project, _) in buildable {
             let is_root = project.root == manifest_dir;
             let start = Instant::now();
-            self.compile_project(&project)?;
+            self.compile_project(&project, !is_root)?;
             let duration = start.elapsed();
             self.total_duration += duration;
 
@@ -142,7 +141,7 @@ impl<'a> BuildSession<'a> {
 
         let lockfile_path = manifest_dir.join("crow.lock");
         if !lockfile_path.exists() {
-            let lockfile = Project::build_lockfile(config, resolved)?;
+            let lockfile = crate::dependency::LockfileBuilder::build(config, resolved)?;
             lockfile.save(&lockfile_path)?;
         }
 
@@ -163,29 +162,46 @@ impl<'a> BuildSession<'a> {
         Ok(())
     }
 
-    fn compile_project(&self, project: &Project) -> Result<()> {
+    fn compile_project(&self, project: &Project, is_dependency: bool) -> Result<()> {
         let lockfile_path = project.root.join("crow.lock");
         let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
 
         if let Some(pb) = &self.progress {
             pb.set_label(&format!("{} v{}", project.package.name, project.package.version));
-            pb.status(
-                "Compiling",
-                &format!(
+            
+            let display_path = if is_dependency {
+                format!(
+                    "{} v{}",
+                    project.package.name,
+                    project.package.version
+                )
+            } else {
+                format!(
                     "{} v{} ({})",
                     project.package.name,
                     project.package.version,
                     project.root.display()
-                ),
-            );
+                )
+            };
+            
+            pb.status("Compiling", &display_path);
         } else {
-            status!(
-                "Compiling",
-                "{} v{} ({})",
-                project.package.name,
-                project.package.version,
-                project.root.display()
-            );
+            let display_path = if is_dependency {
+                format!(
+                    "{} v{}",
+                    project.package.name,
+                    project.package.version
+                )
+            } else {
+                format!(
+                    "{} v{} ({})",
+                    project.package.name,
+                    project.package.version,
+                    project.root.display()
+                )
+            };
+            
+            status!("Compiling", "{}", display_path);
         }
 
         project.compile_and_link(&lock_hash)?;

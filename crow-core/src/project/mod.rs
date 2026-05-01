@@ -7,7 +7,6 @@ mod state;
 use crate::builder::toolchain::{self, Toolchain};
 use crate::config::{CrowConfig, Package};
 use crate::dependency::{DependencyResolver, ResolvedDependencyBuild};
-use crate::lockfile::{CrowLockfile};
 use crate::project::build_session::BuildSession;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -78,13 +77,6 @@ impl Project {
         let resolver =
             DependencyResolver::new(manifest_dir.join(&target_dir).join("dependency-cache"));
         resolver.resolve_for(config, manifest_dir, profile_name, &target_dir)
-    }
-
-    fn build_lockfile(
-        config: &CrowConfig,
-        resolved: &ResolvedDependencyBuild,
-    ) -> Result<CrowLockfile> {
-        crate::dependency::build_lockfile(config, resolved)
     }
 
     fn merge_dependency_inputs(config: &mut CrowConfig, resolved: &ResolvedDependencyBuild) {
