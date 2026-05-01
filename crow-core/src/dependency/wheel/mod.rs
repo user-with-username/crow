@@ -49,12 +49,10 @@ impl WheelType {
         if cmake_wheel.detects(root) {
             return Some(WheelType::Cmake(cmake_wheel));
         }
-
         let meson_wheel = meson::MesonWheel::new(root);
         if meson_wheel.detects(root) {
             return Some(WheelType::Meson(meson_wheel));
         }
-
         let bazel_wheel = bazel::BazelWheel::new(root);
         if bazel_wheel.detects(root) {
             return Some(WheelType::Bazel(bazel_wheel));

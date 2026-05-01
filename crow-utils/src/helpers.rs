@@ -79,7 +79,6 @@ pub fn find_executable(bin_name: &str) -> Result<PathBuf> {
             }
         }
     }
-
     #[cfg(target_os = "macos")]
     {
         let possible_paths = vec![
@@ -94,7 +93,6 @@ pub fn find_executable(bin_name: &str) -> Result<PathBuf> {
             }
         }
     }
-
     #[cfg(target_os = "linux")]
     {
         let possible_paths = vec![

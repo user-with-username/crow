@@ -1,0 +1,6 @@
+#include <fmt/core.h>
+
+int main() {
+    fmt::print("Hello, {}! The answer is {}.\n", "world", 42);
+    return 0;
+}

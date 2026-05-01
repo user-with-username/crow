@@ -268,6 +268,41 @@ impl DependencyResolver {
             }
         }
 
+        let mut wheel_artifacts: HashMap<PathBuf, WheelArtifacts> = HashMap::new();
+        let wheel_build_dir = self.cache_root.join("wheel_builds");
+
+        let mut compiler_flags = root_config.build.compiler.flags().to_vec();
+
+        if let Some(pkg) = &root_config.package {
+            if let Some(std) = &pkg.standard {
+                if cfg!(target_os = "windows") {
+                    compiler_flags.push(format!("/std:c++{}", std));
+                } else {
+                    compiler_flags.push(format!("-std=c++{}", std));
+                }
+            }
+        }
+
+        for idx in &build_order {
+            if *idx == root_idx {
+                continue;
+            }
+
+            let payload = graph.get_node(*idx).context("failed to get node")?;
+            if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
+                if let Some(wheel) = create_wheel(&payload.root) {
+                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags) {
+                        Ok(artifacts) => {
+                            wheel_artifacts.insert(payload.root.clone(), artifacts);
+                        }
+                        Err(e) => {
+                            bail!("failed to build wheel for {}: {}", payload.root.display(), e);
+                        }
+                    }
+                }
+            }
+        }
+
         let mut resolved = ResolvedDependencyBuild::default();
         let mut seen_include = std::collections::HashSet::new();
         let mut seen_libs = std::collections::HashSet::new();
