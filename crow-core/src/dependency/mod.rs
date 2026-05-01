@@ -2,15 +2,18 @@ mod graph;
 mod git;
 mod merge;
 mod lockfile;
+mod wheel;
 
 pub use graph::DependencyGraph;
 pub use git::GitDependencyFetcher;
 pub use merge::{merge_dependency_inputs, apply_dependency_standard, format_lock_dependencies};
-pub use lockfile::{LockfileBuilder};
+pub use lockfile::LockfileBuilder;
+pub use wheel::{WheelType, WheelArtifacts, create_wheel};
 
-use crate::config::CrowConfig;
+use crate::config::{CrowConfig, LibraryConfig, BuildConfig, Profiles};
 use anyhow::{bail, Context, Result};
 use crow_utils::normalize_path;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -20,6 +23,7 @@ pub struct ResolvedPackage {
     pub config: CrowConfig,
     pub source: Option<String>,
     pub checksum: Option<String>,
+    pub is_wheel: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -27,6 +31,7 @@ pub struct ResolvedDependencyBuild {
     pub packages: Vec<ResolvedPackage>,
     pub include_dirs: Vec<PathBuf>,
     pub libs: Vec<String>,
+    pub lib_paths: Vec<PathBuf>,
     pub max_standard: Option<String>,
 }
 
@@ -74,6 +79,7 @@ impl DependencyResolver {
             root_config.clone(),
             None,
             None,
+            false,
         )?;
 
         self.visit_dependencies(
@@ -85,9 +91,45 @@ impl DependencyResolver {
 
         let build_order = graph.resolve_order()?;
 
+        let mut wheel_artifacts: HashMap<PathBuf, WheelArtifacts> = HashMap::new();
+        let wheel_build_dir = self.cache_root.join("wheel_builds");
+
+        let mut compiler_flags = root_config.build.compiler.flags().to_vec();
+
+        if let Some(pkg) = &root_config.package {
+            if let Some(std) = &pkg.standard {
+                if cfg!(target_os = "windows") {
+                    compiler_flags.push(format!("/std:c++{}", std));
+                } else {
+                    compiler_flags.push(format!("-std=c++{}", std));
+                }
+            }
+        }
+
+        for idx in &build_order {
+            if *idx == root_idx {
+                continue;
+            }
+
+            let payload = graph.get_node(*idx).context("failed to get node")?;
+            if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
+                if let Some(wheel) = create_wheel(&payload.root) {
+                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags) {
+                        Ok(artifacts) => {
+                            wheel_artifacts.insert(payload.root.clone(), artifacts);
+                        }
+                        Err(e) => {
+                            bail!("failed to build wheel for {}: {}", payload.root.display(), e);
+                        }
+                    }
+                }
+            }
+        }
+
         let mut resolved = ResolvedDependencyBuild::default();
         let mut seen_include = std::collections::HashSet::new();
         let mut seen_libs = std::collections::HashSet::new();
+        let mut seen_lib_paths = std::collections::HashSet::new();
         let mut max_standard = crate::config::parse_standard(
             root_config
                 .package
@@ -101,6 +143,48 @@ impl DependencyResolver {
             }
 
             let payload = graph.get_node(idx).context("failed to get node")?;
+            let package_name = payload
+                .config
+                .package
+                .as_ref()
+                .map(|pkg| pkg.name.clone())
+                .unwrap_or_else(|| {
+                    payload.root
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
+                });
+
+            if payload.is_wheel {
+                if let Some(artifacts) = wheel_artifacts.get(&payload.root) {
+                    for include_dir in &artifacts.include_dirs {
+                        if seen_include.insert(include_dir.clone()) {
+                            resolved.include_dirs.push(include_dir.clone());
+                        }
+                    }
+                    for lib_path in &artifacts.lib_paths {
+                        if seen_lib_paths.insert(lib_path.clone()) {
+                            resolved.lib_paths.push(lib_path.clone());
+                        }
+                    }
+                    for lib_name in &artifacts.lib_names {
+                        if seen_libs.insert(lib_name.clone()) {
+                            resolved.libs.push(lib_name.clone());
+                        }
+                    }
+                    resolved.packages.push(ResolvedPackage {
+                        name: package_name,
+                        root: payload.root.clone(),
+                        config: payload.config.clone(),
+                        source: payload.source.clone(),
+                        checksum: payload.checksum.clone(),
+                        is_wheel: true,
+                    });
+                }
+                continue;
+            }
+
             let package = payload
                 .config
                 .package
@@ -121,6 +205,7 @@ impl DependencyResolver {
                 config: payload.config.clone(),
                 source: payload.source.clone(),
                 checksum: payload.checksum.clone(),
+                is_wheel: false,
             });
 
             max_standard = max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
@@ -160,6 +245,7 @@ impl DependencyResolver {
                 resolved_dep.config.clone(),
                 resolved_dep.source.clone(),
                 resolved_dep.checksum.clone(),
+                resolved_dep.is_wheel,
             )?;
 
             graph.add_edge(owner_idx, dep_idx)?;
@@ -216,10 +302,39 @@ impl DependencyResolver {
             ),
         };
 
-        let (dep_config, _) = CrowConfig::load_from(&dep_root, true)
-            .with_context(|| format!("failed to load config for dependency `{dep_name}` at {}", dep_root.display()))?;
+        let load_result = CrowConfig::load_from(&dep_root, true);
+        let (dep_config, is_wheel) = match load_result {
+            Ok((config, _)) => (config, false),
+            Err(_) => {
+                if create_wheel(&dep_root).is_some() {
+                    let dummy_config = CrowConfig {
+                        package: Some(crate::config::Package {
+                            name: dep_name.to_string(),
+                            version: "0.0.0".to_string(),
+                            r#type: crate::config::ProjectType::StaticLib(LibraryConfig::default()),
+                            standard: None,
+                            authors: None,
+                            description: None,
+                            license: None,
+                            repository: None,
+                        }),
+                        workspace: None,
+                        build: BuildConfig::default(),
+                        dependencies: crate::config::Dependencies::default(),
+                        profile: Profiles::default(),
+                    };
+                    (dummy_config, true)
+                } else {
+                    anyhow::bail!(
+                        "failed to load config for dependency `{dep_name}` at {} and no known build system found (CMakeLists.txt, meson.build, WORKSPACE)",
+                        dep_root.display()
+                    )
+                }
+            }
+        };
 
-        let canonical_root = dep_root.canonicalize()
+        let canonical_root = dep_root
+            .canonicalize()
             .with_context(|| format!("failed to resolve dependency root {}", dep_root.display()))?;
         let canonical_root = PathBuf::from(normalize_path(&canonical_root.display().to_string()));
 
@@ -235,6 +350,7 @@ impl DependencyResolver {
             config: dep_config,
             source: source_repr,
             checksum,
+            is_wheel,
         })
     }
 

@@ -1,4 +1,4 @@
 [package]
 name = "formatter"
-standard = "20"
+standard = "17"
 version = "1.0.0"

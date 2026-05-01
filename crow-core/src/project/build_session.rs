@@ -125,6 +125,9 @@ impl<'a> BuildSession<'a> {
         visited.insert(canonical);
 
         for dep in &resolved.packages {
+            if dep.is_wheel {
+                continue;
+            }
             if matches!(
                 dep.config.package.as_ref().map(|p| &p.r#type),
                 Some(crate::config::ProjectType::HeaderOnly)

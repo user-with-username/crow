@@ -11,6 +11,7 @@ pub struct NodePayload {
     pub config: CrowConfig,
     pub source: Option<String>,
     pub checksum: Option<String>,
+    pub is_wheel: bool,
 }
 
 #[derive(Debug)]
@@ -35,6 +36,7 @@ impl DependencyGraph {
         config: CrowConfig,
         source: Option<String>,
         checksum: Option<String>,
+        is_wheel: bool,
     ) -> Result<NodeIndex> {
         if let Some(&existing) = self.node_by_root.get(&root) {
             return Ok(existing);
@@ -45,6 +47,7 @@ impl DependencyGraph {
             config,
             source,
             checksum,
+            is_wheel,
         });
         self.node_by_root.insert(root, idx);
         Ok(idx)
