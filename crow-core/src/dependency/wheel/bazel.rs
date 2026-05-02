@@ -15,13 +15,18 @@ impl BazelWheel {
         Self { root: root.to_path_buf() }
     }
 
-    fn get_bazel_args(&self, compiler_flags: &[String], _profile: &str) -> Vec<String> {
+    fn get_bazel_args(&self, compiler_flags: &[String], build_flags: &[String]) -> Vec<String> {
         let mut args = Vec::new();
         
         if !compiler_flags.is_empty() {
             let flags_str = compiler_flags.join(" ");
             args.push(format!("--cxxopt={}", flags_str));
             args.push(format!("--copt={}", flags_str));
+        }
+        
+        // Pass build_flags as --define options to Bazel
+        for flag in build_flags {
+            args.push(format!("--define={}", flag.trim_start_matches("-D").trim_start_matches("-")));
         }
         
         args
@@ -37,7 +42,7 @@ impl Wheel for BazelWheel {
         &self.root
     }
 
-    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String]) -> Result<WheelArtifacts> {
+    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("bazel_wheel");
         fs::create_dir_all(&out_dir)?;
 
@@ -49,14 +54,14 @@ impl Wheel for BazelWheel {
         let bazel_exe = find_executable("bazel")?;
         let mut cmd = Command::new(&bazel_exe);
         cmd.arg("build")
-            .arg("//...")
+            .arg("//")
             .arg(format!("--compilation_mode={}", compilation_mode))
             .arg("--symlink_prefix=")
             .arg(format!("--output_base={}", out_dir.display()))
-            .stdout(Stdio::null())
+            .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
         
-        for arg in self.get_bazel_args(compiler_flags, profile) {
+        for arg in self.get_bazel_args(compiler_flags, build_flags) {
             cmd.arg(arg);
         }
         

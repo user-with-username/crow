@@ -30,6 +30,7 @@ impl DependencySpec {
                 git: Some(url.clone()),
                 path: None,
                 registry: None,
+                build_flags: Vec::new(),
             },
             Self::Detailed(source) => source.clone(),
         }
@@ -44,18 +45,6 @@ pub struct DependencySource {
     pub path: Option<PathBuf>,
     #[serde(default)]
     pub registry: Option<String>,
-}
-
-impl DependencySource {
-    pub fn kind(&self) -> &'static str {
-        if self.git.is_some() {
-            "git"
-        } else if self.path.is_some() {
-            "path"
-        } else if self.registry.is_some() {
-            "registry"
-        } else {
-            "unknown"
-        }
-    }
+    #[serde(default)]
+    pub build_flags: Vec<String>,
 }

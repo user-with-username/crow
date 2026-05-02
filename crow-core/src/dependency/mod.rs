@@ -24,6 +24,7 @@ pub struct ResolvedPackage {
     pub source: Option<String>,
     pub checksum: Option<String>,
     pub is_wheel: bool,
+    pub build_flags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -54,11 +55,12 @@ impl DependencyResolver {
         dep_root: &PathBuf,
         profile_name: &str,
         compiler_flags: &[String],
+        build_flags: &[String],
     ) -> Result<WheelArtifacts> {
         let wheel_build_dir = self.cache_root.join("wheel_builds");
         let wheel = create_wheel(dep_root)
             .with_context(|| format!("no known build system found at {}", dep_root.display()))?;
-        wheel.build(&wheel_build_dir, profile_name, compiler_flags)
+        wheel.build(&wheel_build_dir, profile_name, compiler_flags, build_flags)
     }
 
     pub fn resolve_for(
@@ -92,6 +94,7 @@ impl DependencyResolver {
             None,
             None,
             false,
+            Vec::new(),
         )?;
 
         self.visit_dependencies(
@@ -126,7 +129,9 @@ impl DependencyResolver {
             let payload = graph.get_node(*idx).context("failed to get node")?;
             if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
                 if let Some(wheel) = create_wheel(&payload.root) {
-                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags) {
+                    // compiler_flags: actual compiler settings (-std, -O, etc.)
+                    // build_flags: build system options (-D, --define, etc.)
+                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags, &payload.build_flags) {
                         Ok(artifacts) => {
                             wheel_artifacts.insert(payload.root.clone(), artifacts);
                         }
@@ -192,6 +197,7 @@ impl DependencyResolver {
                         source: payload.source.clone(),
                         checksum: payload.checksum.clone(),
                         is_wheel: true,
+                        build_flags: payload.build_flags.clone(),
                     });
                 }
                 continue;
@@ -218,6 +224,7 @@ impl DependencyResolver {
                 source: payload.source.clone(),
                 checksum: payload.checksum.clone(),
                 is_wheel: false,
+                build_flags: Vec::new(),
             });
 
             max_standard = max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
@@ -258,6 +265,7 @@ impl DependencyResolver {
                 resolved_dep.source.clone(),
                 resolved_dep.checksum.clone(),
                 resolved_dep.is_wheel,
+                resolved_dep.build_flags.clone(),
             )?;
 
             graph.add_edge(owner_idx, dep_idx)?;
@@ -283,6 +291,7 @@ impl DependencyResolver {
         owner_root: &Path,
     ) -> Result<ResolvedPackage> {
         let source = spec.source();
+        let source_build_flags = source.build_flags.clone();
         let (dep_root, source_repr, checksum) = match (source.git, source.path, source.registry) {
             (Some(git_url), None, None) => {
                 let (dep_root, rev) = self.git_fetcher.fetch(dep_name, &git_url)?;
@@ -363,6 +372,7 @@ impl DependencyResolver {
             source: source_repr,
             checksum,
             is_wheel,
+            build_flags: source_build_flags,
         })
     }
 
