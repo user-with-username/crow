@@ -291,7 +291,9 @@ impl DependencyResolver {
             let payload = graph.get_node(*idx).context("failed to get node")?;
             if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
                 if let Some(wheel) = create_wheel(&payload.root) {
-                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags) {
+                    // compiler_flags: actual compiler settings (-std, -O, etc.)
+                    // build_flags: build system options (-D, --define, etc.)
+                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags, &payload.build_flags) {
                         Ok(artifacts) => {
                             wheel_artifacts.insert(payload.root.clone(), artifacts);
                         }
