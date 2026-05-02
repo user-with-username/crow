@@ -12,6 +12,7 @@ pub struct NodePayload {
     pub source: Option<String>,
     pub checksum: Option<String>,
     pub is_wheel: bool,
+    pub build_flags: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -37,6 +38,7 @@ impl DependencyGraph {
         source: Option<String>,
         checksum: Option<String>,
         is_wheel: bool,
+        build_flags: Vec<String>,
     ) -> Result<NodeIndex> {
         if let Some(&existing) = self.node_by_root.get(&root) {
             return Ok(existing);
@@ -48,6 +50,7 @@ impl DependencyGraph {
             source,
             checksum,
             is_wheel,
+            build_flags,
         });
         self.node_by_root.insert(root, idx);
         Ok(idx)

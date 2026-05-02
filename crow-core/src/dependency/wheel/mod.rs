@@ -19,7 +19,9 @@ pub struct WheelArtifacts {
 /// Trait for build system
 pub trait Wheel: Send + Sync {
     /// Run wheel build, return artifacts
-    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String]) -> Result<WheelArtifacts>;
+    /// compiler_flags: flags for the compiler (-std, -O, etc.)
+    /// build_flags: flags for the build system itself (-D for CMake, --define for Bazel, etc.)
+    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts>;
     /// Check if this build system is suitable for the given directory
     fn detects(&self, root: &Path) -> bool;
     /// Return root directory
@@ -55,11 +57,11 @@ impl WheelType {
         None
     }
     
-    pub fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String]) -> Result<WheelArtifacts> {
+    pub fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts> {
         match self {
-            WheelType::Cmake(w) => w.build(build_dir, profile, compiler_flags),
-            WheelType::Meson(w) => w.build(build_dir, profile, compiler_flags),
-            WheelType::Bazel(w) => w.build(build_dir, profile, compiler_flags),
+            WheelType::Cmake(w) => w.build(build_dir, profile, compiler_flags, build_flags),
+            WheelType::Meson(w) => w.build(build_dir, profile, compiler_flags, build_flags),
+            WheelType::Bazel(w) => w.build(build_dir, profile, compiler_flags, build_flags),
         }
     }
     

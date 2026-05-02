@@ -11,7 +11,7 @@ use std::time::Instant;
 
 enum Buildable {
     Project(Project),
-    Wheel { name: String, root: PathBuf },
+    Wheel { name: String, root: PathBuf, build_flags: Vec<String> },
 }
 
 pub struct BuildSession<'a> {
@@ -80,8 +80,8 @@ impl<'a> BuildSession<'a> {
             let start = Instant::now();
 
             match item {
-                Buildable::Wheel { name, root } => {
-                    let artifacts = self.compile_wheel(&resolver, &name, &root, &compiler_flags)?;
+                Buildable::Wheel { name, root, build_flags } => {
+                    let artifacts = self.compile_wheel(&resolver, &name, &root, &compiler_flags, &build_flags)?;
                     wheel_artifacts.insert(root, artifacts);
                 }
                 Buildable::Project(project) => {
@@ -161,6 +161,7 @@ impl<'a> BuildSession<'a> {
                     Buildable::Wheel {
                         name: dep.name.clone(),
                         root: dep.root.clone(),
+                        build_flags: dep.build_flags.clone(),
                     },
                     label,
                 ));
@@ -211,6 +212,7 @@ impl<'a> BuildSession<'a> {
         name: &str,
         root: &PathBuf,
         compiler_flags: &[String],
+        build_flags: &[String],
     ) -> Result<WheelArtifacts> {
         let display = format!("{} (wheel)", name);
 
@@ -221,7 +223,7 @@ impl<'a> BuildSession<'a> {
             status!("Compiling", "{}", display);
         }
 
-        resolver.build_wheel(root, self.profile_name, compiler_flags)
+        resolver.build_wheel(root, self.profile_name, compiler_flags, build_flags)
     }
 
     fn compile_project(&self, project: &Project, is_dependency: bool) -> Result<()> {

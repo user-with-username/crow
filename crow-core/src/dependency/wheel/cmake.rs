@@ -31,7 +31,7 @@ impl Wheel for CmakeWheel {
         &self.root
     }
 
-    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String]) -> Result<WheelArtifacts> {
+    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("cmake_wheel");
         fs::create_dir_all(&out_dir)?;
 
@@ -50,9 +50,6 @@ impl Wheel for CmakeWheel {
             .arg("-DCMAKE_INSTALL_PREFIX=install")
             .arg("-DBUILD_TESTING=OFF")
             .arg("-DBUILD_EXAMPLES=OFF")
-            .arg("-DFMT_TEST=OFF")
-            .arg("-DFMT_DOC=OFF")
-            .arg("-DFMT_INSTALL=ON")
             .arg("-DBUILD_SHARED_LIBS=OFF")
             .arg("-DCMAKE_CXX_EXTENSIONS=OFF")
             .arg("-DBUILD_TESTS=OFF")
@@ -61,10 +58,13 @@ impl Wheel for CmakeWheel {
             .arg("-DBUILD_GMOCK=OFF")
             .arg("-DBUILD_GTEST=OFF")
             .arg("-DINSTALL_GTEST=OFF")
-            .arg("-DBUILD_SHARED_LIBS=OFF")
-            .arg("-DCMAKE_CXX_EXTENSIONS=OFF")
-            .stdout(Stdio::null())
-            .stderr(Stdio::inherit())
+            ;
+        // Pass build_flags as direct CMake options (-D...)
+        for flag in build_flags {
+            cmd.arg(format!("-D{}", flag.trim_start_matches("-D").trim_start_matches("-")));
+        }
+        cmd.stdout(Stdio::null())
+            .stderr(Stdio::null())
             .current_dir(&self.root);
 
         if !cxx_flags.is_empty() {
@@ -89,7 +89,7 @@ impl Wheel for CmakeWheel {
             .arg("--config").arg(build_type)
             .arg("--parallel")
             .stdout(Stdio::null())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::null())
             .current_dir(&self.root)
             .status()
             .context("failed to run cmake build")?;
