@@ -73,8 +73,6 @@ impl GitDependencyFetcher {
             )
             .with_context(|| format!("failed to fetch from {git_url}"))?;
 
-        eprintln!();
-
         let commit = repo
             .revparse_single("origin/HEAD")
             .or_else(|_| repo.revparse_single("origin/master"))
