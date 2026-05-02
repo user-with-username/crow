@@ -49,6 +49,18 @@ impl DependencyResolver {
         }
     }
 
+    pub fn build_wheel(
+        &self,
+        dep_root: &PathBuf,
+        profile_name: &str,
+        compiler_flags: &[String],
+    ) -> Result<WheelArtifacts> {
+        let wheel_build_dir = self.cache_root.join("wheel_builds");
+        let wheel = create_wheel(dep_root)
+            .with_context(|| format!("no known build system found at {}", dep_root.display()))?;
+        wheel.build(&wheel_build_dir, profile_name, compiler_flags)
+    }
+
     pub fn resolve_for(
         &self,
         root_config: &CrowConfig,

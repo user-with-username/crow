@@ -55,7 +55,6 @@ pub fn find_executable(bin_name: &str) -> Result<PathBuf> {
         let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
         let program_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
         
-        // Список общих мест установки для разных программ
         let common_install_dirs = vec![
             program_files,
             program_files_x86,
