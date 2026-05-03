@@ -1,16 +1,16 @@
-mod graph;
 mod git;
-mod merge;
+mod graph;
 mod lockfile;
+mod merge;
 mod wheel;
 
-pub use graph::DependencyGraph;
 pub use git::GitDependencyFetcher;
-pub use merge::{merge_dependency_inputs, apply_dependency_standard, format_lock_dependencies};
+pub use graph::DependencyGraph;
 pub use lockfile::LockfileBuilder;
-pub use wheel::{WheelType, WheelArtifacts, create_wheel};
+pub use merge::{apply_dependency_standard, format_lock_dependencies, merge_dependency_inputs};
+pub use wheel::{create_wheel, WheelArtifacts, WheelType};
 
-use crate::config::{CrowConfig, LibraryConfig, BuildConfig, Profiles};
+use crate::config::{BuildConfig, CrowConfig, LibraryConfig, Profiles};
 use anyhow::{bail, Context, Result};
 use crow_utils::normalize_path;
 use std::collections::HashMap;
@@ -97,12 +97,7 @@ impl DependencyResolver {
             Vec::new(),
         )?;
 
-        self.visit_dependencies(
-            root_idx,
-            &root_config.dependencies,
-            &root_dir,
-            &mut graph,
-        )?;
+        self.visit_dependencies(root_idx, &root_config.dependencies, &root_dir, &mut graph)?;
 
         let build_order = graph.resolve_order()?;
 
@@ -131,12 +126,21 @@ impl DependencyResolver {
                 if let Some(wheel) = create_wheel(&payload.root) {
                     // compiler_flags: actual compiler settings (-std, -O, etc.)
                     // build_flags: build system options (-D, --define, etc.)
-                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags, &payload.build_flags) {
+                    match wheel.build(
+                        &wheel_build_dir,
+                        profile_name,
+                        &compiler_flags,
+                        &payload.build_flags,
+                    ) {
                         Ok(artifacts) => {
                             wheel_artifacts.insert(payload.root.clone(), artifacts);
                         }
                         Err(e) => {
-                            bail!("failed to build wheel for {}: {}", payload.root.display(), e);
+                            bail!(
+                                "failed to build wheel for {}: {}",
+                                payload.root.display(),
+                                e
+                            );
                         }
                     }
                 }
@@ -166,7 +170,8 @@ impl DependencyResolver {
                 .as_ref()
                 .map(|pkg| pkg.name.clone())
                 .unwrap_or_else(|| {
-                    payload.root
+                    payload
+                        .root
                         .file_name()
                         .unwrap_or_default()
                         .to_string_lossy()
@@ -227,7 +232,8 @@ impl DependencyResolver {
                 build_flags: Vec::new(),
             });
 
-            max_standard = max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
+            max_standard =
+                max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
 
             let include_dir = payload.root.join("include");
             if include_dir.exists() && seen_include.insert(include_dir.clone()) {

@@ -1,4 +1,4 @@
-use super::{Wheel, WheelArtifacts, get_artifacts};
+use super::{get_artifacts, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
 use std::fs;
@@ -12,7 +12,9 @@ pub struct CmakeWheel {
 
 impl CmakeWheel {
     pub fn new(root: &Path) -> Self {
-        Self { root: root.to_path_buf() }
+        Self {
+            root: root.to_path_buf(),
+        }
     }
 
     fn get_cxx_flags(&self, compiler_flags: &[String]) -> String {
@@ -31,7 +33,13 @@ impl Wheel for CmakeWheel {
         &self.root
     }
 
-    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts> {
+    fn build(
+        &self,
+        build_dir: &Path,
+        profile: &str,
+        compiler_flags: &[String],
+        build_flags: &[String],
+    ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("cmake_wheel");
         fs::create_dir_all(&out_dir)?;
 
@@ -44,8 +52,10 @@ impl Wheel for CmakeWheel {
 
         let cmake_exe = find_executable("cmake")?;
         let mut cmd = Command::new(&cmake_exe);
-        cmd.arg("-B").arg(&out_dir)
-            .arg("-S").arg(&self.root)
+        cmd.arg("-B")
+            .arg(&out_dir)
+            .arg("-S")
+            .arg(&self.root)
             .arg(format!("-DCMAKE_BUILD_TYPE={}", build_type))
             .arg("-DCMAKE_INSTALL_PREFIX=install")
             .arg("-DBUILD_TESTING=OFF")
@@ -60,7 +70,10 @@ impl Wheel for CmakeWheel {
             .arg("-DINSTALL_GTEST=OFF");
 
         for flag in build_flags {
-            cmd.arg(format!("-D{}", flag.trim_start_matches("-D").trim_start_matches("-")));
+            cmd.arg(format!(
+                "-D{}",
+                flag.trim_start_matches("-D").trim_start_matches("-")
+            ));
         }
         cmd.stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -68,7 +81,11 @@ impl Wheel for CmakeWheel {
 
         if !cxx_flags.is_empty() {
             cmd.arg(format!("-DCMAKE_CXX_FLAGS={}", cxx_flags));
-            cmd.arg(format!("-DCMAKE_CXX_FLAGS_{}={}", build_type.to_uppercase(), cxx_flags));
+            cmd.arg(format!(
+                "-DCMAKE_CXX_FLAGS_{}={}",
+                build_type.to_uppercase(),
+                cxx_flags
+            ));
         }
 
         #[cfg(target_os = "windows")]
@@ -77,16 +94,17 @@ impl Wheel for CmakeWheel {
             cmd.arg("-DCMAKE_CXX_FLAGS_INIT=");
         }
 
-        let output = cmd.output()
-            .context("failed to run cmake configure")?;
+        let output = cmd.output().context("failed to run cmake configure")?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("cmake configure failed:\n{}", stderr);
         }
 
         let output = Command::new(&cmake_exe)
-            .arg("--build").arg(&out_dir)
-            .arg("--config").arg(build_type)
+            .arg("--build")
+            .arg(&out_dir)
+            .arg("--config")
+            .arg(build_type)
             .arg("--parallel")
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -99,9 +117,12 @@ impl Wheel for CmakeWheel {
         }
 
         let _ = Command::new(&cmake_exe)
-            .arg("--install").arg(&out_dir)
-            .arg("--config").arg(build_type)
-            .arg("--prefix").arg(out_dir.join("install"))
+            .arg("--install")
+            .arg(&out_dir)
+            .arg("--config")
+            .arg(build_type)
+            .arg("--prefix")
+            .arg(out_dir.join("install"))
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .current_dir(&self.root)

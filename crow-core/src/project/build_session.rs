@@ -3,15 +3,19 @@ use crate::config::CrowConfig;
 use crate::dependency::{DependencyResolver, ResolvedDependencyBuild, WheelArtifacts};
 use crate::project::Project;
 use anyhow::Result;
-use crow_utils::status;
 use crow_utils::progress::ProgressBar;
+use crow_utils::status;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 enum Buildable {
     Project(Project),
-    Wheel { name: String, root: PathBuf, build_flags: Vec<String> },
+    Wheel {
+        name: String,
+        root: PathBuf,
+        build_flags: Vec<String>,
+    },
 }
 
 pub struct BuildSession<'a> {
@@ -80,8 +84,13 @@ impl<'a> BuildSession<'a> {
             let start = Instant::now();
 
             match item {
-                Buildable::Wheel { name, root, build_flags } => {
-                    let artifacts = self.compile_wheel(&resolver, &name, &root, &compiler_flags, &build_flags)?;
+                Buildable::Wheel {
+                    name,
+                    root,
+                    build_flags,
+                } => {
+                    let artifacts =
+                        self.compile_wheel(&resolver, &name, &root, &compiler_flags, &build_flags)?;
                     wheel_artifacts.insert(root, artifacts);
                 }
                 Buildable::Project(project) => {
@@ -175,11 +184,8 @@ impl<'a> BuildSession<'a> {
                 continue;
             }
 
-            let dep_resolved = Project::resolve_dependencies(
-                &dep.config,
-                &dep.root,
-                self.profile_name,
-            )?;
+            let dep_resolved =
+                Project::resolve_dependencies(&dep.config, &dep.root, self.profile_name)?;
             self.collect_buildable(&dep.config, &dep.root, &dep_resolved, out, visited)?;
         }
 
@@ -242,7 +248,10 @@ impl<'a> BuildSession<'a> {
         };
 
         if let Some(pb) = &self.progress {
-            pb.set_label(&format!("{} v{}", project.package.name, project.package.version));
+            pb.set_label(&format!(
+                "{} v{}",
+                project.package.name, project.package.version
+            ));
             pb.status("Compiling", &display_path);
         } else {
             status!("Compiling", "{}", display_path);
@@ -258,7 +267,8 @@ impl<'a> BuildSession<'a> {
     ) {
         use std::collections::HashSet;
 
-        let mut seen_include: HashSet<PathBuf> = config.build.include_dirs.iter().cloned().collect();
+        let mut seen_include: HashSet<PathBuf> =
+            config.build.include_dirs.iter().cloned().collect();
         let mut seen_libs: HashSet<String> = config.build.libs.iter().cloned().collect();
         let mut seen_lib_paths: HashSet<PathBuf> = config.build.lib_dirs.iter().cloned().collect();
 

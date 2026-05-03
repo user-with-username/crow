@@ -1,4 +1,4 @@
-use super::{Wheel, WheelArtifacts, get_artifacts};
+use super::{get_artifacts, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
 use std::fs;
@@ -12,7 +12,9 @@ pub struct MesonWheel {
 
 impl MesonWheel {
     pub fn new(root: &Path) -> Self {
-        Self { root: root.to_path_buf() }
+        Self {
+            root: root.to_path_buf(),
+        }
     }
 
     fn get_meson_args(&self, compiler_flags: &[String], build_flags: &[String]) -> Vec<String> {
@@ -53,7 +55,10 @@ impl MesonWheel {
 
         // Pass build_flags as direct Meson options (-D...)
         for flag in build_flags {
-            args.push(format!("-D{}", flag.trim_start_matches("-D").trim_start_matches("-")));
+            args.push(format!(
+                "-D{}",
+                flag.trim_start_matches("-D").trim_start_matches("-")
+            ));
         }
 
         args
@@ -69,7 +74,13 @@ impl Wheel for MesonWheel {
         &self.root
     }
 
-    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts> {
+    fn build(
+        &self,
+        build_dir: &Path,
+        profile: &str,
+        compiler_flags: &[String],
+        build_flags: &[String],
+    ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("meson_wheel");
         fs::create_dir_all(&out_dir)?;
 
@@ -89,11 +100,11 @@ impl Wheel for MesonWheel {
             .arg("-Dbenchmarks=false")
             .stdout(Stdio::inherit())
             .stderr(Stdio::piped());
-        
+
         for arg in self.get_meson_args(compiler_flags, build_flags) {
             cmd.arg(arg);
         }
-        
+
         let output = cmd
             .current_dir(&self.root)
             .output()
@@ -111,7 +122,7 @@ impl Wheel for MesonWheel {
             .stderr(Stdio::piped())
             .output()
             .context("failed to run ninja")?;
-        
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("ninja build failed:\n{}", stderr);

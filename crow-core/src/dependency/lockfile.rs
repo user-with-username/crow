@@ -1,17 +1,14 @@
 use crate::config::CrowConfig;
+use crate::dependency::merge::format_lock_dependencies;
 use crate::dependency::{ResolvedDependencyBuild, ResolvedPackage};
 use crate::lockfile::{CrowLockfile, LockedPackage};
-use crate::dependency::merge::format_lock_dependencies;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 
 pub struct LockfileBuilder;
 
 impl LockfileBuilder {
-    pub fn build(
-        config: &CrowConfig,
-        resolved: &ResolvedDependencyBuild,
-    ) -> Result<CrowLockfile> {
+    pub fn build(config: &CrowConfig, resolved: &ResolvedDependencyBuild) -> Result<CrowLockfile> {
         let mut packages = Vec::new();
         let mut by_name: HashMap<String, &ResolvedPackage> = HashMap::new();
 

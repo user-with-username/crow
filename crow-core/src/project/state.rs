@@ -1,4 +1,3 @@
-
 use crate::builder::incremental::{hash_files, BuildState};
 use crate::project::Project;
 use anyhow::Result;
@@ -43,7 +42,13 @@ impl Project {
         let mut files = vec![self.manifest_path()];
         let mut seen = HashSet::new();
 
-        for dir in self.config.build.src_dirs.iter().chain(self.config.build.include_dirs.iter()) {
+        for dir in self
+            .config
+            .build
+            .src_dirs
+            .iter()
+            .chain(self.config.build.include_dirs.iter())
+        {
             let root = if dir.is_relative() {
                 self.root.join(dir)
             } else {
@@ -68,8 +73,10 @@ impl Project {
     }
 
     fn project_state_path(&self) -> PathBuf {
-        self.profile_dir()
-            .join(format!(".{}.project-state.json", self.package.output_stem()))
+        self.profile_dir().join(format!(
+            ".{}.project-state.json",
+            self.package.output_stem()
+        ))
     }
 
     fn manifest_path(&self) -> PathBuf {
