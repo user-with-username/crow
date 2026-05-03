@@ -6,8 +6,14 @@ version = 4
 [[package]]
 name = "my_project"
 version = "0.1.0"
-dependencies = ["fmt"]
+dependencies = ["formatter 1.0.0"]
+
+[[package]]
+name = "fmt"
+version = "0.0.0"
+source = "git+https://github.com/fmtlib/fmt#8f20ee6191a8b1b00ff387e484b751d8abeb3ef8"
 
 [[package]]
 name = "formatter"
 version = "1.0.0"
+dependencies = ["fmt 0.0.0 (git+https://github.com/fmtlib/fmt#8f20ee6191a8b1b00ff387e484b751d8abeb3ef8)"]

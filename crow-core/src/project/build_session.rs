@@ -45,10 +45,7 @@ impl<'a> BuildSession<'a> {
         manifest_dir: PathBuf,
         resolved: ResolvedDependencyBuild,
     ) -> Result<Project> {
-        let bootstrap = Project::new(config.clone(), manifest_dir.clone(), self.profile_name)?;
-        let target_dir = bootstrap.target_dir();
-        let cache_root = manifest_dir.join(&target_dir).join("dependency-cache");
-        let resolver = DependencyResolver::new(cache_root);
+        let mut resolver = DependencyResolver::new();
 
         let mut compiler_flags = config.build.compiler.flags().to_vec();
         if let Some(pkg) = &config.package {
@@ -63,13 +60,7 @@ impl<'a> BuildSession<'a> {
 
         let mut buildable: Vec<(Buildable, String)> = Vec::new();
         let mut visited: HashSet<PathBuf> = HashSet::new();
-        self.collect_buildable(
-            &config,
-            &manifest_dir,
-            &resolved,
-            &mut buildable,
-            &mut visited,
-        )?;
+        self.collect_buildable(&config, &manifest_dir, &resolved, &mut buildable, &mut visited)?;
 
         self.total_count = buildable.len();
 
@@ -89,8 +80,13 @@ impl<'a> BuildSession<'a> {
                     root,
                     build_flags,
                 } => {
-                    let artifacts =
-                        self.compile_wheel(&resolver, &name, &root, &compiler_flags, &build_flags)?;
+                    let artifacts = self.compile_wheel(
+                        &mut resolver,
+                        &name,
+                        &root,
+                        &compiler_flags,
+                        &build_flags,
+                    )?;
                     wheel_artifacts.insert(root, artifacts);
                 }
                 Buildable::Project(project) => {
@@ -184,9 +180,18 @@ impl<'a> BuildSession<'a> {
                 continue;
             }
 
-            let dep_resolved =
-                Project::resolve_dependencies(&dep.config, &dep.root, self.profile_name)?;
-            self.collect_buildable(&dep.config, &dep.root, &dep_resolved, out, visited)?;
+            let mut dep_config = dep.config.clone();
+            Project::merge_dependency_inputs(&mut dep_config, resolved);
+            let project = Project::new(dep_config, dep.root.clone(), self.profile_name)?;
+            project.configure_parallelism(self.jobs);
+
+            let lockfile_path = dep.root.join("crow.lock");
+            let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+
+            if project.should_build(&lock_hash)? {
+                let label = format!("{} v{}", project.package.name, project.package.version);
+                out.push((Buildable::Project(project), label));
+            }
         }
 
         let lockfile_path = manifest_dir.join("crow.lock");
@@ -195,18 +200,17 @@ impl<'a> BuildSession<'a> {
             lockfile.save(&lockfile_path)?;
         }
 
-        let mut config_clone = config.clone();
-        Project::apply_dependency_standard(&mut config_clone, resolved);
-        Project::merge_dependency_inputs(&mut config_clone, resolved);
+        let mut root_config = config.clone();
+        Project::apply_dependency_standard(&mut root_config, resolved);
+        Project::merge_dependency_inputs(&mut root_config, resolved);
 
-        let project = Project::new(config_clone, manifest_dir.to_path_buf(), self.profile_name)?;
-        project.configure_parallelism(self.jobs);
+        let root_project = Project::new(root_config, manifest_dir.to_path_buf(), self.profile_name)?;
+        root_project.configure_parallelism(self.jobs);
 
         let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
-
-        if project.should_build(&lock_hash)? {
-            let label = format!("{} v{}", project.package.name, project.package.version);
-            out.push((Buildable::Project(project), label));
+        if root_project.should_build(&lock_hash)? {
+            let label = format!("{} v{}", root_project.package.name, root_project.package.version);
+            out.push((Buildable::Project(root_project), label));
         }
 
         Ok(())
@@ -214,21 +218,19 @@ impl<'a> BuildSession<'a> {
 
     fn compile_wheel(
         &self,
-        resolver: &DependencyResolver,
+        resolver: &mut DependencyResolver,
         name: &str,
         root: &PathBuf,
         compiler_flags: &[String],
         build_flags: &[String],
     ) -> Result<WheelArtifacts> {
         let display = format!("{} (wheel)", name);
-
         if let Some(pb) = &self.progress {
             pb.set_label(&display);
             pb.status("Compiling", &display);
         } else {
             status!("Compiling", "{}", display);
         }
-
         resolver.build_wheel(root, self.profile_name, compiler_flags, build_flags)
     }
 
@@ -266,9 +268,7 @@ impl<'a> BuildSession<'a> {
         wheel_artifacts: &HashMap<PathBuf, WheelArtifacts>,
     ) {
         use std::collections::HashSet;
-
-        let mut seen_include: HashSet<PathBuf> =
-            config.build.include_dirs.iter().cloned().collect();
+        let mut seen_include: HashSet<PathBuf> = config.build.include_dirs.iter().cloned().collect();
         let mut seen_libs: HashSet<String> = config.build.libs.iter().cloned().collect();
         let mut seen_lib_paths: HashSet<PathBuf> = config.build.lib_dirs.iter().cloned().collect();
 

@@ -1,15 +1,26 @@
 use anyhow::{Context, Result};
 use git2::{FetchOptions, Repository};
 use std::path::PathBuf;
+use once_cell::sync::Lazy;
+use dirs::home_dir;
 
 #[derive(Debug)]
 pub struct GitDependencyFetcher {
     cache_root: PathBuf,
 }
 
+static GIT_FETCHER: Lazy<GitDependencyFetcher> = Lazy::new(|| {
+    let cache_root = home_dir()
+        .expect("cannot find home directory")
+        .join(".crow")
+        .join("git_cache");
+    std::fs::create_dir_all(&cache_root).expect("failed to create global git cache");
+    GitDependencyFetcher { cache_root }
+});
+
 impl GitDependencyFetcher {
-    pub fn new(cache_root: PathBuf) -> Self {
-        Self { cache_root }
+    pub fn global() -> &'static Self {
+        &GIT_FETCHER
     }
 
     pub fn fetch(&self, dep_name: &str, git_url: &str) -> Result<(PathBuf, String)> {

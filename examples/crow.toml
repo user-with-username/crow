@@ -4,4 +4,4 @@ version = "0.1.0"
 standard = "20"
 
 [dependencies]
-fmt = { git = "https://github.com/fmtlib/fmt", build_flags = ["-DFMT_TEST=OFF", "-DFMT_DOC=OFF", "-DFMT_INSTALL=ON"] }
+formatter = { path = "../formatter" }
