@@ -44,7 +44,9 @@ impl BuildState {
         }
 
         match (output_path, self.output.as_deref()) {
-            (Some(output_path), Some(saved_output)) => output_path != saved_output || !output_path.exists(),
+            (Some(output_path), Some(saved_output)) => {
+                output_path != saved_output || !output_path.exists()
+            }
             (Some(output_path), None) => !output_path.exists(),
             (None, _) => false,
         }

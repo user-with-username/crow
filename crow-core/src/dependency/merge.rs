@@ -1,7 +1,7 @@
 use crate::config::CrowConfig;
+use crate::config::Dependencies;
 use crate::dependency::ResolvedDependencyBuild;
 use crate::dependency::ResolvedPackage;
-use crate::config::Dependencies;
 use std::collections::{HashMap, HashSet};
 
 pub fn merge_dependency_inputs(config: &mut CrowConfig, resolved: &ResolvedDependencyBuild) {
@@ -46,7 +46,11 @@ pub fn format_lock_dependencies(
                 let mut entry = format!(
                     "{} {}",
                     dep.name,
-                    dep.config.package.as_ref().map(|pkg| pkg.version.as_str()).unwrap_or("0.0.0")
+                    dep.config
+                        .package
+                        .as_ref()
+                        .map(|pkg| pkg.version.as_str())
+                        .unwrap_or("0.0.0")
                 );
                 if let Some(source) = &dep.source {
                     entry.push_str(&format!(" ({source})"));

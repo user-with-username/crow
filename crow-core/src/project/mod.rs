@@ -1,4 +1,3 @@
-
 mod build;
 mod build_session;
 mod paths;
@@ -72,7 +71,8 @@ impl Project {
         manifest_dir: &Path,
         profile_name: &str,
     ) -> Result<ResolvedDependencyBuild> {
-        let bootstrap_project = Self::new(config.clone(), manifest_dir.to_path_buf(), profile_name)?;
+        let bootstrap_project =
+            Self::new(config.clone(), manifest_dir.to_path_buf(), profile_name)?;
         let target_dir = bootstrap_project.target_dir();
         let resolver =
             DependencyResolver::new(manifest_dir.join(&target_dir).join("dependency-cache"));

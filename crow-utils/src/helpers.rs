@@ -43,35 +43,43 @@ pub fn fix_msvc_path(path: &str, default_extension: Option<&str>) -> String {
     fixed
 }
 
-
 pub fn find_executable(bin_name: &str) -> Result<PathBuf> {
     if let Ok(path) = which::which(bin_name) {
         return Ok(path);
     }
-    
+
     #[cfg(windows)]
     {
         let exe_name = format!("{}.exe", bin_name);
-        let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
-        let program_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
-        
+        let program_files =
+            std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+        let program_files_x86 = std::env::var("ProgramFiles(x86)")
+            .unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
+
         let common_install_dirs = vec![
             program_files,
             program_files_x86,
             "C:\\Program Files".to_string(),
             "C:\\Program Files (x86)".to_string(),
         ];
-        
+
         for base_dir in common_install_dirs {
-            for dir_name in &[bin_name, &bin_name.to_uppercase(), &format!("{}-*", bin_name)] {
-                let pattern = PathBuf::from(&base_dir).join(dir_name).join("bin").join(&exe_name);
+            for dir_name in &[
+                bin_name,
+                &bin_name.to_uppercase(),
+                &format!("{}-*", bin_name),
+            ] {
+                let pattern = PathBuf::from(&base_dir)
+                    .join(dir_name)
+                    .join("bin")
+                    .join(&exe_name);
                 if pattern.exists() {
                     return Ok(pattern);
                 }
             }
         }
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         let possible_paths = vec![
@@ -86,7 +94,7 @@ pub fn find_executable(bin_name: &str) -> Result<PathBuf> {
             }
         }
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let possible_paths = vec![
@@ -100,6 +108,9 @@ pub fn find_executable(bin_name: &str) -> Result<PathBuf> {
             }
         }
     }
-    
-    anyhow::bail!("{} not found in PATH or common installation directories", bin_name)
+
+    anyhow::bail!(
+        "{} not found in PATH or common installation directories",
+        bin_name
+    )
 }

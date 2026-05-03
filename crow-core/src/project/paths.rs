@@ -1,4 +1,3 @@
-
 use crate::project::Project;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -80,6 +79,8 @@ impl Project {
         let canonical = path
             .canonicalize()
             .with_context(|| format!("failed to resolve {}", path.display()))?;
-        Ok(PathBuf::from(crow_utils::normalize_path(&canonical.display().to_string())))
+        Ok(PathBuf::from(crow_utils::normalize_path(
+            &canonical.display().to_string(),
+        )))
     }
 }

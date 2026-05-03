@@ -1,9 +1,9 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
+pub mod bazel;
 pub mod cmake;
 pub mod meson;
-pub mod bazel;
 
 /// Result of wheel build artifacts
 #[derive(Debug, Clone, Default)]
@@ -21,7 +21,13 @@ pub trait Wheel: Send + Sync {
     /// Run wheel build, return artifacts
     /// compiler_flags: flags for the compiler (-std, -O, etc.)
     /// build_flags: flags for the build system itself (-D for CMake, --define for Bazel, etc.)
-    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts>;
+    fn build(
+        &self,
+        build_dir: &Path,
+        profile: &str,
+        compiler_flags: &[String],
+        build_flags: &[String],
+    ) -> Result<WheelArtifacts>;
     /// Check if this build system is suitable for the given directory
     fn detects(&self, root: &Path) -> bool;
     /// Return root directory
@@ -43,28 +49,34 @@ impl WheelType {
         if cmake_wheel.detects(root) {
             return Some(WheelType::Cmake(cmake_wheel));
         }
-        
+
         let meson_wheel = meson::MesonWheel::new(root);
         if meson_wheel.detects(root) {
             return Some(WheelType::Meson(meson_wheel));
         }
-        
+
         let bazel_wheel = bazel::BazelWheel::new(root);
         if bazel_wheel.detects(root) {
             return Some(WheelType::Bazel(bazel_wheel));
         }
-        
+
         None
     }
-    
-    pub fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts> {
+
+    pub fn build(
+        &self,
+        build_dir: &Path,
+        profile: &str,
+        compiler_flags: &[String],
+        build_flags: &[String],
+    ) -> Result<WheelArtifacts> {
         match self {
             WheelType::Cmake(w) => w.build(build_dir, profile, compiler_flags, build_flags),
             WheelType::Meson(w) => w.build(build_dir, profile, compiler_flags, build_flags),
             WheelType::Bazel(w) => w.build(build_dir, profile, compiler_flags, build_flags),
         }
     }
-    
+
     pub fn root(&self) -> &Path {
         match self {
             WheelType::Cmake(w) => w.root(),
@@ -129,10 +141,10 @@ pub fn get_artifacts(
                     if lib_extensions.contains(&ext) {
                         if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
                             let lib_name = stem.trim_start_matches("lib").to_string();
-                            
+
                             if !artifacts.lib_names.contains(&lib_name) {
                                 artifacts.lib_names.push(lib_name.clone());
-                                
+
                                 let parent = entry.path().parent().unwrap().to_path_buf();
                                 if !artifacts.lib_paths.contains(&parent) {
                                     artifacts.lib_paths.push(parent);

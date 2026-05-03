@@ -12,7 +12,7 @@ impl ProgressBar {
         let pb = mp.add(NativeProgressBar::new(total as u64));
 
         let style = ProgressStyle::with_template(
-            "\x1b[1;96m{prefix:>12}\x1b[0m [{bar:30}] {pos}/{len}: {msg}"
+            "\x1b[1;96m{prefix:>12}\x1b[0m [{bar:30}] {pos}/{len}: {msg}",
         )
         .unwrap()
         .progress_chars("=> ");

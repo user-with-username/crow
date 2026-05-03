@@ -1,4 +1,3 @@
-
 use crate::builder::{CompilationBuilder, LinkingBuilder};
 use crate::project::Project;
 use anyhow::Result;
@@ -40,7 +39,7 @@ impl Project {
         self.toolchain.system_include_dirs()
     }
 
-     pub fn configure_parallelism(&self, jobs: Option<usize>) {
+    pub fn configure_parallelism(&self, jobs: Option<usize>) {
         if self.config.build.parallelism {
             if let Some(jobs) = jobs {
                 let _ = rayon::ThreadPoolBuilder::new()

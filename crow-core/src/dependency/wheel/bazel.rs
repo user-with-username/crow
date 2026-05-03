@@ -1,4 +1,4 @@
-use super::{Wheel, WheelArtifacts, get_artifacts};
+use super::{get_artifacts, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
 use std::fs;
@@ -12,23 +12,28 @@ pub struct BazelWheel {
 
 impl BazelWheel {
     pub fn new(root: &Path) -> Self {
-        Self { root: root.to_path_buf() }
+        Self {
+            root: root.to_path_buf(),
+        }
     }
 
     fn get_bazel_args(&self, compiler_flags: &[String], build_flags: &[String]) -> Vec<String> {
         let mut args = Vec::new();
-        
+
         if !compiler_flags.is_empty() {
             let flags_str = compiler_flags.join(" ");
             args.push(format!("--cxxopt={}", flags_str));
             args.push(format!("--copt={}", flags_str));
         }
-        
+
         // Pass build_flags as --define options to Bazel
         for flag in build_flags {
-            args.push(format!("--define={}", flag.trim_start_matches("-D").trim_start_matches("-")));
+            args.push(format!(
+                "--define={}",
+                flag.trim_start_matches("-D").trim_start_matches("-")
+            ));
         }
-        
+
         args
     }
 }
@@ -42,7 +47,13 @@ impl Wheel for BazelWheel {
         &self.root
     }
 
-    fn build(&self, build_dir: &Path, profile: &str, compiler_flags: &[String], build_flags: &[String]) -> Result<WheelArtifacts> {
+    fn build(
+        &self,
+        build_dir: &Path,
+        profile: &str,
+        compiler_flags: &[String],
+        build_flags: &[String],
+    ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("bazel_wheel");
         fs::create_dir_all(&out_dir)?;
 
@@ -60,30 +71,37 @@ impl Wheel for BazelWheel {
             .arg(format!("--output_base={}", out_dir.display()))
             .stdout(Stdio::inherit())
             .stderr(Stdio::piped());
-        
+
         for arg in self.get_bazel_args(compiler_flags, build_flags) {
             cmd.arg(arg);
         }
-        
+
         let output = cmd
             .current_dir(&self.root)
             .output()
             .context("failed to run bazel build")?;
-        
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("bazel build failed:\n{}", stderr);
         }
 
-        let bazel_bin = out_dir.join("execroot").join(
-            self.root
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .as_ref()
-        ).join("bazel-out");
+        let bazel_bin = out_dir
+            .join("execroot")
+            .join(
+                self.root
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .as_ref(),
+            )
+            .join("bazel-out");
 
-        let arch = if cfg!(target_arch = "x86_64") { "x86_64" } else { "aarch64" };
+        let arch = if cfg!(target_arch = "x86_64") {
+            "x86_64"
+        } else {
+            "aarch64"
+        };
         let platform = if cfg!(target_os = "macos") {
             format!("darwin_{}", arch)
         } else if cfg!(windows) {

@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
-use git2::{FetchOptions, RemoteCallbacks, Repository};
+use git2::{FetchOptions, Repository};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct GitDependencyFetcher {
@@ -24,13 +22,11 @@ impl GitDependencyFetcher {
         };
         let dep_dir = self.cache_root.join(format!("{}-{:016x}", dep_name, hash));
 
-        let resolving_printed = Arc::new(AtomicBool::new(false));
-
         if dep_dir.join(".git").exists() {
-            let rev = self.update_existing_repo(&dep_dir, git_url, resolving_printed)?;
+            let rev = self.update_existing_repo(&dep_dir, git_url, dep_name)?;
             Ok((dep_dir, rev))
         } else {
-            let rev = self.clone_new_repo(&dep_dir, git_url, resolving_printed)?;
+            let rev = self.clone_new_repo(&dep_dir, git_url, dep_name)?;
             Ok((dep_dir, rev))
         }
     }
@@ -39,32 +35,21 @@ impl GitDependencyFetcher {
         &self,
         dep_dir: &PathBuf,
         git_url: &str,
-        resolving_printed: Arc<AtomicBool>,
+        dep_name: &str,
     ) -> Result<String> {
+        use crow_utils::status;
         use git2::build::CheckoutBuilder;
 
-        let repo = Repository::open(dep_dir).with_context(|| {
-            format!("failed to open git repository at {}", dep_dir.display())
-        })?;
-        
+        status!("Downloading", "{}", dep_name);
+
+        let repo = Repository::open(dep_dir)
+            .with_context(|| format!("failed to open git repository at {}", dep_dir.display()))?;
+
         let mut remote = repo
             .find_remote("origin")
             .context("failed to find remote 'origin'")?;
 
-        let mut callbacks = RemoteCallbacks::new();
-        let resolving_printed_clone = resolving_printed.clone();
-        callbacks.transfer_progress(move |stats| {
-            if stats.received_objects() == stats.total_objects() && stats.total_objects() > 0 {
-                if !resolving_printed_clone.swap(true, Ordering::Relaxed) {}
-            } else {
-                resolving_printed_clone.store(false, Ordering::Relaxed);
-            }
-            true
-        });
-
         let mut fetch_opts = FetchOptions::new();
-        fetch_opts.remote_callbacks(callbacks);
-
         remote
             .fetch(
                 &["refs/heads/*:refs/remotes/origin/*"],
@@ -91,38 +76,20 @@ impl GitDependencyFetcher {
         Ok(commit_id.to_string())
     }
 
-    fn clone_new_repo(
-        &self,
-        dep_dir: &PathBuf,
-        git_url: &str,
-        resolving_printed: Arc<AtomicBool>,
-    ) -> Result<String> {
+    fn clone_new_repo(&self, dep_dir: &PathBuf, git_url: &str, dep_name: &str) -> Result<String> {
+        use crow_utils::status;
         use git2::build::CheckoutBuilder;
 
-        let mut callbacks = RemoteCallbacks::new();
-        let resolving_printed_clone = resolving_printed.clone();
-        callbacks.transfer_progress(move |stats| {
-            if stats.received_objects() == stats.total_objects() && stats.total_objects() > 0 {
-                if !resolving_printed_clone.swap(true, Ordering::Relaxed) {
-                    eprint!("Resolving deltas...");
-                }
-            } else {
-                resolving_printed_clone.store(false, Ordering::Relaxed);
-            }
-            true
-        });
+        status!("Downloading", "{}", dep_name);
 
-        let mut fetch_opts = FetchOptions::new();
-        fetch_opts.remote_callbacks(callbacks);
-
-        let repo = Repository::init(dep_dir).with_context(|| {
-            format!("failed to initialize repository at {}", dep_dir.display())
-        })?;
+        let repo = Repository::init(dep_dir)
+            .with_context(|| format!("failed to initialize repository at {}", dep_dir.display()))?;
 
         let mut remote = repo
             .remote("origin", git_url)
             .with_context(|| format!("failed to add remote origin for {git_url}"))?;
 
+        let mut fetch_opts = FetchOptions::new();
         remote
             .fetch(
                 &["refs/heads/*:refs/remotes/origin/*"],
@@ -130,8 +97,6 @@ impl GitDependencyFetcher {
                 None,
             )
             .with_context(|| format!("failed to fetch from {git_url}"))?;
-
-        eprintln!();
 
         let commit = repo
             .revparse_single("origin/HEAD")

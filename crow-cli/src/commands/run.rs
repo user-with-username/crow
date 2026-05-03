@@ -73,7 +73,7 @@ impl RunCommand {
         };
 
         let project = Project::build(&selected_root, profile_name, self.args.jobs)?;
-        
+
         self.execute_project_binary(project)
     }
 
