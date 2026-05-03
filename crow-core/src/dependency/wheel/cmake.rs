@@ -57,14 +57,13 @@ impl Wheel for CmakeWheel {
             .arg("-DGMOCK_BUILD=OFF")
             .arg("-DBUILD_GMOCK=OFF")
             .arg("-DBUILD_GTEST=OFF")
-            .arg("-DINSTALL_GTEST=OFF")
-            ;
-        // Pass build_flags as direct CMake options (-D...)
+            .arg("-DINSTALL_GTEST=OFF");
+
         for flag in build_flags {
             cmd.arg(format!("-D{}", flag.trim_start_matches("-D").trim_start_matches("-")));
         }
         cmd.stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .current_dir(&self.root);
 
         if !cxx_flags.is_empty() {
@@ -78,23 +77,25 @@ impl Wheel for CmakeWheel {
             cmd.arg("-DCMAKE_CXX_FLAGS_INIT=");
         }
 
-        let status = cmd.status()
+        let output = cmd.output()
             .context("failed to run cmake configure")?;
-        if !status.success() {
-            anyhow::bail!("cmake configure failed");
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("cmake configure failed:\n{}", stderr);
         }
 
-        let status = Command::new(&cmake_exe)
+        let output = Command::new(&cmake_exe)
             .arg("--build").arg(&out_dir)
             .arg("--config").arg(build_type)
             .arg("--parallel")
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .current_dir(&self.root)
-            .status()
+            .output()
             .context("failed to run cmake build")?;
-        if !status.success() {
-            anyhow::bail!("cmake build failed");
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("cmake build failed:\n{}", stderr);
         }
 
         let _ = Command::new(&cmake_exe)
@@ -102,9 +103,10 @@ impl Wheel for CmakeWheel {
             .arg("--config").arg(build_type)
             .arg("--prefix").arg(out_dir.join("install"))
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .current_dir(&self.root)
-            .status();
+            .output()
+            .ok();
 
         let install_dir = out_dir.join("install");
 

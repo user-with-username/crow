@@ -88,31 +88,33 @@ impl Wheel for MesonWheel {
             .arg("-Dtests=false")
             .arg("-Dbenchmarks=false")
             .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+            .stderr(Stdio::piped());
         
         for arg in self.get_meson_args(compiler_flags, build_flags) {
             cmd.arg(arg);
         }
         
-        let status = cmd
+        let output = cmd
             .current_dir(&self.root)
-            .status()
+            .output()
             .context("failed to run meson setup")?;
-        if !status.success() {
-            anyhow::bail!("meson setup failed");
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("meson setup failed:\n{}", stderr);
         }
 
         let ninja_exe = find_executable("ninja")?;
-        let status = Command::new(&ninja_exe)
+        let output = Command::new(&ninja_exe)
             .arg("-C")
             .arg(&out_dir)
             .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .status()
+            .stderr(Stdio::piped())
+            .output()
             .context("failed to run ninja")?;
         
-        if !status.success() {
-            anyhow::bail!("ninja build failed");
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("ninja build failed:\n{}", stderr);
         }
 
         let artifacts = get_artifacts(
