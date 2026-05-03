@@ -122,7 +122,6 @@ impl Wheel for MesonWheel {
             .stderr(Stdio::piped())
             .output()
             .context("failed to run ninja")?;
-
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("ninja build failed:\n{}", stderr);

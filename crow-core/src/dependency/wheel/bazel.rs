@@ -80,7 +80,6 @@ impl Wheel for BazelWheel {
             .current_dir(&self.root)
             .output()
             .context("failed to run bazel build")?;
-
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             anyhow::bail!("bazel build failed:\n{}", stderr);
