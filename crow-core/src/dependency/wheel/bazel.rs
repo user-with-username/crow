@@ -59,19 +59,20 @@ impl Wheel for BazelWheel {
             .arg("--symlink_prefix=")
             .arg(format!("--output_base={}", out_dir.display()))
             .stdout(Stdio::inherit())
-            .stderr(Stdio::inherit());
+            .stderr(Stdio::piped());
         
         for arg in self.get_bazel_args(compiler_flags, build_flags) {
             cmd.arg(arg);
         }
         
-        let status = cmd
+        let output = cmd
             .current_dir(&self.root)
-            .status()
+            .output()
             .context("failed to run bazel build")?;
         
-        if !status.success() {
-            anyhow::bail!("bazel build failed");
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("bazel build failed:\n{}", stderr);
         }
 
         let bazel_bin = out_dir.join("execroot").join(
