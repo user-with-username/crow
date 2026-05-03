@@ -1,6 +1,6 @@
-#include <fmt/core.h>
+#include <formatter/text_formatter.h>
 
 int main() {
-    fmt::print("Hello, {}! The answer is {}.\n", "world", 42);
+    print_smt("world");
     return 0;
 }

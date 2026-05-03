@@ -39,14 +39,19 @@ pub struct ResolvedDependencyBuild {
 #[derive(Debug)]
 pub struct DependencyResolver {
     cache_root: PathBuf,
-    git_fetcher: GitDependencyFetcher,
+    resolved_cache: HashMap<String, ResolvedPackage>,
 }
 
 impl DependencyResolver {
-    pub fn new(cache_root: PathBuf) -> Self {
+    pub fn new() -> Self {
+        let cache_root = dirs::home_dir()
+            .expect("cannot find home directory")
+            .join(".crow")
+            .join("wheel_builds");
+        std::fs::create_dir_all(&cache_root).expect("failed to create wheel builds cache");
         Self {
-            cache_root: cache_root.clone(),
-            git_fetcher: GitDependencyFetcher::new(cache_root),
+            cache_root,
+            resolved_cache: HashMap::new(),
         }
     }
 
@@ -64,7 +69,7 @@ impl DependencyResolver {
     }
 
     pub fn resolve_for(
-        &self,
+        &mut self,
         root_config: &CrowConfig,
         root_dir: &Path,
         profile_name: &str,
@@ -124,8 +129,6 @@ impl DependencyResolver {
             let payload = graph.get_node(*idx).context("failed to get node")?;
             if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
                 if let Some(wheel) = create_wheel(&payload.root) {
-                    // compiler_flags: actual compiler settings (-std, -O, etc.)
-                    // build_flags: build system options (-D, --define, etc.)
                     match wheel.build(
                         &wheel_build_dir,
                         profile_name,
@@ -255,7 +258,7 @@ impl DependencyResolver {
     }
 
     fn visit_dependencies(
-        &self,
+        &mut self,
         owner_idx: petgraph::graph::NodeIndex,
         deps: &crate::config::Dependencies,
         owner_root: &Path,
@@ -291,16 +294,36 @@ impl DependencyResolver {
     }
 
     fn resolve_dependency(
-        &self,
+        &mut self,
         dep_name: &str,
         spec: &crate::config::DependencySpec,
         owner_root: &Path,
     ) -> Result<ResolvedPackage> {
         let source = spec.source();
         let source_build_flags = source.build_flags.clone();
+        
+        let cache_key = if let Some(git_url) = &source.git {
+            format!("git:{}", git_url)
+        } else if let Some(path) = &source.path {
+            let abs_path = if path.is_relative() {
+                owner_root.join(path)
+            } else {
+                path.clone()
+            };
+            format!("path:{}", abs_path.canonicalize().unwrap_or(abs_path).display())
+        } else if let Some(registry) = &source.registry {
+            format!("registry:{}", registry)
+        } else {
+            dep_name.to_string()
+        };
+
+        if let Some(cached) = self.resolved_cache.get(&cache_key) {
+            return Ok(cached.clone());
+        }
+
         let (dep_root, source_repr, checksum) = match (source.git, source.path, source.registry) {
             (Some(git_url), None, None) => {
-                let (dep_root, rev) = self.git_fetcher.fetch(dep_name, &git_url)?;
+                let (dep_root, rev) = GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
                 (dep_root, Some(format!("git+{}#{}", git_url, rev)), None)
             }
             (None, Some(path), None) => {
@@ -371,7 +394,7 @@ impl DependencyResolver {
             .map(|pkg| pkg.name.clone())
             .unwrap_or_else(|| dep_name.to_string());
 
-        Ok(ResolvedPackage {
+        let resolved_pkg = ResolvedPackage {
             name: package_name,
             root: canonical_root,
             config: dep_config,
@@ -379,7 +402,11 @@ impl DependencyResolver {
             checksum,
             is_wheel,
             build_flags: source_build_flags,
-        })
+        };
+
+        self.resolved_cache.insert(cache_key, resolved_pkg.clone());
+        
+        Ok(resolved_pkg)
     }
 
     fn is_linkable_type(project_type: &crate::config::ProjectType) -> bool {

@@ -18,7 +18,7 @@ pub struct NodePayload {
 #[derive(Debug)]
 pub struct DependencyGraph {
     graph: Graph<NodePayload, ()>,
-    node_by_root: HashMap<PathBuf, NodeIndex>,
+    node_by_name: HashMap<String, NodeIndex>,
     visiting: HashSet<PathBuf>,
 }
 
@@ -26,7 +26,7 @@ impl DependencyGraph {
     pub fn new() -> Self {
         Self {
             graph: Graph::new(),
-            node_by_root: HashMap::new(),
+            node_by_name: HashMap::new(),
             visiting: HashSet::new(),
         }
     }
@@ -40,19 +40,30 @@ impl DependencyGraph {
         is_wheel: bool,
         build_flags: Vec<String>,
     ) -> Result<NodeIndex> {
-        if let Some(&existing) = self.node_by_root.get(&root) {
-            return Ok(existing);
+        let name = config
+            .package
+            .as_ref()
+            .map(|pkg| pkg.name.clone())
+            .unwrap_or_else(|| {
+                root.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            });
+
+        if let Some(&existing_idx) = self.node_by_name.get(&name) {
+            return Ok(existing_idx);
         }
 
         let idx = self.graph.add_node(NodePayload {
-            root: root.clone(),
+            root,
             config,
             source,
             checksum,
             is_wheel,
             build_flags,
         });
-        self.node_by_root.insert(root, idx);
+        self.node_by_name.insert(name, idx);
         Ok(idx)
     }
 
@@ -78,7 +89,6 @@ impl DependencyGraph {
                 .unwrap_or_else(|| self.graph[idx].root.display().to_string());
             anyhow!("dependency cycle detected near package `{package_name}`")
         })?;
-
         let mut build_order = sorted;
         build_order.reverse();
         Ok(build_order)
