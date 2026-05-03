@@ -293,12 +293,21 @@ impl DependencyResolver {
                 if let Some(wheel) = create_wheel(&payload.root) {
                     // compiler_flags: actual compiler settings (-std, -O, etc.)
                     // build_flags: build system options (-D, --define, etc.)
-                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags, &payload.build_flags) {
+                    match wheel.build(
+                        &wheel_build_dir,
+                        profile_name,
+                        &compiler_flags,
+                        &payload.build_flags,
+                    ) {
                         Ok(artifacts) => {
                             wheel_artifacts.insert(payload.root.clone(), artifacts);
                         }
                         Err(e) => {
-                            bail!("failed to build wheel for {}: {}", payload.root.display(), e);
+                            bail!(
+                                "failed to build wheel for {}: {}",
+                                payload.root.display(),
+                                e
+                            );
                         }
                     }
                 }
@@ -384,7 +393,8 @@ impl DependencyResolver {
                 build_flags: Vec::new(),
             });
 
-            max_standard = max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
+            max_standard =
+                max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
 
             let include_dir = payload.root.join("include");
             if include_dir.exists() && seen_include.insert(include_dir.clone()) {
