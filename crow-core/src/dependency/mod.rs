@@ -301,7 +301,7 @@ impl DependencyResolver {
     ) -> Result<ResolvedPackage> {
         let source = spec.source();
         let source_build_flags = source.build_flags.clone();
-        
+
         let cache_key = if let Some(git_url) = &source.git {
             format!("git:{}", git_url)
         } else if let Some(path) = &source.path {
@@ -310,7 +310,10 @@ impl DependencyResolver {
             } else {
                 path.clone()
             };
-            format!("path:{}", abs_path.canonicalize().unwrap_or(abs_path).display())
+            format!(
+                "path:{}",
+                abs_path.canonicalize().unwrap_or(abs_path).display()
+            )
         } else if let Some(registry) = &source.registry {
             format!("registry:{}", registry)
         } else {
@@ -405,7 +408,7 @@ impl DependencyResolver {
         };
 
         self.resolved_cache.insert(cache_key, resolved_pkg.clone());
-        
+
         Ok(resolved_pkg)
     }
 

@@ -90,7 +90,11 @@ impl Wheel for CmakeWheel {
 
         #[cfg(target_os = "windows")]
         {
-            cmd.arg("-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL");
+            let runtime = match build_type {
+                "Debug" => "MultiThreadedDebugDLL",
+                _ => "MultiThreadedDLL",
+            };
+            cmd.arg(format!("-DCMAKE_MSVC_RUNTIME_LIBRARY={}", runtime));
             cmd.arg("-DCMAKE_CXX_FLAGS_INIT=");
         }
 
