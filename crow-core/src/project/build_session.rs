@@ -60,7 +60,13 @@ impl<'a> BuildSession<'a> {
 
         let mut buildable: Vec<(Buildable, String)> = Vec::new();
         let mut visited: HashSet<PathBuf> = HashSet::new();
-        self.collect_buildable(&config, &manifest_dir, &resolved, &mut buildable, &mut visited)?;
+        self.collect_buildable(
+            &config,
+            &manifest_dir,
+            &resolved,
+            &mut buildable,
+            &mut visited,
+        )?;
 
         self.total_count = buildable.len();
 
@@ -195,21 +201,23 @@ impl<'a> BuildSession<'a> {
         }
 
         let lockfile_path = manifest_dir.join("crow.lock");
-        if !lockfile_path.exists() {
-            let lockfile = crate::dependency::LockfileBuilder::build(config, resolved)?;
-            lockfile.save(&lockfile_path)?;
-        }
+        let lockfile = crate::dependency::LockfileBuilder::build(config, resolved)?;
+        lockfile.save(&lockfile_path)?;
 
         let mut root_config = config.clone();
         Project::apply_dependency_standard(&mut root_config, resolved);
         Project::merge_dependency_inputs(&mut root_config, resolved);
 
-        let root_project = Project::new(root_config, manifest_dir.to_path_buf(), self.profile_name)?;
+        let root_project =
+            Project::new(root_config, manifest_dir.to_path_buf(), self.profile_name)?;
         root_project.configure_parallelism(self.jobs);
 
         let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
         if root_project.should_build(&lock_hash)? {
-            let label = format!("{} v{}", root_project.package.name, root_project.package.version);
+            let label = format!(
+                "{} v{}",
+                root_project.package.name, root_project.package.version
+            );
             out.push((Buildable::Project(root_project), label));
         }
 
@@ -268,7 +276,8 @@ impl<'a> BuildSession<'a> {
         wheel_artifacts: &HashMap<PathBuf, WheelArtifacts>,
     ) {
         use std::collections::HashSet;
-        let mut seen_include: HashSet<PathBuf> = config.build.include_dirs.iter().cloned().collect();
+        let mut seen_include: HashSet<PathBuf> =
+            config.build.include_dirs.iter().cloned().collect();
         let mut seen_libs: HashSet<String> = config.build.libs.iter().cloned().collect();
         let mut seen_lib_paths: HashSet<PathBuf> = config.build.lib_dirs.iter().cloned().collect();
 

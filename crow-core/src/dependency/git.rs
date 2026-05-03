@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use git2::{FetchOptions, Repository};
-use std::path::PathBuf;
-use once_cell::sync::Lazy;
 use dirs::home_dir;
+use git2::{FetchOptions, Repository};
+use once_cell::sync::Lazy;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct GitDependencyFetcher {
