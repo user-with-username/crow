@@ -3,6 +3,7 @@ use crow_utils::{helpers::*, warning};
 use std::path::PathBuf;
 
 mod commands;
+mod templates;
 use commands::Command;
 
 #[derive(Parser)]
