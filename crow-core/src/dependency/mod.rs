@@ -64,7 +64,7 @@ impl DependencyResolver {
     ) -> Result<WheelArtifacts> {
         let wheel_build_dir = self.cache_root.join(profile_name);
         std::fs::create_dir_all(&wheel_build_dir)?;
-        
+
         let wheel = create_wheel(dep_root)
             .with_context(|| format!("no known build system found at {}", dep_root.display()))?;
         wheel.build(&wheel_build_dir, profile_name, compiler_flags, build_flags)
@@ -104,7 +104,13 @@ impl DependencyResolver {
             Vec::new(),
         )?;
 
-        self.visit_dependencies(root_idx, &root_config.dependencies, &root_dir, &mut graph, profile_name)?;
+        self.visit_dependencies(
+            root_idx,
+            &root_config.dependencies,
+            &root_dir,
+            &mut graph,
+            profile_name,
+        )?;
 
         let build_order = graph.resolve_order()?;
 
@@ -405,7 +411,10 @@ impl DependencyResolver {
             build_flags: source_build_flags,
         };
 
-        let profile_cache = self.resolved_cache.entry(profile_name.to_string()).or_insert_with(HashMap::new);
+        let profile_cache = self
+            .resolved_cache
+            .entry(profile_name.to_string())
+            .or_insert_with(HashMap::new);
         profile_cache.insert(cache_key, resolved_pkg.clone());
 
         Ok(resolved_pkg)

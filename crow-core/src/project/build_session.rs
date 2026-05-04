@@ -2,11 +2,12 @@ use crate::builder::incremental::hash_files;
 use crate::config::CrowConfig;
 use crate::dependency::{DependencyResolver, ResolvedDependencyBuild, WheelArtifacts};
 use crate::project::Project;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use crow_utils::progress::ProgressBar;
 use crow_utils::status;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::Instant;
 
 enum Buildable {
@@ -39,12 +40,47 @@ impl<'a> BuildSession<'a> {
         }
     }
 
+    fn run_hooks(manifest_dir: &Path, hooks: &[String]) -> Result<()> {
+        for hook in hooks {
+            let args = shlex::split(hook)
+                .ok_or_else(|| anyhow::anyhow!("failed to parse hook command: {}", hook))?;
+
+            if args.is_empty() {
+                anyhow::bail!("empty hook command");
+            }
+
+            let mut cmd = Command::new(&args[0]);
+            cmd.args(&args[1..]).current_dir(manifest_dir);
+
+            let output = cmd
+                .output()
+                .with_context(|| format!("failed to execute hook: {}", hook))?;
+
+            if !output.stdout.is_empty() {
+                println!("{}", String::from_utf8_lossy(&output.stdout));
+            }
+            if !output.stderr.is_empty() {
+                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+            }
+
+            if !output.status.success() {
+                anyhow::bail!("hook failed: {} (exit code: {})", hook, output.status);
+            }
+        }
+        Ok(())
+    }
+
     pub fn build_root(
         mut self,
         config: CrowConfig,
         manifest_dir: PathBuf,
         resolved: ResolvedDependencyBuild,
     ) -> Result<Project> {
+        // Run hooks before compilation
+        if !config.build.hooks.is_empty() {
+            Self::run_hooks(&manifest_dir, &config.build.hooks)?;
+        }
+
         let mut resolver = DependencyResolver::new();
 
         let compiler_flags = config.build.compiler.flags().to_vec();

@@ -30,6 +30,9 @@ pub struct BuildConfig {
     #[default(Vec::new())]
     pub preprocessor_defines: Vec<String>,
 
+    #[default(Vec::new())]
+    pub hooks: Vec<String>,
+
     #[default(false)]
     pub warnings_as_errors: bool,
 

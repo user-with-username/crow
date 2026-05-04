@@ -1,8 +1,8 @@
+use crate::templates;
 use anyhow::Result;
 use clap::Args;
 use crow_utils::status;
 use std::fs;
-use crate::templates;
 
 #[derive(Args)]
 pub struct InitArgs {
@@ -39,7 +39,7 @@ impl InitCommand {
                     return Ok(());
                 }
             }
-            
+
             if main_cpp.exists() && !self.prompt_overwrite("main.cpp")? {
                 status!("Aborted", "Initialization cancelled");
                 return Ok(());
@@ -50,12 +50,16 @@ impl InitCommand {
         if !src_dir.exists() {
             fs::create_dir_all(&src_dir)?;
         }
-        
+
         templates::write_main_cpp(&src_dir)?;
         templates::write_crow_toml(&config_path, &package_name, true)?;
         templates::write_gitignore(&current_dir, false)?;
 
-        status!("Initialized", "binary (application) `{}` package", package_name);
+        status!(
+            "Initialized",
+            "binary (application) `{}` package",
+            package_name
+        );
         Ok(())
     }
 
