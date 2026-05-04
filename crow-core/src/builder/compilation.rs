@@ -4,6 +4,7 @@ use crate::builder::paths::ObjectFilePath;
 use crate::builder::tasks::database::CompilationDatabase;
 use crate::project::Project;
 use anyhow::Result;
+use crow_utils::progress::ProgressBar;
 use rayon::prelude::*;
 use std::path::PathBuf;
 
@@ -20,10 +21,10 @@ impl<'a> CompilationBuilder<'a> {
         }
     }
 
-    pub fn compile(&self) -> Result<Vec<ObjectFilePath>> {
+    pub fn compile(&self, progress: Option<&ProgressBar>) -> Result<Vec<ObjectFilePath>> {
         self.project.create_dirs()?;
 
-        let context = CompilationContext::new(self.compiler_exe, self.project)?;
+        let context = CompilationContext::new(self.compiler_exe, self.project, progress)?;
         let cache_path = self.project.profile_dir().join(format!(
             ".{}.fingerprint.json",
             self.project.package.output_stem()

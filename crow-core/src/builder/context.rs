@@ -6,6 +6,7 @@ use crate::builder::{
 };
 use crate::project::Project;
 use anyhow::{anyhow, Result};
+use crow_utils::progress::ProgressBar;
 use crow_utils::show_output;
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -34,10 +35,11 @@ pub(crate) struct CompilationContext<'a> {
     pub(crate) deps_dir: PathBuf,
     pub(crate) base_flags: Vec<String>,
     pub(crate) is_msvc: bool,
+    pub(crate) progress: Option<&'a ProgressBar>,
 }
 
 impl<'a> CompilationContext<'a> {
-    pub(crate) fn new(compiler_exe: &'a str, project: &'a Project) -> Result<Self> {
+    pub(crate) fn new(compiler_exe: &'a str, project: &'a Project, progress: Option<&'a ProgressBar>) -> Result<Self> {
         let profile_dir = project.profile_dir();
         let deps_dir = profile_dir.join("deps");
         let is_msvc = project.compiler_kind().is_msvc();
@@ -74,6 +76,7 @@ impl<'a> CompilationContext<'a> {
             deps_dir,
             base_flags: flags.build(),
             is_msvc,
+            progress,
         })
     }
 
@@ -135,6 +138,9 @@ impl<'a> CompilationContext<'a> {
             .output()?;
 
         if !output.status.success() {
+            if let Some(pb) = self.progress {
+                pb.finish();
+            }
             show_output!(output, self.project);
             return Err(anyhow!(
                 "Compilation failed for {}",
