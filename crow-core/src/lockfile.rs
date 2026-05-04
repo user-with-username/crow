@@ -23,7 +23,7 @@ pub struct LockedPackage {
 }
 
 impl CrowLockfile {
-    pub const VERSION: u32 = 4;
+    pub const VERSION: u32 = 1;
 
     pub fn new(packages: Vec<LockedPackage>) -> Self {
         Self {
