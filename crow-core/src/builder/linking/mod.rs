@@ -54,7 +54,7 @@ impl<'a> LinkingBuilder<'a> {
         let output = cmd
             .output()
             .with_context(|| format!("failed to execute {}", action))?;
-        
+
         if !output.status.success() {
             if let Some(pb) = self.progress {
                 pb.finish();

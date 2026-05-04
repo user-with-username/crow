@@ -1,9 +1,9 @@
+use crate::templates;
 use anyhow::Result;
 use clap::Args;
 use crow_utils::status;
 use std::fs;
 use std::path::PathBuf;
-use crate::templates;
 
 #[derive(Args)]
 pub struct NewArgs {
@@ -54,7 +54,11 @@ impl NewCommand {
         if !self.args.no_directory {
             status!("Created", "binary (application) `{}` package", package_name);
         } else {
-            status!("Created", "binary (application) `{}` package in current directory", package_name);
+            status!(
+                "Created",
+                "binary (application) `{}` package in current directory",
+                package_name
+            );
         }
 
         Ok(())

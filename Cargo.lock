@@ -262,6 +262,7 @@ dependencies = [
  "seahash",
  "serde",
  "serde_json",
+ "shlex",
  "smart-default",
  "toml",
  "walkdir",

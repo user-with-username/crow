@@ -1,8 +1,8 @@
 pub mod build;
 pub mod clean;
-pub mod run;
-pub mod new;
 pub mod init;
+pub mod new;
+pub mod run;
 
 use anyhow::Result;
 use clap::Subcommand;
@@ -11,16 +11,16 @@ use clap::Subcommand;
 pub enum Command {
     /// Create a new Crow package
     New(new::NewArgs),
-    
+
     /// Initialize a new Crow package in an existing directory
     Init(init::InitArgs),
-    
+
     /// Compile the current project
     Build(build::BuildArgs),
-    
+
     /// Run the current project
     Run(run::RunArgs),
-    
+
     /// Clean target directory of the current project
     Clean(clean::CleanArgs),
 }

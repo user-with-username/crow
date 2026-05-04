@@ -39,7 +39,11 @@ pub(crate) struct CompilationContext<'a> {
 }
 
 impl<'a> CompilationContext<'a> {
-    pub(crate) fn new(compiler_exe: &'a str, project: &'a Project, progress: Option<&'a ProgressBar>) -> Result<Self> {
+    pub(crate) fn new(
+        compiler_exe: &'a str,
+        project: &'a Project,
+        progress: Option<&'a ProgressBar>,
+    ) -> Result<Self> {
         let profile_dir = project.profile_dir();
         let deps_dir = profile_dir.join("deps");
         let is_msvc = project.compiler_kind().is_msvc();
