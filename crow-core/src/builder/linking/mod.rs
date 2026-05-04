@@ -2,6 +2,7 @@ use crate::builder::flags::LinkerFlags;
 use crate::builder::paths::ObjectFilePath;
 use crate::project::Project;
 use anyhow::{Context, Result};
+use crow_utils::progress::ProgressBar;
 use crow_utils::show_output;
 use std::process::Command;
 
@@ -17,6 +18,7 @@ pub struct LinkingBuilder<'a> {
     archiver_exe: &'a str,
     project: &'a Project,
     objects: &'a [ObjectFilePath],
+    progress: Option<&'a ProgressBar>,
 }
 
 impl<'a> LinkingBuilder<'a> {
@@ -25,12 +27,14 @@ impl<'a> LinkingBuilder<'a> {
         archiver_exe: &'a str,
         project: &'a Project,
         objects: &'a [ObjectFilePath],
+        progress: Option<&'a ProgressBar>,
     ) -> Self {
         Self {
             linker_exe,
             archiver_exe,
             project,
             objects,
+            progress,
         }
     }
 
@@ -50,7 +54,11 @@ impl<'a> LinkingBuilder<'a> {
         let output = cmd
             .output()
             .with_context(|| format!("failed to execute {}", action))?;
+        
         if !output.status.success() {
+            if let Some(pb) = self.progress {
+                pb.finish();
+            }
             show_output!(output, self.project);
             anyhow::bail!(
                 "{} failed with exit code {}",
