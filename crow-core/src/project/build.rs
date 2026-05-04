@@ -1,6 +1,7 @@
 use crate::builder::{CompilationBuilder, LinkingBuilder};
 use crate::project::Project;
 use anyhow::Result;
+use crow_utils::progress::ProgressBar;
 use std::path::PathBuf;
 
 impl Project {
@@ -49,7 +50,7 @@ impl Project {
         }
     }
 
-    pub fn compile_and_link(&self, lock_hash: &str) -> Result<()> {
+    pub fn compile_and_link(&self, lock_hash: &str, progress: Option<&ProgressBar>) -> Result<()> {
         let compiler_exe = self
             .config
             .build
@@ -74,19 +75,9 @@ impl Project {
             .map(|p| p.as_str())
             .unwrap_or_else(|| self.linker_path());
 
-        self.compile_and_link_with_tools(compiler_exe, linker_exe, archiver_exe, lock_hash)
-    }
-
-    fn compile_and_link_with_tools(
-        &self,
-        compiler_exe: &str,
-        linker_exe: &str,
-        archiver_exe: &str,
-        lock_hash: &str,
-    ) -> Result<()> {
         self.create_dirs()?;
 
-        let objects = CompilationBuilder::new(compiler_exe, self).compile()?;
+        let objects = CompilationBuilder::new(compiler_exe, self).compile(progress)?;
 
         LinkingBuilder::new(linker_exe, archiver_exe, self, &objects).link()?;
 

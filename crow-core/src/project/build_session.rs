@@ -267,7 +267,7 @@ impl<'a> BuildSession<'a> {
             status!("Compiling", "{}", display_path);
         }
 
-        project.compile_and_link(&lock_hash)?;
+        project.compile_and_link(&lock_hash, self.progress.as_ref())?;
         Ok(())
     }
 
