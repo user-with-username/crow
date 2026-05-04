@@ -47,16 +47,7 @@ impl<'a> BuildSession<'a> {
     ) -> Result<Project> {
         let mut resolver = DependencyResolver::new();
 
-        let mut compiler_flags = config.build.compiler.flags().to_vec();
-        if let Some(pkg) = &config.package {
-            if let Some(std) = &pkg.standard {
-                if cfg!(target_os = "windows") {
-                    compiler_flags.push(format!("/std:c++{}", std));
-                } else {
-                    compiler_flags.push(format!("-std=c++{}", std));
-                }
-            }
-        }
+        let compiler_flags = config.build.compiler.flags().to_vec();
 
         let mut buildable: Vec<(Buildable, String)> = Vec::new();
         let mut visited: HashSet<PathBuf> = HashSet::new();
@@ -129,9 +120,8 @@ impl<'a> BuildSession<'a> {
         if let Some(pb) = &self.progress {
             pb.finish();
             println!(
-                "\x1b[1;92m{:>12}\x1b[0m {} `{}` profile [{}{}] target(s) in {:.2}s",
+                "\x1b[1;92m{:>12}\x1b[0m `{}` profile [{}{}] target(s) in {:.2}s",
                 "Finished",
-                root_project.package.name,
                 self.profile_name,
                 opt_level,
                 debug_info,
@@ -140,8 +130,7 @@ impl<'a> BuildSession<'a> {
         } else {
             status!(
                 "Finished",
-                "{} `{}` profile [{}{}] target(s)",
-                root_project.package.name,
+                "`{}` profile [{}{}] target(s)",
                 self.profile_name,
                 opt_level,
                 debug_info

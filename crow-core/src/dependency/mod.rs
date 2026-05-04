@@ -39,7 +39,7 @@ pub struct ResolvedDependencyBuild {
 #[derive(Debug)]
 pub struct DependencyResolver {
     cache_root: PathBuf,
-    resolved_cache: HashMap<String, ResolvedPackage>,
+    resolved_cache: HashMap<String, HashMap<String, ResolvedPackage>>, // profile -> cache_key -> package
 }
 
 impl DependencyResolver {
@@ -62,7 +62,9 @@ impl DependencyResolver {
         compiler_flags: &[String],
         build_flags: &[String],
     ) -> Result<WheelArtifacts> {
-        let wheel_build_dir = self.cache_root.join("wheel_builds");
+        let wheel_build_dir = self.cache_root.join(profile_name);
+        std::fs::create_dir_all(&wheel_build_dir)?;
+        
         let wheel = create_wheel(dep_root)
             .with_context(|| format!("no known build system found at {}", dep_root.display()))?;
         wheel.build(&wheel_build_dir, profile_name, compiler_flags, build_flags)
@@ -102,24 +104,15 @@ impl DependencyResolver {
             Vec::new(),
         )?;
 
-        self.visit_dependencies(root_idx, &root_config.dependencies, &root_dir, &mut graph)?;
+        self.visit_dependencies(root_idx, &root_config.dependencies, &root_dir, &mut graph, profile_name)?;
 
         let build_order = graph.resolve_order()?;
 
         let mut wheel_artifacts: HashMap<PathBuf, WheelArtifacts> = HashMap::new();
-        let wheel_build_dir = self.cache_root.join("wheel_builds");
+        let wheel_build_dir = self.cache_root.join(profile_name);
+        std::fs::create_dir_all(&wheel_build_dir)?;
 
-        let mut compiler_flags = root_config.build.compiler.flags().to_vec();
-
-        if let Some(pkg) = &root_config.package {
-            if let Some(std) = &pkg.standard {
-                if cfg!(target_os = "windows") {
-                    compiler_flags.push(format!("/std:c++{}", std));
-                } else {
-                    compiler_flags.push(format!("-std=c++{}", std));
-                }
-            }
-        }
+        let compiler_flags = root_config.build.compiler.flags().to_vec();
 
         for idx in &build_order {
             if *idx == root_idx {
@@ -263,9 +256,10 @@ impl DependencyResolver {
         deps: &crate::config::Dependencies,
         owner_root: &Path,
         graph: &mut DependencyGraph,
+        profile_name: &str,
     ) -> Result<()> {
         for (dep_name, spec) in deps.iter() {
-            let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root)?;
+            let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
             let canonical_root = resolved_dep.root.clone();
 
             let dep_idx = graph.add_node(
@@ -286,6 +280,7 @@ impl DependencyResolver {
                     &resolved_dep.config.dependencies,
                     &canonical_root,
                     graph,
+                    profile_name,
                 )?;
                 graph.unmark_visiting(&canonical_root);
             }
@@ -298,6 +293,7 @@ impl DependencyResolver {
         dep_name: &str,
         spec: &crate::config::DependencySpec,
         owner_root: &Path,
+        profile_name: &str,
     ) -> Result<ResolvedPackage> {
         let source = spec.source();
         let source_build_flags = source.build_flags.clone();
@@ -320,8 +316,10 @@ impl DependencyResolver {
             dep_name.to_string()
         };
 
-        if let Some(cached) = self.resolved_cache.get(&cache_key) {
-            return Ok(cached.clone());
+        if let Some(profile_cache) = self.resolved_cache.get(profile_name) {
+            if let Some(cached) = profile_cache.get(&cache_key) {
+                return Ok(cached.clone());
+            }
         }
 
         let (dep_root, source_repr, checksum) = match (source.git, source.path, source.registry) {
@@ -407,7 +405,8 @@ impl DependencyResolver {
             build_flags: source_build_flags,
         };
 
-        self.resolved_cache.insert(cache_key, resolved_pkg.clone());
+        let profile_cache = self.resolved_cache.entry(profile_name.to_string()).or_insert_with(HashMap::new);
+        profile_cache.insert(cache_key, resolved_pkg.clone());
 
         Ok(resolved_pkg)
     }

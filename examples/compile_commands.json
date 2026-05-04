@@ -20,7 +20,7 @@
       "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt",
       "/IC:\\Users\\user\\Documents\\GitHub\\crow\\examples\\include",
       "/IC:\\Users\\user\\.crow\\git_cache\\fmt-77984052dc41b78b\\include",
-      "/IC:\\Users\\user\\.crow\\wheel_builds\\wheel_builds\\cmake_wheel\\install\\include",
+      "/IC:\\Users\\user\\.crow\\wheel_builds\\release\\cmake_wheel\\install\\include",
       "/IC:\\Users\\user\\Documents\\GitHub\\crow\\formatter\\include",
       "/showIncludes",
       "/Fo:target\\release\\main.obj",
