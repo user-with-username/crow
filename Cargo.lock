@@ -263,6 +263,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "shlex",
  "smart-default",
  "toml",
  "walkdir",
