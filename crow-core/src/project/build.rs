@@ -79,7 +79,7 @@ impl Project {
 
         let objects = CompilationBuilder::new(compiler_exe, self).compile(progress)?;
 
-        LinkingBuilder::new(linker_exe, archiver_exe, self, &objects).link()?;
+        LinkingBuilder::new(linker_exe, archiver_exe, self, &objects, progress).link()?;
 
         self.save_project_state(lock_hash)?;
 
