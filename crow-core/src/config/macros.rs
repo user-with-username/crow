@@ -11,6 +11,7 @@ pub(crate) struct DetailedConfig<T> {
     pub(crate) kind: Option<T>,
 }
 
+#[macro_export]
 macro_rules! config_enum {
     ($name:ident, $kind:ty) => {
         impl<'de> ::serde::Deserialize<'de> for $name {
@@ -73,6 +74,7 @@ macro_rules! config_enum {
     };
 }
 
+#[macro_export]
 macro_rules! type_enum {
     () => {
         impl<'de> ::serde::Deserialize<'de> for $crate::config::ProjectType {
@@ -141,5 +143,78 @@ macro_rules! type_enum {
     };
 }
 
+#[macro_export]
+macro_rules! hooks {
+    ($config_type:ident, $pre_field:ident, $post_field:ident) => {
+        fn deserialize_hooks<'de, D>(deserializer: D) -> Result<$config_type, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            struct HooksVisitor;
+
+            impl<'de> serde::de::Visitor<'de> for HooksVisitor {
+                type Value = $config_type;
+
+                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    formatter.write_str(
+                        "a list of strings (old format, becomes pre) or a table with pre/post arrays"
+                    )
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> Result<$config_type, A::Error>
+                where
+                    A: serde::de::SeqAccess<'de>,
+                {
+                    let hooks: Vec<String> = serde::Deserialize::deserialize(
+                        serde::de::value::SeqAccessDeserializer::new(&mut seq)
+                    )?;
+                    Ok($config_type {
+                        $pre_field: hooks,
+                        $post_field: Vec::new(),
+                    })
+                }
+
+                fn visit_map<M>(self, mut map: M) -> Result<$config_type, M::Error>
+                where
+                    M: serde::de::MapAccess<'de>,
+                {
+                    let mut pre: Vec<String> = Vec::new();
+                    let mut post: Vec<String> = Vec::new();
+
+                    while let Some(key) = map.next_key::<String>()? {
+                        match key.as_str() {
+                            stringify!($pre_field) => pre = map.next_value()?,
+                            stringify!($post_field) => post = map.next_value()?,
+                            _ => {
+                                return Err(serde::de::Error::unknown_field(
+                                    &key,
+                                    &[stringify!($pre_field), stringify!($post_field)],
+                                ));
+                            }
+                        }
+                    }
+
+                    Ok($config_type {
+                        $pre_field: pre,
+                        $post_field: post,
+                    })
+                }
+            }
+
+            deserializer.deserialize_any(HooksVisitor)
+        }
+
+        impl<'de> serde::Deserialize<'de> for $config_type {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserialize_hooks(deserializer)
+            }
+        }
+    };
+}
+
 pub(crate) use config_enum;
+pub(crate) use hooks;
 pub(crate) use type_enum;

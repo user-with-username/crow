@@ -262,7 +262,6 @@ dependencies = [
  "seahash",
  "serde",
  "serde_json",
- "shlex",
  "smart-default",
  "toml",
  "walkdir",
@@ -275,6 +274,7 @@ dependencies = [
  "anyhow",
  "indicatif",
  "regex",
+ "shlex",
  "which",
 ]
 
