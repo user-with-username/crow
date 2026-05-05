@@ -46,4 +46,4 @@ We welcome contributions! Please read our:
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE)
