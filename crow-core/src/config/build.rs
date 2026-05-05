@@ -1,3 +1,4 @@
+use crate::config::macros::hooks;
 use crate::config::ArchiverConfig;
 use crate::config::CompilerConfig;
 use crate::config::LinkerConfig;
@@ -30,8 +31,8 @@ pub struct BuildConfig {
     #[default(Vec::new())]
     pub preprocessor_defines: Vec<String>,
 
-    #[default(Vec::new())]
-    pub hooks: Vec<String>,
+    #[serde(deserialize_with = "deserialize_hooks")]
+    pub hooks: HooksConfig,
 
     #[default(false)]
     pub warnings_as_errors: bool,
@@ -39,3 +40,14 @@ pub struct BuildConfig {
     #[default(true)]
     pub parallelism: bool,
 }
+
+#[derive(Debug, SmartDefault, Clone)]
+pub struct HooksConfig {
+    #[default(Vec::new())]
+    pub pre: Vec<String>,
+
+    #[default(Vec::new())]
+    pub post: Vec<String>,
+}
+
+hooks!(HooksConfig, pre, post);

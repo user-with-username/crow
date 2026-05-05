@@ -2,12 +2,11 @@ use crate::builder::incremental::hash_files;
 use crate::config::CrowConfig;
 use crate::dependency::{DependencyResolver, ResolvedDependencyBuild, WheelArtifacts};
 use crate::project::Project;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use crow_utils::progress::ProgressBar;
 use crow_utils::status;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::Instant;
 
 enum Buildable {
@@ -40,45 +39,14 @@ impl<'a> BuildSession<'a> {
         }
     }
 
-    fn run_hooks(manifest_dir: &Path, hooks: &[String]) -> Result<()> {
-        for hook in hooks {
-            let args = shlex::split(hook)
-                .ok_or_else(|| anyhow::anyhow!("failed to parse hook command: {}", hook))?;
-
-            if args.is_empty() {
-                anyhow::bail!("empty hook command");
-            }
-
-            let mut cmd = Command::new(&args[0]);
-            cmd.args(&args[1..]).current_dir(manifest_dir);
-
-            let output = cmd
-                .output()
-                .with_context(|| format!("failed to execute hook: {}", hook))?;
-
-            if !output.stdout.is_empty() {
-                println!("{}", String::from_utf8_lossy(&output.stdout));
-            }
-            if !output.stderr.is_empty() {
-                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-            }
-
-            if !output.status.success() {
-                anyhow::bail!("hook failed: {} (exit code: {})", hook, output.status);
-            }
-        }
-        Ok(())
-    }
-
     pub fn build_root(
         mut self,
         config: CrowConfig,
         manifest_dir: PathBuf,
         resolved: ResolvedDependencyBuild,
     ) -> Result<Project> {
-        // Run hooks before compilation
-        if !config.build.hooks.is_empty() {
-            Self::run_hooks(&manifest_dir, &config.build.hooks)?;
+        if !config.build.hooks.pre.is_empty() {
+            crow_utils::hooks::run_hooks(&manifest_dir, &config.build.hooks.pre)?;
         }
 
         let mut resolver = DependencyResolver::new();
@@ -140,7 +108,7 @@ impl<'a> BuildSession<'a> {
         Project::merge_dependency_inputs(&mut root_config, &resolved);
         Self::apply_wheel_artifacts(&mut root_config, &wheel_artifacts);
 
-        let root_project = Project::new(root_config, manifest_dir, self.profile_name)?;
+        let root_project = Project::new(root_config, manifest_dir.clone(), self.profile_name)?;
 
         let opt_level = if root_project.profile.opt_level() != "0" {
             "optimized"
@@ -171,6 +139,10 @@ impl<'a> BuildSession<'a> {
                 opt_level,
                 debug_info
             );
+        }
+
+        if !config.build.hooks.post.is_empty() {
+            crow_utils::hooks::run_hooks(&manifest_dir, &config.build.hooks.post)?;
         }
 
         Ok(root_project)

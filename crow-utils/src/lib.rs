@@ -2,6 +2,7 @@ pub mod diagnostic_highlighter;
 pub mod enviroment;
 pub mod files;
 pub mod helpers;
+pub mod hooks;
 pub mod logger;
 pub mod msvc;
 pub mod progress;

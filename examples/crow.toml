@@ -5,9 +5,3 @@ standard = "20"
 
 [dependencies]
 formatter = { path = "../formatter" }
-
-[build]
-hooks = [
-    "echo Running pre-build hook",
-    "echo This is a placeholder for actual build commands"
-]
