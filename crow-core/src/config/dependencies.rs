@@ -3,6 +3,8 @@ use serde::Deserializer;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use crate::dependency::version_req::VersionReq;
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(transparent)]
 pub struct Dependencies(pub BTreeMap<String, DependencySpec>);
@@ -51,12 +53,11 @@ impl<'de> Deserialize<'de> for DependencySpec {
         let value = serde_json::Value::deserialize(deserializer)?;
         
         if let Some(s) = value.as_str() {
-            // git url?
-            if is_git_url(s) {
-                return Ok(DependencySpec::ShorthandGit(s.to_string()));
-            }
             if looks_like_version(s) {
                 return Ok(DependencySpec::ShorthandVersion(s.to_string()));
+            }
+            if is_git_url(s) {
+                return Ok(DependencySpec::ShorthandGit(s.to_string()));
             }
             Ok(DependencySpec::ShorthandGit(s.to_string()))
         } else if value.is_object() {
@@ -78,20 +79,67 @@ impl<'de> Deserialize<'de> for DependencySpec {
 }
 
 fn is_git_url(s: &str) -> bool {
-    s.starts_with("http://") 
-        || s.starts_with("https://")
-        || s.starts_with("git@")
-        || s.starts_with("git://")
-        || s.contains(".git")
-        || (s.contains('/') && !looks_like_version(s))
+    let trimmed = s.trim();
+    
+    if trimmed == "*" || trimmed.contains("*.*") {
+        return false;
+    }
+    
+    let first_char = trimmed.chars().next().unwrap_or('\0');
+    if first_char.is_ascii_digit() || matches!(first_char, '^' | '~' | '>' | '<' | '=') {
+        return false;
+    }
+    
+    trimmed.starts_with("http://")
+        || trimmed.starts_with("https://")
+        || trimmed.starts_with("git@")
+        || trimmed.starts_with("git://")
+        || trimmed.contains(".git")
+        || (trimmed.contains('/') && !trimmed.contains('*'))
 }
 
 fn looks_like_version(s: &str) -> bool {
-    let first = s.chars().next().unwrap_or('\0');
-    if first.is_ascii_digit() {
+    let trimmed = s.trim();
+    
+    if trimmed.is_empty() {
+        return false;
+    }
+    
+    if trimmed == "*" {
         return true;
     }
-    matches!(first, '^' | '~' | '>' | '<' | '=')
+    
+    if trimmed.contains('*') {
+        let parts: Vec<&str> = trimmed.split('.').collect();
+        let mut found_wildcard = false;
+        for part in parts {
+            if part == "*" {
+                found_wildcard = true;
+            } else if found_wildcard {
+                return false;
+            } else if part.parse::<u32>().is_err() {
+                return false;
+            }
+        }
+        return found_wildcard;
+    }
+    
+    let first_char = trimmed.chars().next().unwrap_or('\0');
+    
+    if first_char.is_ascii_digit() {
+        return trimmed.chars().all(|c| c.is_ascii_digit() || c == '.');
+    }
+    
+    if matches!(first_char, '^' | '~' | '>' | '<' | '=') {
+        let rest = &trimmed[1..].trim();
+        if rest.is_empty() {
+            return false;
+        }
+        let first_rest = rest.chars().next().unwrap_or('\0');
+        return first_rest.is_ascii_digit() || rest.contains('.');
+    }
+    
+    false
 }
 
 impl DependencySpec {
@@ -141,6 +189,27 @@ impl DependencySpec {
     
     pub fn is_shorthand_version(&self) -> bool {
         matches!(self, Self::ShorthandVersion(_))
+    }
+    
+    pub fn version_req(&self) -> Option<String> {
+        match self {
+            Self::ShorthandVersion(v) => Some(v.clone()),
+            Self::Detailed(source) => source.version.clone(),
+            _ => None,
+        }
+    }
+    
+    pub fn matches_version(&self, version: &str) -> bool {
+        if let Some(req_str) = self.version_req() {
+            if let Ok(req) = VersionReq::parse(&req_str) {
+                return req.matches(version);
+            }
+        }
+        false
+    }
+    
+    pub fn parse_version_req(&self) -> Option<VersionReq> {
+        self.version_req().and_then(|req| VersionReq::parse(&req).ok())
     }
 }
 

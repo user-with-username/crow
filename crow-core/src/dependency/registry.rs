@@ -2,9 +2,11 @@ use anyhow::{bail, Context, Result};
 use dirs::home_dir;
 use git2::{FetchOptions, Repository};
 use once_cell::sync::Lazy;
-use semver::{Version, VersionReq};
+use semver::Version;
 use serde::Deserialize;
 use std::path::PathBuf;
+
+use crate::dependency::version_req::VersionReq as CrowVersionReq;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RegistryEntry {
@@ -16,6 +18,7 @@ pub struct RegistryEntry {
 pub struct RegistryCoordinates {
     pub git_url: String,
     pub commit: String,
+    pub version: String,
 }
 
 pub struct RegistryFetcher {
@@ -51,10 +54,20 @@ impl RegistryFetcher {
         Ok(registry_dir)
     }
 
+    pub fn resolve_str(
+        &self,
+        dep_name: &str,
+        version_req_str: &str,
+        registry_url: &str,
+    ) -> Result<RegistryCoordinates> {
+        let req = CrowVersionReq::parse(version_req_str)?;
+        self.resolve(dep_name, &req, registry_url)
+    }
+
     pub fn resolve(
         &self,
         dep_name: &str,
-        version_req: &str,
+        version_req: &CrowVersionReq,
         registry_url: &str,
     ) -> Result<RegistryCoordinates> {
         let registry_dir = self.ensure_registry(registry_url)?;
@@ -68,7 +81,7 @@ impl RegistryFetcher {
             );
         }
 
-        let mut available: Vec<(Version, PathBuf)> = std::fs::read_dir(&package_dir)
+        let mut available: Vec<(Version, PathBuf, String)> = std::fs::read_dir(&package_dir)
             .with_context(|| format!("cannot read registry package dir {}", package_dir.display()))?
             .filter_map(|e| e.ok())
             .filter_map(|e| {
@@ -78,7 +91,7 @@ impl RegistryFetcher {
                 }
                 let stem = path.file_stem()?.to_str()?.to_string();
                 let version = Version::parse(&stem).ok()?;
-                Some((version, path))
+                Some((version, path, stem))
             })
             .collect();
 
@@ -88,19 +101,15 @@ impl RegistryFetcher {
 
         available.sort_by(|a, b| b.0.cmp(&a.0));
 
-        let req_str = normalize_version_req(version_req);
-        let req = VersionReq::parse(&req_str).with_context(|| {
-            format!("invalid version requirement `{version_req}` for `{dep_name}`")
-        })?;
-
-        let (chosen_version, chosen_path) = available
+        let (chosen_version, chosen_path, version_str) = available
             .iter()
-            .find(|(v, _)| req.matches(v))
+            .find(|(v, _, _)| version_req.matches(&v.to_string()))
             .with_context(|| {
-                let versions: Vec<String> = available.iter().map(|(v, _)| v.to_string()).collect();
+                let versions: Vec<String> = available.iter().map(|(v, _, _)| v.to_string()).collect();
                 format!(
-                    "no version of `{dep_name}` satisfies `{version_req}` in registry `{registry_url}`\n\
-                     available: {}",
+                    "no version of `{dep_name}` satisfies `{}` in registry `{registry_url}`\n\
+                     available versions: {}",
+                    version_req.as_str(),
                     versions.join(", ")
                 )
             })?;
@@ -123,11 +132,16 @@ impl RegistryFetcher {
         Ok(RegistryCoordinates {
             git_url: entry.git,
             commit: entry.commit,
+            version: version_str.clone(),
         })
     }
 
     fn clone_registry(&self, dir: &PathBuf, url: &str) -> Result<()> {
         use git2::build::CheckoutBuilder;
+
+        if let Some(parent) = dir.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
 
         let repo = Repository::init(dir)
             .with_context(|| format!("failed to init registry repo at {}", dir.display()))?;
@@ -205,14 +219,4 @@ fn url_hash(url: &str) -> u64 {
     let mut h = DefaultHasher::new();
     url.hash(&mut h);
     h.finish()
-}
-
-fn normalize_version_req(s: &str) -> String {
-    let trimmed = s.trim();
-    let first = trimmed.chars().next().unwrap_or('0');
-    if first.is_ascii_digit() {
-        format!("={}", trimmed)
-    } else {
-        trimmed.to_string()
-    }
 }
