@@ -18,7 +18,7 @@ impl CleanCommand {
     pub fn execute(self) -> Result<()> {
         let current_dir = std::env::current_dir()?;
         let (config, manifest_dir) = CrowConfig::find_in_tree(&current_dir)?;
-        let project = Project::new(config, manifest_dir, "dev")?;
+        let project = Project::new(config, manifest_dir, "dev", None)?;
 
         let target_dir = project.target_dir();
 

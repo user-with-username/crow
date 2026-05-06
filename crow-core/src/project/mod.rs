@@ -18,6 +18,7 @@ pub struct Project {
     pub profile: crate::config::Profile,
     pub profile_name: String,
     pub toolchain: Box<dyn Toolchain>,
+    pub resolved_deps: Option<ResolvedDependencyBuild>,
 }
 
 impl Project {
@@ -25,6 +26,7 @@ impl Project {
         loaded_config: CrowConfig,
         manifest_dir: PathBuf,
         profile_name: &str,
+        resolved_deps: Option<ResolvedDependencyBuild>,
     ) -> Result<Self> {
         let package = loaded_config
             .package
@@ -56,6 +58,7 @@ impl Project {
             profile,
             profile_name: profile_name.to_string(),
             toolchain,
+            resolved_deps,
         })
     }
 
@@ -71,8 +74,7 @@ impl Project {
         manifest_dir: &Path,
         profile_name: &str,
     ) -> Result<ResolvedDependencyBuild> {
-        let bootstrap_project =
-            Self::new(config.clone(), manifest_dir.to_path_buf(), profile_name)?;
+        let bootstrap_project = Self::new(config.clone(), manifest_dir.to_path_buf(), profile_name, None)?;
         let target_dir = bootstrap_project.target_dir();
         let mut resolver = DependencyResolver::new();
         resolver.resolve_for(config, manifest_dir, profile_name, &target_dir)

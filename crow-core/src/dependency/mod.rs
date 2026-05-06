@@ -34,6 +34,7 @@ pub struct ResolvedDependencyBuild {
     pub libs: Vec<String>,
     pub lib_paths: Vec<PathBuf>,
     pub max_standard: Option<String>,
+    pub system_libs: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -153,6 +154,7 @@ impl DependencyResolver {
         let mut seen_include = std::collections::HashSet::new();
         let mut seen_libs = std::collections::HashSet::new();
         let mut seen_lib_paths = std::collections::HashSet::new();
+        let mut seen_system_libs = std::collections::HashSet::new();
         let mut max_standard = crate::config::parse_standard(
             root_config
                 .package
@@ -160,12 +162,23 @@ impl DependencyResolver {
                 .and_then(|pkg| pkg.standard.as_deref()),
         );
 
+        for (_dep_name, spec) in &root_config.dependencies.0 {
+            if spec.is_system() {
+                for lib in spec.system_libs() {
+                    if seen_system_libs.insert(lib.clone()) {
+                        resolved.system_libs.push(lib);
+                    }
+                }
+            }
+        }
+
         for idx in build_order {
             if idx == root_idx {
                 continue;
             }
 
             let payload = graph.get_node(idx).context("failed to get node")?;
+
             let package_name = payload
                 .config
                 .package
@@ -265,6 +278,15 @@ impl DependencyResolver {
         profile_name: &str,
     ) -> Result<()> {
         for (dep_name, spec) in deps.iter() {
+            eprintln!("[DEBUG] Processing dependency: {}, type: {:?}", dep_name, match spec {
+                crate::config::DependencySpec::ShorthandGit(_) => "ShorthandGit",
+                crate::config::DependencySpec::Detailed(_) => "Detailed",
+                crate::config::DependencySpec::System(_) => "System",
+            });
+            if spec.is_system() {
+                continue;
+            }
+
             let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
             let canonical_root = resolved_dep.root.clone();
 
@@ -302,22 +324,26 @@ impl DependencyResolver {
         profile_name: &str,
     ) -> Result<ResolvedPackage> {
         let source = spec.source();
-        let source_build_flags = source.build_flags.clone();
+        let source_build_flags = source.as_ref().map(|s| s.build_flags.clone()).unwrap_or_default();
 
-        let cache_key = if let Some(git_url) = &source.git {
-            format!("git:{}", git_url)
-        } else if let Some(path) = &source.path {
-            let abs_path = if path.is_relative() {
-                owner_root.join(path)
+        let cache_key = if let Some(source) = &source {
+            if let Some(git_url) = &source.git {
+                format!("git:{}", git_url)
+            } else if let Some(path) = &source.path {
+                let abs_path = if path.is_relative() {
+                    owner_root.join(path)
+                } else {
+                    path.clone()
+                };
+                format!(
+                    "path:{}",
+                    abs_path.canonicalize().unwrap_or(abs_path).display()
+                )
+            } else if let Some(registry) = &source.registry {
+                format!("registry:{}", registry)
             } else {
-                path.clone()
-            };
-            format!(
-                "path:{}",
-                abs_path.canonicalize().unwrap_or(abs_path).display()
-            )
-        } else if let Some(registry) = &source.registry {
-            format!("registry:{}", registry)
+                dep_name.to_string()
+            }
         } else {
             dep_name.to_string()
         };
@@ -328,35 +354,39 @@ impl DependencyResolver {
             }
         }
 
-        let (dep_root, source_repr, checksum) = match (source.git, source.path, source.registry) {
-            (Some(git_url), None, None) => {
-                let (dep_root, rev) = GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
-                (dep_root, Some(format!("git+{}#{}", git_url, rev)), None)
-            }
-            (None, Some(path), None) => {
-                let candidate = if path.is_relative() {
-                    owner_root.join(path)
-                } else {
-                    path
-                };
-                let canonical = candidate.canonicalize().with_context(|| {
-                    format!(
-                        "failed to resolve path dependency `{dep_name}` from {}",
-                        owner_root.display()
+        let (dep_root, source_repr, checksum) = if let Some(source) = &source {
+            match (source.git.clone(), source.path.clone(), source.registry.clone()) {
+                (Some(git_url), None, None) => {
+                    let (dep_root, rev) = GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
+                    (dep_root, Some(format!("git+{}#{}", git_url, rev)), None)
+                }
+                (None, Some(path), None) => {
+                    let candidate = if path.is_relative() {
+                        owner_root.join(path)
+                    } else {
+                        path
+                    };
+                    let canonical = candidate.canonicalize().with_context(|| {
+                        format!(
+                            "failed to resolve path dependency `{dep_name}` from {}",
+                            owner_root.display()
+                        )
+                    })?;
+                    (
+                        PathBuf::from(normalize_path(&canonical.display().to_string())),
+                        None,
+                        None,
                     )
-                })?;
-                (
-                    PathBuf::from(normalize_path(&canonical.display().to_string())),
-                    None,
-                    None,
-                )
+                }
+                (None, None, Some(_)) => {
+                    bail!("dependency `{dep_name}` uses `registry`, which is not implemented yet")
+                }
+                _ => bail!(
+                    "dependency `{dep_name}` has unsupported source; expected exactly one of git/path/registry"
+                ),
             }
-            (None, None, Some(_)) => {
-                bail!("dependency `{dep_name}` uses `registry`, which is not implemented yet")
-            }
-            _ => bail!(
-                "dependency `{dep_name}` has unsupported source; expected exactly one of git/path/registry"
-            ),
+        } else {
+            bail!("system dependency should not reach resolve_dependency");
         };
 
         let load_result = CrowConfig::load_from(&dep_root, true);

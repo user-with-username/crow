@@ -25,7 +25,7 @@ pub use workspace::Workspace;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct CrowConfig {
-    /// Package definition. Optional for virtual manifests (workspaces).
+    /// Package definition. Optional for virtual manifests (workspaces)
     pub package: Option<Package>,
 
     #[serde(default)]

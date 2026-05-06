@@ -99,5 +99,10 @@ impl<'a> LinkingBuilder<'a> {
         for raw in build.linker.flags() {
             flags.add_raw(raw);
         }
+        if let Some(resolved_deps) = self.project.resolved_deps.as_ref() {
+            for sys_lib in &resolved_deps.system_libs {
+                flags.link_library(sys_lib.clone());
+            }
+        }
     }
 }
