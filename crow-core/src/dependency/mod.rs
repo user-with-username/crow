@@ -2,12 +2,14 @@ mod git;
 mod graph;
 mod lockfile;
 mod merge;
+mod registry;
 mod wheel;
 
 pub use git::GitDependencyFetcher;
 pub use graph::DependencyGraph;
 pub use lockfile::LockfileBuilder;
 pub use merge::{apply_dependency_standard, format_lock_dependencies, merge_dependency_inputs};
+pub use registry::RegistryFetcher;
 pub use wheel::{create_wheel, WheelArtifacts, WheelType};
 
 use crate::config::{BuildConfig, CrowConfig, LibraryConfig, Profiles};
@@ -15,6 +17,8 @@ use anyhow::{bail, Context, Result};
 use crow_utils::normalize_path;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+pub const DEFAULT_REGISTRY_URL: &str = "https://github.com/user-with-username/crow-registry";
 
 #[derive(Debug, Clone)]
 pub struct ResolvedPackage {
@@ -223,22 +227,13 @@ impl DependencyResolver {
                 continue;
             }
 
-            let package = payload
-                .config
-                .package
-                .as_ref()
-                .context("dependency manifest must have [package]")?;
-
-            if package.r#type.is_bin() {
-                bail!(
-                    "dependency `{}` has unsupported package.type `{}`; only library-like dependencies are supported",
-                    package.name,
-                    package.r#type.type_str()
-                );
-            }
+            let package = match payload.config.package.as_ref() {
+                Some(p) => p,
+                None => continue,
+            };
 
             resolved.packages.push(ResolvedPackage {
-                name: package.name.clone(),
+                name: package_name,
                 root: payload.root.clone(),
                 config: payload.config.clone(),
                 source: payload.source.clone(),
@@ -282,6 +277,7 @@ impl DependencyResolver {
                 crate::config::DependencySpec::ShorthandGit(_) => "ShorthandGit",
                 crate::config::DependencySpec::Detailed(_) => "Detailed",
                 crate::config::DependencySpec::System(_) => "System",
+                crate::config::DependencySpec::ShorthandVersion(_) => "ShorthandVersion",
             };
             if spec.is_system() {
                 continue;
@@ -324,7 +320,10 @@ impl DependencyResolver {
         profile_name: &str,
     ) -> Result<ResolvedPackage> {
         let source = spec.source();
-        let source_build_flags = source.as_ref().map(|s| s.build_flags.clone()).unwrap_or_default();
+        let source_build_flags = source
+            .as_ref()
+            .map(|s| s.build_flags.clone())
+            .unwrap_or_default();
 
         let cache_key = if let Some(source) = &source {
             if let Some(git_url) = &source.git {
@@ -339,8 +338,20 @@ impl DependencyResolver {
                     "path:{}",
                     abs_path.canonicalize().unwrap_or(abs_path).display()
                 )
-            } else if let Some(registry) = &source.registry {
-                format!("registry:{}", registry)
+            } else if let Some(registry_url) = &source.registry {
+                let version_req = source
+                    .version
+                    .as_deref()
+                    .unwrap_or("*");
+                format!("registry:{}:{}:{}", registry_url, dep_name, version_req)
+            } else if source.version.is_some() {
+                let version_req = source.version.as_deref().unwrap_or("*");
+                format!(
+                    "registry:{}:{}:{}",
+                    DEFAULT_REGISTRY_URL,
+                    dep_name,
+                    version_req
+                )
             } else {
                 dep_name.to_string()
             }
@@ -355,12 +366,19 @@ impl DependencyResolver {
         }
 
         let (dep_root, source_repr, checksum) = if let Some(source) = &source {
-            match (source.git.clone(), source.path.clone(), source.registry.clone()) {
-                (Some(git_url), None, None) => {
-                    let (dep_root, rev) = GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
+            match (
+                source.git.clone(),
+                source.path.clone(),
+                source.registry.clone(),
+                source.version.clone(),
+            ) {
+                (Some(git_url), None, None, _) => {
+                    let (dep_root, rev) =
+                        GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
                     (dep_root, Some(format!("git+{}#{}", git_url, rev)), None)
                 }
-                (None, Some(path), None) => {
+
+                (None, Some(path), None, _) => {
                     let candidate = if path.is_relative() {
                         owner_root.join(path)
                     } else {
@@ -378,11 +396,30 @@ impl DependencyResolver {
                         None,
                     )
                 }
-                (None, None, Some(_)) => {
-                    bail!("dependency `{dep_name}` uses `registry`, which is not implemented yet")
+
+                (None, None, Some(registry_url), Some(version_req)) => {
+                    self.resolve_from_registry(
+                        dep_name,
+                        &version_req,
+                        &registry_url,
+                        &source_build_flags,
+                    )?
                 }
+
+                (None, None, None, Some(version_req)) => {
+                    let registry_url = std::env::var("CROW_REGISTRY")
+                        .unwrap_or_else(|_| DEFAULT_REGISTRY_URL.to_string());
+                    self.resolve_from_registry(
+                        dep_name,
+                        &version_req,
+                        &registry_url,
+                        &source_build_flags,
+                    )?
+                }
+
                 _ => bail!(
-                    "dependency `{dep_name}` has unsupported source; expected exactly one of git/path/registry"
+                    "dependency `{dep_name}` has unsupported source; expected exactly one of \
+                     git / path / version (with optional registry)"
                 ),
             }
         } else {
@@ -398,7 +435,9 @@ impl DependencyResolver {
                         package: Some(crate::config::Package {
                             name: dep_name.to_string(),
                             version: "0.0.0".to_string(),
-                            r#type: crate::config::ProjectType::StaticLib(LibraryConfig::default()),
+                            r#type: crate::config::ProjectType::StaticLib(
+                                LibraryConfig::default(),
+                            ),
                             standard: None,
                             authors: None,
                             description: None,
@@ -413,7 +452,8 @@ impl DependencyResolver {
                     (dummy_config, true)
                 } else {
                     anyhow::bail!(
-                        "failed to load config for dependency `{dep_name}` at {} and no known build system found (CMakeLists.txt, meson.build, WORKSPACE)",
+                        "failed to load config for dependency `{dep_name}` at {} \
+                         and no known build system found (CMakeLists.txt, meson.build, WORKSPACE)",
                         dep_root.display()
                     )
                 }
@@ -448,6 +488,29 @@ impl DependencyResolver {
         profile_cache.insert(cache_key, resolved_pkg.clone());
 
         Ok(resolved_pkg)
+    }
+
+    fn resolve_from_registry(
+        &self,
+        dep_name: &str,
+        version_req: &str,
+        registry_url: &str,
+        _build_flags: &[String],
+    ) -> Result<(PathBuf, Option<String>, Option<String>)> {
+        let coords =
+            RegistryFetcher::global().resolve(dep_name, version_req, registry_url)?;
+
+        let (dep_root, resolved_commit) = GitDependencyFetcher::global()
+            .fetch_commit(dep_name, &coords.git_url, &coords.commit)?;
+
+        let source_repr = Some(format!(
+            "registry+{}#{}@{}",
+            registry_url, dep_name, &resolved_commit[..8.min(resolved_commit.len())]
+        ));
+
+        let checksum = Some(resolved_commit);
+
+        Ok((dep_root, source_repr, checksum))
     }
 
     fn is_linkable_type(project_type: &crate::config::ProjectType) -> bool {

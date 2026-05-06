@@ -11,9 +11,10 @@ dependencies = ["formatter 1.0.0", "winapi"]
 [[package]]
 name = "fmt"
 version = "0.0.0"
-source = "git+https://github.com/fmtlib/fmt#9cb8c0f92b4c345fb974a75d71370c23047528aa"
+source = "registry+https://github.com/user-with-username/crow-registry#fmt@407c905e"
+checksum = "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f"
 
 [[package]]
 name = "formatter"
 version = "1.0.0"
-dependencies = ["fmt 0.0.0 (git+https://github.com/fmtlib/fmt#9cb8c0f92b4c345fb974a75d71370c23047528aa)"]
+dependencies = ["fmt 0.0.0 (registry+https://github.com/user-with-username/crow-registry#fmt@407c905e)"]
