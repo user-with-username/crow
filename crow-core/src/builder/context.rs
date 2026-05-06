@@ -12,7 +12,6 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-/// Apply appropriate language standard based on file extension
 fn apply_language_standard(flags: &mut CompilerFlags, source_path: &Path, standard: Option<&str>) {
     let Some(standard) = standard else { return };
 
@@ -91,7 +90,6 @@ impl<'a> CompilationContext<'a> {
     ) -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
         let source = SourceFilePath(source_path.to_path_buf());
 
-        // Create temporary flags to apply language standard
         let mut lang_flags = CompilerFlags::new(self.project.compiler_kind());
         apply_language_standard(
             &mut lang_flags,
@@ -109,7 +107,6 @@ impl<'a> CompilationContext<'a> {
             &self.project.profile,
         )?;
 
-        // Add language standard flags to task args
         for flag in extra_flags {
             task.args.push(flag);
         }
