@@ -4,4 +4,4 @@ standard = "20"
 version = "1.0.0"
 
 [dependencies]
-fmt = "12.1.0"
+fmt = "*"
