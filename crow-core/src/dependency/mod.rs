@@ -278,11 +278,11 @@ impl DependencyResolver {
         profile_name: &str,
     ) -> Result<()> {
         for (dep_name, spec) in deps.iter() {
-            eprintln!("[DEBUG] Processing dependency: {}, type: {:?}", dep_name, match spec {
+            match spec {
                 crate::config::DependencySpec::ShorthandGit(_) => "ShorthandGit",
                 crate::config::DependencySpec::Detailed(_) => "Detailed",
                 crate::config::DependencySpec::System(_) => "System",
-            });
+            };
             if spec.is_system() {
                 continue;
             }
