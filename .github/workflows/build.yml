@@ -19,7 +19,7 @@ jobs:
       - name: Get crate version
         id: get-version
         run: |
-          version=$(grep -m1 '^version =' zen-cli/Cargo.toml | cut -d '"' -f2)
+          version=$(grep -m1 '^version =' crow-cli/Cargo.toml | cut -d '"' -f2)
           echo "version=${version}" >> $GITHUB_OUTPUT
           echo "Using version: ${version}"
 
@@ -112,31 +112,6 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Get all commits
-        id: changelog
-        run: |
-          VERSION="${{ needs.get-version.outputs.version }}"
-
-          VERSION_COMMIT=$(git log --reverse --pretty=format:%H -S "version = \"$VERSION\"" -- Cargo.toml | head -1)
-          
-          if [ -z "$VERSION_COMMIT" ]; then
-            echo "Version commit not found, using all commits"
-            COMMITS=$(git log --pretty=format:"- %s%n  %b" | sed '/^  $/d')
-          else
-            echo "Found version commit: $VERSION_COMMIT"
-            COMMITS=$(git log --pretty=format:"- %s%n  %b" $VERSION_COMMIT^..HEAD | sed '/^  $/d')
-          fi
-
-          if [ -n "$COMMITS" ]; then
-            DELIMITER=$(openssl rand -hex 16)
-            echo "changelog<<$DELIMITER" >> $GITHUB_OUTPUT
-            echo "### Changelog" >> $GITHUB_OUTPUT
-            echo "$COMMITS" >> $GITHUB_OUTPUT
-            echo "$DELIMITER" >> $GITHUB_OUTPUT
-          else
-            echo "changelog=No changes for this version" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
@@ -145,9 +120,7 @@ jobs:
           body: |
             Build for version ${{ needs.get-version.outputs.version }}.
             
-            ${{ steps.changelog.outputs.changelog }}
-            
-            Thank you for using Zen!
+            Thank you for using crow!
           files: |
             artifacts/linux-x86_64
             artifacts/linux-arm64
