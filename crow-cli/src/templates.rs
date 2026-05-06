@@ -27,6 +27,7 @@ pub const GITIGNORE: &str = r#"target/
 *.dylib
 *.dll
 .DS_Store
+.cache
 "#;
 
 pub fn create_src_directory(src_dir: &Path) -> Result<()> {

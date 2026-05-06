@@ -1,0 +1,6 @@
+[package]
+name = "simple_project"
+version = "0.1.0"
+standard = "20"
+
+[dependencies]
