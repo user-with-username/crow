@@ -5,3 +5,4 @@ version = "1.0.0"
 
 [dependencies]
 fmt = "12"
+nlohmann_json = "3.11.2"

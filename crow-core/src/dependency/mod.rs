@@ -17,7 +17,7 @@ pub use version_req::VersionReq;
 use crate::config::{BuildConfig, CrowConfig, DependencySource, DependencySpec, LibraryConfig, Profiles};
 use anyhow::{bail, Context, Result};
 use crow_utils::normalize_path;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_REGISTRY_URL: &str = "https://github.com/user-with-username/crow-registry";
@@ -188,11 +188,19 @@ impl DependencyResolver {
         compiler_flags: &[String],
         build_flags: &[String],
     ) -> Result<WheelArtifacts> {
-        let wheel_build_dir = self.cache_root.join(profile_name);
-        std::fs::create_dir_all(&wheel_build_dir)?;
+        let base_build_dir = self.cache_root.join(profile_name);
+        std::fs::create_dir_all(&base_build_dir)?;
+
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        dep_root.hash(&mut hasher);
+        let hash = format!("{:016x}", hasher.finish());
+        let unique_build_dir = base_build_dir.join(hash);
+
         let wheel = create_wheel(dep_root)
             .with_context(|| format!("no known build system found at {}", dep_root.display()))?;
-        wheel.build(&wheel_build_dir, profile_name, compiler_flags, build_flags)
+        wheel.build(&unique_build_dir, profile_name, compiler_flags, build_flags)
     }
 
     pub fn resolve_for(
@@ -245,31 +253,6 @@ impl DependencyResolver {
 
         let build_order = graph.resolve_order()?;
         let mut wheel_artifacts: HashMap<PathBuf, WheelArtifacts> = HashMap::new();
-        let wheel_build_dir = self.cache_root.join(profile_name);
-        std::fs::create_dir_all(&wheel_build_dir)?;
-        let compiler_flags = root_config.build.compiler.flags().to_vec();
-
-        for idx in &build_order {
-            if *idx == root_idx {
-                continue;
-            }
-            let payload = graph.get_node(*idx).context("failed to get node")?;
-            if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
-                if let Some(wheel) = create_wheel(&payload.root) {
-                    match wheel.build(&wheel_build_dir, profile_name, &compiler_flags, &payload.build_flags) {
-                        Ok(artifacts) => {
-                            wheel_artifacts.insert(payload.root.clone(), artifacts);
-                        }
-                        Err(e) => {
-                            bail!("failed to build wheel for {}: {}", payload.root.display(), e);
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut wheel_artifacts: HashMap<PathBuf, WheelArtifacts> = HashMap::new();
-        let wheel_build_dir = self.cache_root.join("wheel_builds");
 
         let mut compiler_flags = root_config.build.compiler.flags().to_vec();
 
@@ -290,35 +273,21 @@ impl DependencyResolver {
 
             let payload = graph.get_node(*idx).context("failed to get node")?;
             if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
-                if let Some(wheel) = create_wheel(&payload.root) {
-                    // compiler_flags: actual compiler settings (-std, -O, etc.)
-                    // build_flags: build system options (-D, --define, etc.)
-                    match wheel.build(
-                        &wheel_build_dir,
-                        profile_name,
-                        &compiler_flags,
-                        &payload.build_flags,
-                    ) {
-                        Ok(artifacts) => {
-                            wheel_artifacts.insert(payload.root.clone(), artifacts);
-                        }
-                        Err(e) => {
-                            bail!(
-                                "failed to build wheel for {}: {}",
-                                payload.root.display(),
-                                e
-                            );
-                        }
-                    }
-                }
+                let artifacts = self.build_wheel(
+                    &payload.root,
+                    profile_name,
+                    &compiler_flags,
+                    &payload.build_flags,
+                )?;
+                wheel_artifacts.insert(payload.root.clone(), artifacts);
             }
         }
 
         let mut resolved = ResolvedDependencyBuild::default();
-        let mut seen_include = std::collections::HashSet::new();
-        let mut seen_libs = std::collections::HashSet::new();
-        let mut seen_lib_paths = std::collections::HashSet::new();
-        let mut seen_system_libs = std::collections::HashSet::new();
+        let mut seen_include = HashSet::new();
+        let mut seen_libs = HashSet::new();
+        let mut seen_lib_paths = HashSet::new();
+        let mut seen_system_libs = HashSet::new();
         let mut max_standard = crate::config::parse_standard(
             root_config.package.as_ref().and_then(|pkg| pkg.standard.as_deref()),
         );
@@ -393,8 +362,7 @@ impl DependencyResolver {
                 build_flags: Vec::new(),
             });
 
-            max_standard =
-                max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
+            max_standard = max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
 
             let include_dir = payload.root.join("include");
             if include_dir.exists() && seen_include.insert(include_dir.clone()) {

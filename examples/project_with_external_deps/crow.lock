@@ -15,6 +15,12 @@ source = "registry+https://github.com/user-with-username/crow-registry#fmt@407c9
 checksum = "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f"
 
 [[package]]
+name = "nlohmann_json"
+version = "0.0.0"
+source = "registry+https://github.com/user-with-username/crow-registry#nlohmann_json@55f93686"
+checksum = "55f93686c01528224f448c19128836e7df245f72"
+
+[[package]]
 name = "formatter"
 version = "1.0.0"
-dependencies = ["fmt 0.0.0 (registry+https://github.com/user-with-username/crow-registry#fmt@407c905e)"]
+dependencies = ["fmt 0.0.0 (registry+https://github.com/user-with-username/crow-registry#fmt@407c905e)", "nlohmann_json 0.0.0 (registry+https://github.com/user-with-username/crow-registry#nlohmann_json@55f93686)"]
