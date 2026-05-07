@@ -4,4 +4,4 @@ standard = "17"
 version = "1.0.0"
 
 [dependencies]
-fmt = { version = "12", build_flags = ["-DFMT_TEST=OFF", "-DFMT_INSTALL=OFF"] }
+fmt = "12"
