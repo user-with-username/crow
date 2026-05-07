@@ -21,13 +21,12 @@
       "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt",
       "/IC:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\include",
       "/IC:\\Users\\user\\.crow\\git_cache\\fmt-77984052dc41b78b-407c905e45ad75fc\\include",
-      "/IC:\\Users\\user\\.crow\\wheel_builds\\debug\\cmake_wheel\\install\\include",
       "/IC:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\include",
       "/showIncludes",
       "/Fo:target\\debug\\text_formatter.obj",
       "/Fdtarget\\debug\\pdb\\text_formatter.pdb",
       "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\src\\text_formatter.cpp",
-      "/std:c++20"
+      "/std:c++17"
     ],
     "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\src\\text_formatter.cpp"
   }

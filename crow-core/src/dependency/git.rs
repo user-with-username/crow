@@ -213,7 +213,7 @@ impl GitDependencyFetcher {
         use crow_utils::status;
         use git2::build::CheckoutBuilder;
 
-        status!("Checking out", "{} @ {}", dep_name, &commit[..8.min(commit.len())]);
+        status!("Checking out", "{}", dep_name);
 
         let repo = Repository::open(dep_dir)
             .with_context(|| format!("failed to open {}", dep_dir.display()))?;

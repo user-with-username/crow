@@ -23,3 +23,4 @@ rayon = { workspace = true }
 petgraph = "0.8.3"
 git2 = { version = "0.18", features = ["vendored-libgit2", "vendored-openssl", "ssh"] }
 semver = "1.0.28"
+ureq = { version = "2", default-features = false, features = ["json"] }
