@@ -45,13 +45,12 @@ impl CmakeWheel {
             .context("cmake File API index file not found")?;
 
         let index_text = fs::read_to_string(&index_path)?;
-        let index: IndexFile = serde_json::from_str(&index_text)
-            .with_context(|| {
-                format!(
-                    "failed to parse cmake File API index:\n{}",
-                    &index_text[..index_text.len().min(2000)]
-                )
-            })?;
+        let index: IndexFile = serde_json::from_str(&index_text).with_context(|| {
+            format!(
+                "failed to parse cmake File API index:\n{}",
+                &index_text[..index_text.len().min(2000)]
+            )
+        })?;
 
         let codemodel_ref = index
             .objects
@@ -60,10 +59,14 @@ impl CmakeWheel {
             .context("no codemodel object found in cmake File API index")?;
 
         let codemodel_path = reply_dir.join(&codemodel_ref.json_file);
-        let codemodel_text = fs::read_to_string(&codemodel_path)
-            .with_context(|| format!("failed to read codemodel file: {}", codemodel_path.display()))?;
-        let codemodel: Codemodel = serde_json::from_str(&codemodel_text)
-            .context("failed to parse cmake codemodel")?;
+        let codemodel_text = fs::read_to_string(&codemodel_path).with_context(|| {
+            format!(
+                "failed to read codemodel file: {}",
+                codemodel_path.display()
+            )
+        })?;
+        let codemodel: Codemodel =
+            serde_json::from_str(&codemodel_text).context("failed to parse cmake codemodel")?;
 
         let mut library_targets = Vec::new();
 
@@ -209,8 +212,8 @@ impl Wheel for CmakeWheel {
             anyhow::bail!("cmake configure failed:\n{}", stderr);
         }
 
-        let library_targets = Self::read_library_targets(&out_dir)
-            .context("failed to read cmake File API reply")?;
+        let library_targets =
+            Self::read_library_targets(&out_dir).context("failed to read cmake File API reply")?;
 
         if library_targets.is_empty() {
             anyhow::bail!(

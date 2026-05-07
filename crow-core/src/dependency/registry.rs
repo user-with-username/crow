@@ -49,7 +49,9 @@ impl RegistryFetcher {
             } else {
                 Repository::open_bare(&registry_dir)
             }
-            .with_context(|| format!("failed to open registry repo at {}", registry_dir.display()))?;
+            .with_context(|| {
+                format!("failed to open registry repo at {}", registry_dir.display())
+            })?;
 
             {
                 let mut remote = repo
@@ -69,10 +71,12 @@ impl RegistryFetcher {
             Ok(repo)
         } else {
             std::fs::create_dir_all(&registry_dir)?;
-            let repo = Repository::init_bare(&registry_dir)
-                .with_context(|| {
-                    format!("failed to init bare registry repo at {}", registry_dir.display())
-                })?;
+            let repo = Repository::init_bare(&registry_dir).with_context(|| {
+                format!(
+                    "failed to init bare registry repo at {}",
+                    registry_dir.display()
+                )
+            })?;
 
             repo.remote("origin", registry_url)
                 .with_context(|| format!("failed to add remote {registry_url}"))?;
@@ -185,8 +189,7 @@ impl RegistryFetcher {
             .iter()
             .find(|(v, _)| version_req.matches(&v.to_string()))
             .with_context(|| {
-                let versions: Vec<String> =
-                    available.iter().map(|(v, _)| v.to_string()).collect();
+                let versions: Vec<String> = available.iter().map(|(v, _)| v.to_string()).collect();
                 format!(
                     "no version of `{dep_name}` satisfies `{}` in registry `{registry_url}`\n\
                      available versions: {}",
@@ -205,9 +208,7 @@ impl RegistryFetcher {
         })?;
 
         let entry: RegistryEntry = toml::from_str(raw_str).with_context(|| {
-            format!(
-                "invalid registry entry for `{dep_name}` v{chosen_version} at {blob_path}"
-            )
+            format!("invalid registry entry for `{dep_name}` v{chosen_version} at {blob_path}")
         })?;
 
         Ok(RegistryCoordinates {

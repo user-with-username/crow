@@ -74,7 +74,12 @@ impl Project {
         manifest_dir: &Path,
         profile_name: &str,
     ) -> Result<ResolvedDependencyBuild> {
-        let bootstrap_project = Self::new(config.clone(), manifest_dir.to_path_buf(), profile_name, None)?;
+        let bootstrap_project = Self::new(
+            config.clone(),
+            manifest_dir.to_path_buf(),
+            profile_name,
+            None,
+        )?;
         let target_dir = bootstrap_project.target_dir();
         let mut resolver = DependencyResolver::new();
         resolver.resolve_for(config, manifest_dir, profile_name, &target_dir)

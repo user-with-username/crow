@@ -3,18 +3,20 @@ mod graph;
 mod lockfile;
 mod merge;
 mod registry;
-mod wheel;
 pub mod version_req;
+mod wheel;
 
 pub use git::GitDependencyFetcher;
 pub use graph::DependencyGraph;
 pub use lockfile::LockfileBuilder;
 pub use merge::{apply_dependency_standard, format_lock_dependencies, merge_dependency_inputs};
 pub use registry::RegistryFetcher;
-pub use wheel::{create_wheel, WheelArtifacts, WheelType};
 pub use version_req::VersionReq;
+pub use wheel::{create_wheel, WheelArtifacts, WheelType};
 
-use crate::config::{BuildConfig, CrowConfig, DependencySource, DependencySpec, LibraryConfig, Profiles};
+use crate::config::{
+    BuildConfig, CrowConfig, DependencySource, DependencySpec, LibraryConfig, Profiles,
+};
 use anyhow::{bail, Context, Result};
 use crow_utils::normalize_path;
 use std::collections::{HashMap, HashSet};
@@ -57,32 +59,65 @@ impl DependencyConstraint {
             None => None,
             Some(_) => None,
         };
-        Ok(Self { 
-            source, 
-            version: parsed_version, 
-            source_type 
+        Ok(Self {
+            source,
+            version: parsed_version,
+            source_type,
         })
     }
 
-    fn from_dependency_spec(dep_name: &str, spec: &DependencySpec, owner_root: &Path) -> Result<Self> {
+    fn from_dependency_spec(
+        dep_name: &str,
+        spec: &DependencySpec,
+        owner_root: &Path,
+    ) -> Result<Self> {
         match spec {
-            DependencySpec::ShorthandGit(url) => Self::new(Some(url.clone()), None, "git".to_string()),
-            DependencySpec::ShorthandVersion(version) => Self::new(None, Some(version.clone()), "registry".to_string()),
-            DependencySpec::Detailed(source) => Self::from_dependency_source(dep_name, source, owner_root),
+            DependencySpec::ShorthandGit(url) => {
+                Self::new(Some(url.clone()), None, "git".to_string())
+            }
+            DependencySpec::ShorthandVersion(version) => {
+                Self::new(None, Some(version.clone()), "registry".to_string())
+            }
+            DependencySpec::Detailed(source) => {
+                Self::from_dependency_source(dep_name, source, owner_root)
+            }
             DependencySpec::System(_) => Self::new(None, None, "system".to_string()),
         }
     }
 
-    fn from_dependency_source(dep_name: &str, source: &DependencySource, owner_root: &Path) -> Result<Self> {
+    fn from_dependency_source(
+        dep_name: &str,
+        source: &DependencySource,
+        owner_root: &Path,
+    ) -> Result<Self> {
         if let Some(git_url) = &source.git {
-            Self::new(Some(git_url.clone()), source.version.clone(), "git".to_string())
+            Self::new(
+                Some(git_url.clone()),
+                source.version.clone(),
+                "git".to_string(),
+            )
         } else if let Some(path) = &source.path {
-            let abs_path = if path.is_relative() { owner_root.join(path) } else { path.clone() };
+            let abs_path = if path.is_relative() {
+                owner_root.join(path)
+            } else {
+                path.clone()
+            };
             let canonical = abs_path.canonicalize().unwrap_or(abs_path);
-            Self::new(Some(canonical.display().to_string()), None, "path".to_string())
+            Self::new(
+                Some(canonical.display().to_string()),
+                None,
+                "path".to_string(),
+            )
         } else if source.version.is_some() || source.registry.is_some() {
-            let registry_url = source.registry.clone().unwrap_or_else(|| DEFAULT_REGISTRY_URL.to_string());
-            Self::new(Some(registry_url), source.version.clone(), "registry".to_string())
+            let registry_url = source
+                .registry
+                .clone()
+                .unwrap_or_else(|| DEFAULT_REGISTRY_URL.to_string());
+            Self::new(
+                Some(registry_url),
+                source.version.clone(),
+                "registry".to_string(),
+            )
         } else {
             bail!("dependency `{dep_name}` has no valid source specification")
         }
@@ -96,12 +131,10 @@ impl DependencyConstraint {
             (Some(s1), Some(s2)) if s1 != s2 => return true,
             _ => {}
         }
-        
+
         match (&self.version, &other.version) {
-            (Some(v1), Some(v2)) => {
-                v1.as_str() != v2.as_str()
-            }
-            _ => false
+            (Some(v1), Some(v2)) => v1.as_str() != v2.as_str(),
+            _ => false,
         }
     }
 
@@ -109,8 +142,12 @@ impl DependencyConstraint {
         match self.source_type.as_str() {
             "git" => format!("git: {}", self.source.as_deref().unwrap_or("?")),
             "path" => format!("path: {}", self.source.as_deref().unwrap_or("?")),
-            "registry" => format!("registry: {}", 
-                self.version.as_ref().map(|v| v.as_str()).unwrap_or_else(|| "?".to_string())
+            "registry" => format!(
+                "registry: {}",
+                self.version
+                    .as_ref()
+                    .map(|v| v.as_str())
+                    .unwrap_or_else(|| "?".to_string())
             ),
             "system" => "system".to_string(),
             _ => "unknown".to_string(),
@@ -148,10 +185,12 @@ impl DependencyResolver {
         constraint: DependencyConstraint,
         owner_name: &str,
     ) -> Result<()> {
-        let profile_constraints = self.dependency_constraints
+        let profile_constraints = self
+            .dependency_constraints
             .entry(profile_name.to_string())
             .or_insert_with(HashMap::new);
-        let profile_owners = self.dependency_owners
+        let profile_owners = self
+            .dependency_owners
             .entry(profile_name.to_string())
             .or_insert_with(HashMap::new);
 
@@ -218,7 +257,10 @@ impl DependencyResolver {
         }
 
         std::fs::create_dir_all(&self.cache_root).with_context(|| {
-            format!("failed to create dependency cache at {}", self.cache_root.display())
+            format!(
+                "failed to create dependency cache at {}",
+                self.cache_root.display()
+            )
         })?;
 
         let root_dir = root_dir
@@ -289,7 +331,10 @@ impl DependencyResolver {
         let mut seen_lib_paths = HashSet::new();
         let mut seen_system_libs = HashSet::new();
         let mut max_standard = crate::config::parse_standard(
-            root_config.package.as_ref().and_then(|pkg| pkg.standard.as_deref()),
+            root_config
+                .package
+                .as_ref()
+                .and_then(|pkg| pkg.standard.as_deref()),
         );
 
         for (_dep_name, spec) in root_config.dependencies.iter() {
@@ -314,7 +359,12 @@ impl DependencyResolver {
                 .as_ref()
                 .map(|pkg| pkg.name.clone())
                 .unwrap_or_else(|| {
-                    payload.root.file_name().unwrap_or_default().to_string_lossy().to_string()
+                    payload
+                        .root
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
                 });
 
             if payload.is_wheel {
@@ -362,7 +412,8 @@ impl DependencyResolver {
                 build_flags: Vec::new(),
             });
 
-            max_standard = max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
+            max_standard =
+                max_standard.max(crate::config::parse_standard(package.standard.as_deref()));
 
             let include_dir = payload.root.join("include");
             if include_dir.exists() && seen_include.insert(include_dir.clone()) {
@@ -396,7 +447,8 @@ impl DependencyResolver {
                 continue;
             }
 
-            let constraint = DependencyConstraint::from_dependency_spec(dep_name, spec, owner_root)?;
+            let constraint =
+                DependencyConstraint::from_dependency_spec(dep_name, spec, owner_root)?;
             self.check_dependency_conflict(profile_name, dep_name, constraint, owner_name)?;
 
             let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
@@ -450,19 +502,29 @@ impl DependencyResolver {
             .unwrap_or_default();
 
         let version_req_str = spec.version_req();
-        
+
         let cache_key = if let Some(source) = &source {
             if let Some(git_url) = &source.git {
                 format!("git:{}", git_url)
             } else if let Some(path) = &source.path {
-                let abs_path = if path.is_relative() { owner_root.join(path) } else { path.clone() };
-                format!("path:{}", abs_path.canonicalize().unwrap_or(abs_path).display())
+                let abs_path = if path.is_relative() {
+                    owner_root.join(path)
+                } else {
+                    path.clone()
+                };
+                format!(
+                    "path:{}",
+                    abs_path.canonicalize().unwrap_or(abs_path).display()
+                )
             } else if let Some(registry_url) = &source.registry {
                 let version_req = version_req_str.as_deref().unwrap_or("*");
                 format!("registry:{}:{}:{}", registry_url, dep_name, version_req)
             } else if source.version.is_some() {
                 let version_req = version_req_str.as_deref().unwrap_or("*");
-                format!("registry:{}:{}:{}", DEFAULT_REGISTRY_URL, dep_name, version_req)
+                format!(
+                    "registry:{}:{}:{}",
+                    DEFAULT_REGISTRY_URL, dep_name, version_req
+                )
             } else {
                 dep_name.to_string()
             }
@@ -484,23 +546,43 @@ impl DependencyResolver {
                 source.version.clone(),
             ) {
                 (Some(git_url), None, None, _) => {
-                    let (dep_root, rev) = GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
+                    let (dep_root, rev) =
+                        GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
                     (dep_root, Some(format!("git+{}#{}", git_url, rev)), None)
                 }
                 (None, Some(path), None, _) => {
-                    let candidate = if path.is_relative() { owner_root.join(path) } else { path };
+                    let candidate = if path.is_relative() {
+                        owner_root.join(path)
+                    } else {
+                        path
+                    };
                     let canonical = candidate.canonicalize().with_context(|| {
-                        format!("failed to resolve path dependency `{dep_name}` from {}", owner_root.display())
+                        format!(
+                            "failed to resolve path dependency `{dep_name}` from {}",
+                            owner_root.display()
+                        )
                     })?;
-                    (PathBuf::from(normalize_path(&canonical.display().to_string())), None, None)
+                    (
+                        PathBuf::from(normalize_path(&canonical.display().to_string())),
+                        None,
+                        None,
+                    )
                 }
-                (None, None, Some(registry_url), Some(version_req)) => {
-                    self.resolve_from_registry(dep_name, &version_req, &registry_url, &source_build_flags)?
-                }
+                (None, None, Some(registry_url), Some(version_req)) => self.resolve_from_registry(
+                    dep_name,
+                    &version_req,
+                    &registry_url,
+                    &source_build_flags,
+                )?,
                 (None, None, None, Some(version_req)) => {
                     let registry_url = std::env::var("CROW_REGISTRY")
                         .unwrap_or_else(|_| DEFAULT_REGISTRY_URL.to_string());
-                    self.resolve_from_registry(dep_name, &version_req, &registry_url, &source_build_flags)?
+                    self.resolve_from_registry(
+                        dep_name,
+                        &version_req,
+                        &registry_url,
+                        &source_build_flags,
+                    )?
                 }
                 _ => bail!(
                     "dependency `{dep_name}` has unsupported source; expected exactly one of \
@@ -564,7 +646,8 @@ impl DependencyResolver {
             build_flags: source_build_flags,
         };
 
-        let profile_cache = self.resolved_cache
+        let profile_cache = self
+            .resolved_cache
             .entry(profile_name.to_string())
             .or_insert_with(HashMap::new);
         profile_cache.insert(cache_key, resolved_pkg.clone());
@@ -580,18 +663,23 @@ impl DependencyResolver {
         _build_flags: &[String],
     ) -> Result<(PathBuf, Option<String>, Option<String>)> {
         let version_req = VersionReq::parse(version_req)?;
-        
+
         let coords = RegistryFetcher::global().resolve(dep_name, &version_req, registry_url)?;
-        
-        let (dep_root, resolved_commit) = GitDependencyFetcher::global()
-            .fetch_commit(dep_name, &coords.git_url, &coords.commit)?;
-        
+
+        let (dep_root, resolved_commit) = GitDependencyFetcher::global().fetch_commit(
+            dep_name,
+            &coords.git_url,
+            &coords.commit,
+        )?;
+
         let source_repr = Some(format!(
             "registry+{}#{}@{}",
-            registry_url, dep_name, &resolved_commit[..8.min(resolved_commit.len())]
+            registry_url,
+            dep_name,
+            &resolved_commit[..8.min(resolved_commit.len())]
         ));
         let checksum = Some(resolved_commit);
-        
+
         Ok((dep_root, source_repr, checksum))
     }
 

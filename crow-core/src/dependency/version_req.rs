@@ -14,15 +14,15 @@ pub enum VersionReq {
 impl VersionReq {
     pub fn parse(input: &str) -> Result<Self> {
         let trimmed = input.trim();
-        
+
         if trimmed == "*" {
             return Ok(VersionReq::Any);
         }
-        
+
         if trimmed.contains('*') {
             return Self::parse_wildcard(trimmed);
         }
-        
+
         match SemverVersionReq::parse(trimmed) {
             Ok(req) => {
                 if req.comparators.len() == 1 && req.comparators[0].op == semver::Op::Exact {
@@ -41,50 +41,52 @@ impl VersionReq {
             }
         }
     }
-    
+
     fn parse_wildcard(input: &str) -> Result<Self> {
         let parts: Vec<&str> = input.split('.').collect();
         let mut prefix = Vec::new();
-        
+
         for (i, part) in parts.iter().enumerate() {
             if *part == "*" {
-                for remaining in &parts[i+1..] {
+                for remaining in &parts[i + 1..] {
                     if *remaining != "*" {
                         anyhow::bail!("invalid wildcard pattern: '*' must be at the end");
                     }
                 }
                 break;
             }
-            
-            let num: u32 = part.parse()
+
+            let num: u32 = part
+                .parse()
                 .map_err(|_| anyhow::anyhow!("invalid version number: {}", part))?;
             prefix.push(num);
         }
-        
+
         Ok(VersionReq::Wildcard(prefix))
     }
-    
+
     pub fn matches(&self, version_str: &str) -> bool {
         let version = match Version::parse(version_str) {
             Ok(v) => v,
             Err(_) => return false,
         };
-        
+
         match self {
             VersionReq::Semver(req) => req.matches(&version),
             VersionReq::Wildcard(prefix) => {
-                let parts: Vec<u32> = version.to_string()
+                let parts: Vec<u32> = version
+                    .to_string()
                     .split('.')
                     .filter_map(|s| s.parse().ok())
                     .collect();
-                
+
                 parts.len() >= prefix.len() && &parts[..prefix.len()] == prefix
             }
             VersionReq::Any => true,
             VersionReq::Exact(exact) => &version == exact,
         }
     }
-    
+
     pub fn as_str(&self) -> String {
         match self {
             VersionReq::Semver(req) => req.to_string(),
@@ -92,7 +94,14 @@ impl VersionReq {
                 if prefix.is_empty() {
                     "*".to_string()
                 } else {
-                    format!("{}.*", prefix.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("."))
+                    format!(
+                        "{}.*",
+                        prefix
+                            .iter()
+                            .map(|x| x.to_string())
+                            .collect::<Vec<_>>()
+                            .join(".")
+                    )
                 }
             }
             VersionReq::Any => "*".to_string(),
@@ -109,7 +118,7 @@ impl fmt::Display for VersionReq {
 
 impl FromStr for VersionReq {
     type Err = anyhow::Error;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::parse(s)
     }

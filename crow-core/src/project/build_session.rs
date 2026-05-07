@@ -108,7 +108,12 @@ impl<'a> BuildSession<'a> {
         Project::merge_dependency_inputs(&mut root_config, &resolved);
         Self::apply_wheel_artifacts(&mut root_config, &wheel_artifacts);
 
-        let root_project = Project::new(root_config, manifest_dir.clone(), self.profile_name, Some(resolved.clone()))?;
+        let root_project = Project::new(
+            root_config,
+            manifest_dir.clone(),
+            self.profile_name,
+            Some(resolved.clone()),
+        )?;
 
         let opt_level = if root_project.profile.opt_level() != "0" {
             "optimized"
@@ -185,7 +190,12 @@ impl<'a> BuildSession<'a> {
 
             let mut dep_config = dep.config.clone();
             Project::merge_dependency_inputs(&mut dep_config, resolved);
-            let project = Project::new(dep_config, dep.root.clone(), self.profile_name, Some(resolved.clone()))?;
+            let project = Project::new(
+                dep_config,
+                dep.root.clone(),
+                self.profile_name,
+                Some(resolved.clone()),
+            )?;
             project.configure_parallelism(self.jobs);
 
             let lockfile_path = dep.root.join("crow.lock");
@@ -205,8 +215,12 @@ impl<'a> BuildSession<'a> {
         Project::apply_dependency_standard(&mut root_config, resolved);
         Project::merge_dependency_inputs(&mut root_config, resolved);
 
-        let root_project =
-            Project::new(root_config, manifest_dir.to_path_buf(), self.profile_name, Some(resolved.clone()))?;
+        let root_project = Project::new(
+            root_config,
+            manifest_dir.to_path_buf(),
+            self.profile_name,
+            Some(resolved.clone()),
+        )?;
         root_project.configure_parallelism(self.jobs);
 
         let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;

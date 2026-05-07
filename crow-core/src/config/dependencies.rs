@@ -49,9 +49,9 @@ impl<'de> Deserialize<'de> for DependencySpec {
         D: Deserializer<'de>,
     {
         use serde::de::Error;
-        
+
         let value = serde_json::Value::deserialize(deserializer)?;
-        
+
         if let Some(s) = value.as_str() {
             if looks_like_version(s) {
                 return Ok(DependencySpec::ShorthandVersion(s.to_string()));
@@ -61,9 +61,9 @@ impl<'de> Deserialize<'de> for DependencySpec {
             }
             Ok(DependencySpec::ShorthandGit(s.to_string()))
         } else if value.is_object() {
-            let source: DependencySource = serde::Deserialize::deserialize(value)
-                .map_err(Error::custom)?;
-            
+            let source: DependencySource =
+                serde::Deserialize::deserialize(value).map_err(Error::custom)?;
+
             if let Some(true) = source.system {
                 Ok(DependencySpec::System(SystemDependency {
                     system: true,
@@ -80,16 +80,16 @@ impl<'de> Deserialize<'de> for DependencySpec {
 
 fn is_git_url(s: &str) -> bool {
     let trimmed = s.trim();
-    
+
     if trimmed == "*" || trimmed.contains("*.*") {
         return false;
     }
-    
+
     let first_char = trimmed.chars().next().unwrap_or('\0');
     if first_char.is_ascii_digit() || matches!(first_char, '^' | '~' | '>' | '<' | '=') {
         return false;
     }
-    
+
     trimmed.starts_with("http://")
         || trimmed.starts_with("https://")
         || trimmed.starts_with("git@")
@@ -100,15 +100,15 @@ fn is_git_url(s: &str) -> bool {
 
 fn looks_like_version(s: &str) -> bool {
     let trimmed = s.trim();
-    
+
     if trimmed.is_empty() {
         return false;
     }
-    
+
     if trimmed == "*" {
         return true;
     }
-    
+
     if trimmed.contains('*') {
         let parts: Vec<&str> = trimmed.split('.').collect();
         let mut found_wildcard = false;
@@ -123,13 +123,13 @@ fn looks_like_version(s: &str) -> bool {
         }
         return found_wildcard;
     }
-    
+
     let first_char = trimmed.chars().next().unwrap_or('\0');
-    
+
     if first_char.is_ascii_digit() {
         return trimmed.chars().all(|c| c.is_ascii_digit() || c == '.');
     }
-    
+
     if matches!(first_char, '^' | '~' | '>' | '<' | '=') {
         let rest = &trimmed[1..].trim();
         if rest.is_empty() {
@@ -138,7 +138,7 @@ fn looks_like_version(s: &str) -> bool {
         let first_rest = rest.chars().next().unwrap_or('\0');
         return first_rest.is_ascii_digit() || rest.contains('.');
     }
-    
+
     false
 }
 
@@ -186,11 +186,11 @@ impl DependencySpec {
     pub fn is_detailed(&self) -> bool {
         matches!(self, Self::Detailed(_))
     }
-    
+
     pub fn is_shorthand_version(&self) -> bool {
         matches!(self, Self::ShorthandVersion(_))
     }
-    
+
     pub fn version_req(&self) -> Option<String> {
         match self {
             Self::ShorthandVersion(v) => Some(v.clone()),
@@ -198,7 +198,7 @@ impl DependencySpec {
             _ => None,
         }
     }
-    
+
     pub fn matches_version(&self, version: &str) -> bool {
         if let Some(req_str) = self.version_req() {
             if let Ok(req) = VersionReq::parse(&req_str) {
@@ -207,9 +207,10 @@ impl DependencySpec {
         }
         false
     }
-    
+
     pub fn parse_version_req(&self) -> Option<VersionReq> {
-        self.version_req().and_then(|req| VersionReq::parse(&req).ok())
+        self.version_req()
+            .and_then(|req| VersionReq::parse(&req).ok())
     }
 }
 
@@ -234,7 +235,7 @@ pub struct DependencySource {
 
     #[serde(default)]
     pub build_flags: Vec<String>,
-    
+
     #[serde(default)]
     pub system: Option<bool>,
 
