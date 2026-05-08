@@ -1,6 +1,7 @@
 use anyhow::Result;
+use std::borrow::Cow;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const MAIN_CPP: &str = r#"#include <iostream>
 
@@ -10,7 +11,7 @@ int main() {
 }
 "#;
 
-pub const CROW_TOML: &str = r#"[package]
+pub const CROW_TOML_TEMPLATE: &str = r#"[package]
 name = "{name}"
 version = "0.1.0"
 standard = "20"
@@ -27,56 +28,48 @@ pub const GITIGNORE: &str = r#"target/
 *.dylib
 *.dll
 .DS_Store
-.cache
 "#;
 
-pub fn create_src_directory(src_dir: &Path) -> Result<()> {
-    if !src_dir.exists() {
-        fs::create_dir_all(src_dir)?;
-    }
-    Ok(())
+struct FileSpec<'a> {
+    path: PathBuf,
+    content: Cow<'a, str>,
 }
 
-pub fn write_main_cpp(src_dir: &Path) -> Result<()> {
-    let main_cpp = src_dir.join("main.cpp");
-    fs::write(main_cpp, MAIN_CPP)?;
-    Ok(())
-}
-
-pub fn write_crow_toml(config_path: &Path, package_name: &str, overwrite: bool) -> Result<()> {
-    if !overwrite && config_path.exists() {
-        return Ok(());
+impl<'a> FileSpec<'a> {
+    fn new(path: PathBuf, content: impl Into<Cow<'a, str>>) -> Self {
+        Self {
+            path,
+            content: content.into(),
+        }
     }
 
-    let content = CROW_TOML.replace("{name}", package_name);
-    fs::write(config_path, content)?;
-    Ok(())
-}
+    fn write(&self, overwrite: bool) -> Result<()> {
+        if !overwrite && self.path.exists() {
+            return Ok(());
+        }
 
-pub fn write_gitignore(base_path: &Path, overwrite: bool) -> Result<()> {
-    let gitignore_path = base_path.join(".gitignore");
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent)?;
+        }
 
-    if !overwrite && gitignore_path.exists() {
-        return Ok(());
+        fs::write(&self.path, self.content.as_bytes())?;
+        Ok(())
     }
-
-    fs::write(gitignore_path, GITIGNORE)?;
-    Ok(())
 }
 
 pub fn create_project_structure(
     base_path: &Path,
     package_name: &str,
-    force_overwrite: bool,
+    overwrite: bool,
 ) -> Result<()> {
-    let src_dir = base_path.join("src");
-    create_src_directory(&src_dir)?;
-    write_main_cpp(&src_dir)?;
-
-    let config_path = base_path.join("crow.toml");
-    write_crow_toml(&config_path, package_name, force_overwrite)?;
-
-    write_gitignore(base_path, force_overwrite)?;
-
-    Ok(())
+    [
+        FileSpec::new(base_path.join("src/main.cpp"), MAIN_CPP),
+        FileSpec::new(
+            base_path.join("crow.toml"),
+            Cow::Owned(CROW_TOML_TEMPLATE.replace("{name}", package_name)),
+        ),
+        FileSpec::new(base_path.join(".gitignore"), GITIGNORE),
+    ]
+    .into_iter()
+    .try_for_each(|spec| spec.write(overwrite))
 }

@@ -1,8 +1,10 @@
-use crate::templates;
 use anyhow::Result;
 use clap::Args;
 use crow_utils::status;
-use std::fs;
+use dialoguer::console::style;
+use dialoguer::{theme::ColorfulTheme, Confirm};
+
+use crate::templates;
 
 #[derive(Args)]
 pub struct InitArgs {
@@ -29,31 +31,31 @@ impl InitCommand {
             .to_string();
 
         let config_path = current_dir.join("crow.toml");
-        let src_dir = current_dir.join("src");
-        let main_cpp = src_dir.join("main.cpp");
+        let main_cpp = current_dir.join("src/main.cpp");
 
-        if !self.args.quiet {
-            if config_path.exists() {
-                if !self.prompt_overwrite("crow.toml")? {
+        let overwrite = if !self.args.quiet && (config_path.exists() || main_cpp.exists()) {
+            println!("{}", style("Looks like the project there is already exists").yellow());
+            
+            let confirmed = Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Overwrite existing files?")
+                .default(false)
+                .wait_for_newline(false)
+                .interact_opt()?;
+            
+            print!("\x1B[2A\x1B[2K\r\x1B[2K\r");
+            
+            match confirmed {
+                Some(true) => true,
+                _ => {
                     status!("Aborted", "Initialization cancelled");
                     return Ok(());
                 }
             }
+        } else {
+            true
+        };
 
-            if main_cpp.exists() && !self.prompt_overwrite("main.cpp")? {
-                status!("Aborted", "Initialization cancelled");
-                return Ok(());
-            }
-        }
-
-        // Create project structure
-        if !src_dir.exists() {
-            fs::create_dir_all(&src_dir)?;
-        }
-
-        templates::write_main_cpp(&src_dir)?;
-        templates::write_crow_toml(&config_path, &package_name, true)?;
-        templates::write_gitignore(&current_dir, false)?;
+        templates::create_project_structure(&current_dir, &package_name, overwrite)?;
 
         status!(
             "Initialized",
@@ -61,14 +63,5 @@ impl InitCommand {
             package_name
         );
         Ok(())
-    }
-
-    fn prompt_overwrite(&self, filename: &str) -> Result<bool> {
-        use std::io::Write;
-        print!("{} already exists. Overwrite? [y/N] ", filename);
-        std::io::stdout().flush()?;
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input)?;
-        Ok(input.trim().eq_ignore_ascii_case("y"))
     }
 }

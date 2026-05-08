@@ -65,13 +65,10 @@ impl DeleteCommand {
                 .wait_for_newline(false)
                 .interact_opt()?;
 
-            // Clear both lines
             print!("\x1B[2A\x1B[2K\r\x1B[2K\r");
 
             match confirmed {
-                Some(true) => {
-                    // Continue with deletion
-                }
+                Some(true) => {}
                 _ => {
                     status!("Cancelled", "deletion aborted");
                     return Ok(());
