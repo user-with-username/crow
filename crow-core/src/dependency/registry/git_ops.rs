@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use git2::{FetchOptions, RemoteCallbacks, Repository};
 use tempfile::TempDir;
 
@@ -45,23 +45,30 @@ pub fn clone_registry(registry_url: &str, token: &str) -> Result<(TempDir, Repos
 }
 
 pub fn checkout_default_branch(repo: &Repository) -> Result<String> {
-    let default_ref = find_default_branch(repo)?;
+    let branch_name = find_default_branch(repo)?;
+    let local_ref = format!("refs/heads/{branch_name}");
+    let remote_ref = format!("refs/remotes/origin/{branch_name}");
 
-    let commit = if let Ok(head_ref) = repo.find_reference(&default_ref) {
-        repo.reference_to_annotated_commit(&head_ref)?
-    } else {
-        let remote_ref = default_ref.replace("refs/heads/", "refs/remotes/origin/");
-        let head_ref = repo.find_reference(&remote_ref)?;
-        repo.reference_to_annotated_commit(&head_ref)?
-    };
+    let tracking = repo
+        .find_reference(&remote_ref)
+        .with_context(|| format!("Remote-tracking ref '{remote_ref}' not found"))?;
+    let commit_id = tracking.peel_to_commit()?.id();
 
-    let commit_obj = repo.find_commit(commit.id())?;
-    let tree = commit_obj.tree()?;
-    repo.checkout_tree(&tree.into_object(), None)?;
-    repo.set_head(&default_ref)?;
+    if repo.find_reference(&local_ref).is_err() {
+        repo.reference(
+            &local_ref,
+            commit_id,
+            false,
+            &format!("branch: Created from {remote_ref}"),
+        )
+        .with_context(|| format!("Failed to create local branch '{branch_name}'"))?;
+    }
 
-    let short_name = default_ref.trim_start_matches("refs/heads/").to_string();
-    Ok(short_name)
+    let commit_obj = repo.find_commit(commit_id)?;
+    repo.checkout_tree(&commit_obj.tree()?.into_object(), None)?;
+    repo.set_head(&local_ref)?;
+
+    Ok(branch_name)
 }
 
 pub fn commit_and_push(
@@ -95,37 +102,59 @@ pub fn commit_and_push(
 }
 
 pub fn find_default_branch(repo: &Repository) -> Result<String> {
-    if let Ok(head) = repo.find_reference("HEAD") {
-        if let Some(target) = head.symbolic_target() {
-            if target.starts_with("refs/heads/") {
-                return Ok(target.to_string());
-            }
+    if let Some(name) = query_remote_head(repo) {
+        let remote_ref = format!("refs/remotes/origin/{name}");
+        if repo.find_reference(&remote_ref).is_ok() {
+            return Ok(name);
         }
     }
 
-    if let Ok(origin_head) = repo.find_reference("refs/remotes/origin/HEAD") {
-        if let Some(target) = origin_head.symbolic_target() {
-            if target.starts_with("refs/remotes/origin/") {
-                let branch = target.replace("refs/remotes/origin/", "refs/heads/");
-                if repo.find_reference(&branch).is_ok() {
-                    return Ok(branch);
+    if let Ok(r) = repo.find_reference("refs/remotes/origin/HEAD") {
+        if let Some(target) = r.symbolic_target() {
+            // target: "refs/remotes/origin/main"
+            if let Some(name) = target.strip_prefix("refs/remotes/origin/") {
+                if !name.is_empty() {
+                    return Ok(name.to_string());
                 }
             }
         }
     }
 
-    for candidate in &["refs/heads/main", "refs/heads/master", "refs/heads/trunk"] {
-        if repo.find_reference(candidate).is_ok() {
-            return Ok(candidate.to_string());
-        }
-    }
+    let mut names: Vec<String> = repo
+        .references()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|r| {
+            let name = r.name()?.to_string();
+            let branch = name.strip_prefix("refs/remotes/origin/")?.to_string();
+            (!branch.is_empty() && branch != "HEAD").then_some(branch)
+        })
+        .collect();
 
-    for candidate in &["refs/remotes/origin/main", "refs/remotes/origin/master"] {
-        if repo.find_reference(candidate).is_ok() {
-            let local = candidate.replace("refs/remotes/origin/", "refs/heads/");
-            return Ok(local);
-        }
-    }
+    names.sort_unstable();
 
-    bail!("failed to find default branch in registry");
+    names.into_iter().next().with_context(|| {
+        "cannot determine default branch: remote did not advertise HEAD \
+         and no remote-tracking branches found"
+    })
+}
+
+fn query_remote_head(repo: &Repository) -> Option<String> {
+    let mut remote = repo.find_remote("origin").ok()?;
+    remote.connect(git2::Direction::Fetch).ok()?;
+    let buf = remote.default_branch().ok()?;
+    let full_ref = buf.as_str()?; // "refs/heads/main"
+    remote.disconnect().ok();
+
+    let name = full_ref
+        .strip_prefix("refs/heads/")
+        .unwrap_or(full_ref)
+        .to_string();
+
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
 }

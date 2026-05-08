@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Args;
-use dialoguer::console::style;
 use crow_core::dependency::RegistryFetcher;
 use crow_utils::status;
+use dialoguer::console::style;
 use dialoguer::{theme::ColorfulTheme, Confirm};
 
 #[derive(Args)]
@@ -57,12 +57,7 @@ impl DeleteCommand {
         }
 
         if !self.args.yes {
-            println!(
-                "{}",
-                style("This action cannot be undone.")
-                    .red()
-                    .bold()
-            );
+            println!("{}", style("This action cannot be undone.").red().bold());
 
             let confirmed = Confirm::with_theme(&ColorfulTheme::default())
                 .with_prompt(format!("Delete {}?", target))

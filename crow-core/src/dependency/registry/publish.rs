@@ -42,16 +42,17 @@ pub fn publish(
 
     if version_file.exists() {
         let existing = fs::read_to_string(&version_file)?;
-        
-        let existing_value: toml::Value = toml::from_str(&existing)
-            .with_context(|| format!("Failed to parse existing TOML for {package_name} v{version}"))?;
+
+        let existing_value: toml::Value = toml::from_str(&existing).with_context(|| {
+            format!("Failed to parse existing TOML for {package_name} v{version}")
+        })?;
         let new_value: toml::Value = toml::from_str(&new_content)
             .with_context(|| format!("Failed to parse new TOML content"))?;
-        
+
         if existing_value == new_value {
             return Ok(false);
         }
-        
+
         anyhow::bail!(
             "Version {version} of package '{package_name}' is already published with a different commit.\n\
              Existing: git = \"{}\", commit = \"{}\"\n\

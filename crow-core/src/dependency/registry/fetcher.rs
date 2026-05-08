@@ -163,7 +163,12 @@ impl RegistryFetcher {
 
     fn head_commit(repo: &Repository) -> Result<git2::Commit<'_>> {
         let branch = find_default_branch(repo)?;
-        repo.find_reference(&branch)?
+        let ref_name = if repo.is_bare() {
+            format!("refs/remotes/origin/{branch}")
+        } else {
+            format!("refs/heads/{branch}")
+        };
+        repo.find_reference(&ref_name)?
             .peel_to_commit()
             .context("failed to peel to commit")
     }
