@@ -1,7 +1,9 @@
 use anyhow::Result;
 use clap::Args;
+use dialoguer::console::style;
 use crow_core::dependency::RegistryFetcher;
 use crow_utils::status;
+use dialoguer::{theme::ColorfulTheme, Confirm};
 
 #[derive(Args)]
 pub struct DeleteArgs {
@@ -41,11 +43,12 @@ impl DeleteCommand {
             .as_deref()
             .unwrap_or(crow_core::dependency::DEFAULT_REGISTRY_URL);
 
-        if let Some(ref ver) = self.args.version {
-            status!("Deleting", "{} v{}", self.args.package, ver);
-        } else {
-            status!("Deleting", "{} (all versions)", self.args.package);
-        }
+        let target = match &self.args.version {
+            Some(version) => format!("{} v{}", self.args.package, version),
+            None => format!("all versions of `{}`", self.args.package),
+        };
+
+        status!("Deleting", "{}", target);
 
         if self.args.dry_run {
             status!("Dry run", "would delete from {}", registry_url);
@@ -54,29 +57,30 @@ impl DeleteCommand {
         }
 
         if !self.args.yes {
-            if let Some(ref ver) = self.args.version {
-                println!(
-                    "Are you sure you want to delete {} v{} from registry?",
-                    self.args.package, ver
-                );
-            } else {
-                println!(
-                    "Are you sure you want to delete ALL versions of {} from registry?",
-                    self.args.package
-                );
-            }
-            println!("This action cannot be undone!");
-            print!("\nType 'yes' to confirm: ");
+            println!(
+                "{}",
+                style("This action cannot be undone.")
+                    .red()
+                    .bold()
+            );
 
-            use std::io::Write;
-            std::io::stdout().flush()?;
+            let confirmed = Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt(format!("Delete {}?", target))
+                .default(false)
+                .wait_for_newline(false)
+                .interact_opt()?;
 
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input)?;
+            // Clear both lines
+            print!("\x1B[2A\x1B[2K\r\x1B[2K\r");
 
-            if input.trim() != "yes" {
-                status!("Cancelled", "deletion aborted");
-                return Ok(());
+            match confirmed {
+                Some(true) => {
+                    // Continue with deletion
+                }
+                _ => {
+                    status!("Cancelled", "deletion aborted");
+                    return Ok(());
+                }
             }
         }
 
@@ -86,22 +90,7 @@ impl DeleteCommand {
             registry_url,
         )?;
 
-        if let Some(ref ver) = self.args.version {
-            status!(
-                "Success",
-                "deleted {} v{} from {}",
-                self.args.package,
-                ver,
-                registry_url
-            );
-        } else {
-            status!(
-                "Success",
-                "deleted {} (all versions) from {}",
-                self.args.package,
-                registry_url
-            );
-        }
+        status!("Success", "deleted {} from {}", target, registry_url);
 
         Ok(())
     }
