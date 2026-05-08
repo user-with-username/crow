@@ -1,7 +1,9 @@
 pub mod build;
 pub mod clean;
+pub mod delete;
 pub mod init;
 pub mod new;
+pub mod publish;
 pub mod run;
 
 use anyhow::Result;
@@ -23,6 +25,12 @@ pub enum Command {
 
     /// Clean target directory of the current project
     Clean(clean::CleanArgs),
+
+    /// Publish a library package to the registry
+    Publish(publish::PublishArgs),
+
+    /// Delete a library package from the registry
+    Delete(delete::DeleteArgs),
 }
 
 impl Command {
@@ -33,6 +41,8 @@ impl Command {
             Self::Build(args) => build::BuildCommand::new(args).execute(),
             Self::Run(args) => run::RunCommand::new(args).execute(),
             Self::Clean(args) => clean::CleanCommand::new(args).execute(),
+            Self::Publish(args) => publish::PublishCommand::new(args).execute(),
+            Self::Delete(args) => delete::DeleteCommand::new(args).execute(),
         }
     }
 }

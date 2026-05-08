@@ -1,5 +1,5 @@
 pub mod diagnostic_highlighter;
-pub mod enviroment;
+pub mod environment;
 pub mod files;
 pub mod helpers;
 pub mod hooks;

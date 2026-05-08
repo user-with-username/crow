@@ -32,7 +32,7 @@ impl Project {
     }
 
     pub fn target_dir(&self) -> PathBuf {
-        crow_utils::enviroment::Enviroment::target_dir()
+        crow_utils::environment::Environment::target_dir()
     }
 
     pub fn profile_dir(&self) -> PathBuf {
