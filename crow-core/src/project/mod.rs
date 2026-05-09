@@ -3,10 +3,11 @@ mod build_session;
 mod paths;
 mod state;
 
+pub use build_session::BuildSession;
+
 use crate::builder::toolchain::{self, Toolchain};
 use crate::config::{CrowConfig, Package};
 use crate::dependency::{DependencyResolver, ResolvedDependencyBuild};
-use crate::project::build_session::BuildSession;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 

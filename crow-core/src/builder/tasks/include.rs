@@ -22,7 +22,8 @@ impl IncludeTask {
 
         for line in content.lines() {
             let line = line.trim_end_matches('\\').trim();
-            if line.contains(':') {
+            // Skip makefile rule lines (`target: prereqs`), but not Windows paths (`C:\...`).
+            if line.contains(':') && !is_windows_drive_path(line) {
                 continue;
             }
 
@@ -50,4 +51,12 @@ impl IncludeTask {
         }
         Ok(())
     }
+}
+
+fn is_windows_drive_path(line: &str) -> bool {
+    let b = line.as_bytes();
+    b.len() >= 3
+        && b[0].is_ascii_alphabetic()
+        && b[1] == b':'
+        && (b[2] == b'\\' || b[2] == b'/')
 }
