@@ -286,6 +286,7 @@ dependencies = [
  "dialoguer",
  "once_cell",
  "rayon",
+ "tempfile",
 ]
 
 [[package]]
