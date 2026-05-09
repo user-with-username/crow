@@ -38,46 +38,15 @@ impl RunCommand {
 
     pub fn execute(self) -> Result<()> {
         let profile_name = if self.args.release {
-            "release"
+            "release".to_owned()
         } else {
-            &self.args.profile
+            self.args.profile.clone()
         };
 
-        let workspace = Workspace::load()?;
-        let binary_members = workspace.binary_members();
-
-        if binary_members.is_empty() {
-            anyhow::bail!("No binary packages found to run");
-        }
-
-        let (_, selected_root) = match &self.args.bin {
-            Some(name) => workspace
-                .find_member_by_name(name)
-                .map(|(cfg, root)| (cfg.clone(), root.clone()))
-                .with_context(|| format!("No binary package named `{}` found", name))?,
-            None => {
-                if binary_members.len() == 1 {
-                    let (cfg, root) = binary_members[0];
-                    (cfg.clone(), root.clone())
-                } else {
-                    let names: Vec<String> = binary_members
-                        .iter()
-                        .filter_map(|(cfg, _)| cfg.package.as_ref().map(|p| p.name.clone()))
-                        .collect();
-                    anyhow::bail!(
-                        "Multiple binary packages available. Use `--bin` to specify one.\nAvailable binaries: {}",
-                        names.join(", ")
-                    );
-                }
-            }
-        };
-
-        let project = Project::build(&selected_root, profile_name, self.args.jobs)?;
-
-        self.execute_project_binary(project)
+        run_with_profile(&profile_name, self.args.jobs, self.args.bin, self.args.args)
     }
 
-    fn execute_project_binary(&self, project: Project) -> Result<()> {
+    fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {
         let executable = project.output_path();
 
         if !executable.exists() {
@@ -90,8 +59,8 @@ impl RunCommand {
         status!("Running", "`{}`", executable.display());
 
         let mut cmd = Command::new(executable);
-        if !self.args.args.is_empty() {
-            cmd.args(&self.args.args);
+        if !trailing.is_empty() {
+            cmd.args(trailing);
         }
 
         let status = cmd.status().with_context(|| "Failed to start executable")?;
@@ -105,4 +74,44 @@ impl RunCommand {
 
         Ok(())
     }
+}
+
+pub(crate) fn run_with_profile(
+    profile_name: &str,
+    jobs: Option<usize>,
+    bin: Option<String>,
+    trailing: Vec<String>,
+) -> Result<()> {
+    let workspace = Workspace::load()?;
+    let binary_members = workspace.binary_members();
+
+    if binary_members.is_empty() {
+        anyhow::bail!("No binary packages found to run");
+    }
+
+    let (_, selected_root) = match &bin {
+        Some(name) => workspace
+            .find_member_by_name(name)
+            .map(|(cfg, root)| (cfg.clone(), root.clone()))
+            .with_context(|| format!("No binary package named `{}` found", name))?,
+        None => {
+            if binary_members.len() == 1 {
+                let (cfg, root) = binary_members[0];
+                (cfg.clone(), root.clone())
+            } else {
+                let names: Vec<String> = binary_members
+                    .iter()
+                    .filter_map(|(cfg, _)| cfg.package.as_ref().map(|p| p.name.clone()))
+                    .collect();
+                anyhow::bail!(
+                    "Multiple binary packages available. Use `--bin` to specify one.\nAvailable binaries: {}",
+                    names.join(", ")
+                );
+            }
+        }
+    };
+
+    let project = Project::build(&selected_root, profile_name, jobs)?;
+
+    RunCommand::execute_project_binary(project, &trailing)
 }
