@@ -97,7 +97,7 @@ fn find_vs_root() -> Result<PathBuf> {
     Err(anyhow!("Could not locate Visual Studio installation"))
 }
 
-fn find_latest_msvc_version(vc_tools_root: &Path) -> Result<String> {
+pub fn find_latest_msvc_version(vc_tools_root: &Path) -> Result<String> {
     let entries = std::fs::read_dir(vc_tools_root).context("Failed to read VC tools directory")?;
     let mut versions = Vec::new();
     for entry in entries.flatten() {
@@ -182,7 +182,7 @@ fn add_windows_sdk_paths(
     Ok(())
 }
 
-fn find_vswhere() -> Option<PathBuf> {
+pub fn find_vswhere() -> Option<PathBuf> {
     let candidates = [
         r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe",
         r"C:\Program Files\Microsoft Visual Studio\Installer\vswhere.exe",

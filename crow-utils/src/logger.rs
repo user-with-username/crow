@@ -1,5 +1,5 @@
 pub struct Logger {
-    quiet: bool,
+    pub quiet: bool,
 }
 
 impl Logger {

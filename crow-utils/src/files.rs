@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-fn escape(arg: &str) -> Cow<'_, str> {
+pub fn escape(arg: &str) -> Cow<'_, str> {
     if arg.is_empty() {
         return Cow::Borrowed("\"\"");
     }

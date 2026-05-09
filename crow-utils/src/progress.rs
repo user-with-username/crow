@@ -2,8 +2,8 @@ use indicatif::{MultiProgress, ProgressBar as NativeProgressBar, ProgressStyle};
 use std::sync::Arc;
 
 pub struct ProgressBar {
-    pb: NativeProgressBar,
-    _mp: Arc<MultiProgress>,
+    pub pb: NativeProgressBar,
+    pub _mp: Arc<MultiProgress>,
 }
 
 impl ProgressBar {
