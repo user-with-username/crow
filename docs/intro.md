@@ -1,8 +1,4 @@
-# Crow — C++ build tool that doesn't suck
-
-You know how C++ projects usually have a 400-line CMakeLists.txt that breaks when you look at it wrong? Crow exists so you don't have to deal with that.
-
-One config file. One command to build. One command to run. That's the whole pitch.
+**Crow** — Cargo for C++.
 
 ## What you get
 
@@ -14,10 +10,4 @@ One config file. One command to build. One command to run. That's the whole pitc
 - Profiles: debug, release, test, bench
 - Publishing your libs to a registry
 
-## What Crow won't do (yet)
-
-- Replace CMake for massive legacy projects
-- Generate Visual Studio projects (just open the `compile_commands.json` in your IDE)
-- Guarantee world peace
-
-It's early. It works. It'll get better.
+No 400-line CMakeLists.txt. That's it.
