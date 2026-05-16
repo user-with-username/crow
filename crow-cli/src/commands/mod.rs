@@ -1,3 +1,4 @@
+pub mod add;
 pub mod bench;
 pub mod build;
 pub mod clean;
@@ -18,6 +19,9 @@ pub enum Command {
 
     /// Initialize a new Crow package in an existing directory
     Init(init::InitArgs),
+
+    /// Add a dependency from the registry
+    Add(add::AddArgs),
 
     /// Compile the current project
     Build(build::BuildArgs),
@@ -46,6 +50,7 @@ impl Command {
         match self {
             Self::New(args) => new::NewCommand::new(args).execute(),
             Self::Init(args) => init::InitCommand::new(args).execute(),
+            Self::Add(args) => add::AddCommand::new(args).execute(),
             Self::Build(args) => build::BuildCommand::new(args).execute(),
             Self::Run(args) => run::RunCommand::new(args).execute(),
             Self::Test(args) => test::TestCommand::new(args).execute(),
