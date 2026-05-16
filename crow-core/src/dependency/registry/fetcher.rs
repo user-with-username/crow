@@ -3,17 +3,23 @@ use dirs::home_dir;
 use git2::{FetchOptions, Repository};
 use once_cell::sync::Lazy;
 use semver::Version;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::dependency::version_req::VersionReq as CrowVersionReq;
 
 use super::git_ops::find_default_branch;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegistryEntry {
     pub git: String,
     pub commit: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RegistryIndex {
+    pub versions: HashMap<String, RegistryEntry>,
 }
 
 #[derive(Debug, Clone)]
@@ -59,17 +65,23 @@ impl RegistryFetcher {
     ) -> Result<RegistryCoordinates> {
         let repo = self.ensure_registry_repo(registry_url)?;
 
-        let mut available = self.list_versions(&repo, dep_name)?;
-        if available.is_empty() {
+        let index = self.read_index(&repo, dep_name)?;
+        if index.versions.is_empty() {
             bail!("registry has no versions for package `{dep_name}`");
         }
+
+        let mut available: Vec<_> = index
+            .versions
+            .iter()
+            .filter_map(|(v, entry)| Version::parse(v).ok().map(|ver| (ver, v, entry)))
+            .collect();
         available.sort_by(|a, b| b.0.cmp(&a.0));
 
-        let (chosen_version, version_str) = available
+        let (_chosen_version, version_str, entry) = available
             .iter()
-            .find(|(v, _)| version_req.matches(&v.to_string()))
+            .find(|(v, _, _)| version_req.matches(&v.to_string()))
             .with_context(|| {
-                let versions: Vec<String> = available.iter().map(|(v, _)| v.to_string()).collect();
+                let versions: Vec<String> = available.iter().map(|(_, v, _)| v.to_string()).collect();
                 format!(
                     "no version of `{dep_name}` satisfies `{}` in registry `{registry_url}`\n\
                      available versions: {}",
@@ -78,23 +90,10 @@ impl RegistryFetcher {
                 )
             })?;
 
-        let blob_path = format!("packages/{dep_name}/{chosen_version}.toml");
-        let raw_bytes = self.read_blob(&repo, &blob_path).with_context(|| {
-            format!("failed to read registry entry for `{dep_name}` v{chosen_version}")
-        })?;
-
-        let raw_str = std::str::from_utf8(&raw_bytes).with_context(|| {
-            format!("registry entry for `{dep_name}` v{chosen_version} is not valid UTF-8")
-        })?;
-
-        let entry: RegistryEntry = toml::from_str(raw_str).with_context(|| {
-            format!("invalid registry entry for `{dep_name}` v{chosen_version} at {blob_path}")
-        })?;
-
         Ok(RegistryCoordinates {
-            git_url: entry.git,
-            commit: entry.commit,
-            version: version_str.clone(),
+            git_url: entry.git.clone(),
+            commit: entry.commit.clone(),
+            version: version_str.to_string(),
         })
     }
 
@@ -185,32 +184,21 @@ impl RegistryFetcher {
         Ok(blob.content().to_vec())
     }
 
-    fn list_versions(&self, repo: &Repository, dep_name: &str) -> Result<Vec<(Version, String)>> {
-        let commit = Self::head_commit(repo)?;
-        let tree = commit.tree().context("failed to get commit tree")?;
+    fn read_index(&self, repo: &Repository, dep_name: &str) -> Result<RegistryIndex> {
+        let blob_path = format!("packages/{dep_name}.toml");
+        let raw_bytes = self.read_blob(&repo, &blob_path).with_context(|| {
+            format!("failed to read registry index for `{dep_name}`")
+        })?;
 
-        let package_path = format!("packages/{dep_name}");
-        let subtree_entry = tree
-            .get_path(std::path::Path::new(&package_path))
-            .with_context(|| {
-                format!("package `{dep_name}` not found in registry (looked under {package_path})")
-            })?;
+        let raw_str = std::str::from_utf8(&raw_bytes).with_context(|| {
+            format!("registry index for `{dep_name}` is not valid UTF-8")
+        })?;
 
-        let subtree = repo
-            .find_tree(subtree_entry.id())
-            .with_context(|| format!("failed to read tree for `{package_path}`"))?;
+        let index: RegistryIndex = toml::from_str(raw_str).with_context(|| {
+            format!("invalid registry index for `{dep_name}` at {blob_path}")
+        })?;
 
-        let versions = subtree
-            .iter()
-            .filter_map(|entry| {
-                let name = entry.name()?;
-                let stem = name.strip_suffix(".toml")?;
-                let v = Version::parse(stem).ok()?;
-                Some((v, stem.to_string()))
-            })
-            .collect();
-
-        Ok(versions)
+        Ok(index)
     }
 }
 

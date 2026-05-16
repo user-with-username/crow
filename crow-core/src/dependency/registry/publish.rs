@@ -1,10 +1,12 @@
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::fs;
 
 use crow_utils::environment::Environment;
 
 use super::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
 use super::github::GithubRepo;
+use super::fetcher::{RegistryEntry, RegistryIndex};
 
 pub fn publish(
     project_root: &std::path::PathBuf,
@@ -32,37 +34,46 @@ pub fn publish(
     let (_temp_dir, registry_repo) = clone_registry(registry_url, &token)?;
     let base_branch = checkout_default_branch(&registry_repo)?;
 
-    let package_dir = registry_repo
+    let packages_dir = registry_repo
         .workdir()
         .unwrap()
-        .join("packages")
-        .join(package_name);
-    let version_file = package_dir.join(format!("{version}.toml"));
-    let new_content = format!("git = \"{git_url}\"\ncommit = \"{commit_sha}\"\n");
+        .join("packages");
+    let index_file = packages_dir.join(format!("{package_name}.toml"));
 
-    if version_file.exists() {
-        let existing = fs::read_to_string(&version_file)?;
-
-        let existing_value: toml::Value = toml::from_str(&existing).with_context(|| {
-            format!("Failed to parse existing TOML for {package_name} v{version}")
+    let mut versions: HashMap<String, RegistryEntry> = if index_file.exists() {
+        let existing_content = fs::read_to_string(&index_file)?;
+        let existing_index: RegistryIndex = toml::from_str(&existing_content).with_context(|| {
+            format!("Failed to parse existing registry index for {package_name}")
         })?;
-        let new_value: toml::Value = toml::from_str(&new_content)
-            .with_context(|| format!("Failed to parse new TOML content"))?;
 
-        if existing_value == new_value {
-            return Ok(false);
+        if existing_index.versions.contains_key(version) {
+            let existing_entry = &existing_index.versions[version];
+            if existing_entry.git == git_url && existing_entry.commit == commit_sha {
+                return Ok(false);
+            }
+
+            anyhow::bail!(
+                "Version {version} of package '{package_name}' is already published with a different commit.\n\
+                 Existing: git = \"{}\", commit = \"{}\"\n\
+                 New: git = \"{}\", commit = \"{}\"",
+                existing_entry.git,
+                existing_entry.commit,
+                git_url,
+                commit_sha
+            );
         }
+        existing_index.versions
+    } else {
+        HashMap::new()
+    };
 
-        anyhow::bail!(
-            "Version {version} of package '{package_name}' is already published with a different commit.\n\
-             Existing: git = \"{}\", commit = \"{}\"\n\
-             New: git = \"{}\", commit = \"{}\"",
-            existing_value.get("git").and_then(|v| v.as_str()).unwrap_or("unknown"),
-            existing_value.get("commit").and_then(|v| v.as_str()).unwrap_or("unknown"),
-            git_url,
-            commit_sha
-        );
-    }
+    versions.insert(
+        version.to_string(),
+        RegistryEntry {
+            git: git_url.clone(),
+            commit: commit_sha.clone(),
+        },
+    );
 
     let publish_branch = format!("publish/{package_name}/{version}");
     let head_commit = registry_repo.head()?.peel_to_commit()?;
@@ -71,8 +82,10 @@ pub fn publish(
     registry_repo.checkout_tree(&branch_ref.peel_to_tree()?.into_object(), None)?;
     registry_repo.set_head(branch_ref.name().unwrap())?;
 
-    fs::create_dir_all(&package_dir)?;
-    fs::write(&version_file, &new_content)?;
+    fs::create_dir_all(&packages_dir)?;
+    let index = RegistryIndex { versions };
+    let content = toml::to_string_pretty(&index)?;
+    fs::write(&index_file, &content)?;
 
     let push_result = commit_and_push(
         &registry_repo,

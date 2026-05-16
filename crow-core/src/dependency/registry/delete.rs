@@ -1,9 +1,11 @@
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::fs;
 
 use crow_utils::environment::Environment;
 
 use super::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
+use super::fetcher::{RegistryEntry, RegistryIndex};
 use super::github::GithubRepo;
 
 pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> Result<()> {
@@ -12,36 +14,37 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
     let (_temp_dir, registry_repo) = clone_registry(registry_url, &token)?;
     let base_branch = checkout_default_branch(&registry_repo)?;
 
-    let package_dir = registry_repo
+    let packages_dir = registry_repo
         .workdir()
         .unwrap()
-        .join("packages")
-        .join(package_name);
+        .join("packages");
+    let index_file = packages_dir.join(format!("{package_name}.toml"));
 
-    if !package_dir.exists() {
+    if !index_file.exists() {
         anyhow::bail!("Package '{package_name}' not found in registry");
     }
 
-    let files_to_delete: Vec<std::path::PathBuf> = match version {
+    let existing_content = fs::read_to_string(&index_file)?;
+    let mut versions: HashMap<String, RegistryEntry> = {
+        let index: RegistryIndex = toml::from_str(&existing_content).with_context(|| {
+            format!("Failed to parse registry index for {package_name}")
+        })?;
+        index.versions
+    };
+
+    let versions_to_delete: Vec<String> = match version {
         Some(ver) => {
-            let path = package_dir.join(format!("{ver}.toml"));
-            if !path.exists() {
+            if !versions.contains_key(ver) {
                 anyhow::bail!("Version '{ver}' of package '{package_name}' not found in registry");
             }
-            vec![path]
+            vec![ver.to_string()]
         }
-        None => {
-            let files: Vec<_> = fs::read_dir(&package_dir)?
-                .flatten()
-                .filter(|e| e.path().extension().map_or(false, |ext| ext == "toml"))
-                .map(|e| e.path())
-                .collect();
-            if files.is_empty() {
-                anyhow::bail!("No versions found for package '{package_name}'");
-            }
-            files
-        }
+        None => versions.keys().cloned().collect(),
     };
+
+    for ver in &versions_to_delete {
+        versions.remove(ver);
+    }
 
     let delete_branch = format!("delete/{}/{}", package_name, version.unwrap_or("all"));
     let head_commit = registry_repo.head()?.peel_to_commit()?;
@@ -51,16 +54,12 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
     registry_repo.checkout_tree(&branch_ref.peel_to_tree()?.into_object(), None)?;
     registry_repo.set_head(branch_ref.name().unwrap())?;
 
-    for file in &files_to_delete {
-        fs::remove_file(file).with_context(|| format!("Failed to delete {}", file.display()))?;
-    }
-
-    if version.is_none() {
-        if let Ok(mut entries) = fs::read_dir(&package_dir) {
-            if entries.next().is_none() {
-                fs::remove_dir(&package_dir)?;
-            }
-        }
+    if versions.is_empty() {
+        fs::remove_file(&index_file).with_context(|| format!("Failed to delete {}", index_file.display()))?;
+    } else {
+        let index = RegistryIndex { versions };
+        let content = toml::to_string_pretty(&index)?;
+        fs::write(&index_file, &content)?;
     }
 
     let commit_message = match version {
