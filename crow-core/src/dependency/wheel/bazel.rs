@@ -4,7 +4,7 @@ use crow_utils::find_executable;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 #[derive(Clone)]
 pub struct BazelWheel {
