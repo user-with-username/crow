@@ -13,11 +13,11 @@ mod tests {
     use tempfile::tempdir;
 
     /// Toolchain kinds that `detect_toolchain` can satisfy on this host.
-    fn archiver_for_platform() -> ArchiverKind {
+    fn toolchain_kinds_for_platform() -> (CompilerKind, LinkerKind, ArchiverKind) {
         if cfg!(windows) {
-            ArchiverKind::Lib
+            (CompilerKind::Msvc, LinkerKind::Link, ArchiverKind::Lib)
         } else {
-            ArchiverKind::LlvmAr
+            (CompilerKind::Gcc, LinkerKind::Ld, ArchiverKind::Ar)
         }
     }
 
@@ -26,21 +26,11 @@ mod tests {
         name: &str,
         archiver_kind: ArchiverKind,
     ) -> Result<Project> {
+        let (compiler_kind, linker_kind, _) = toolchain_kinds_for_platform();
+
         let mut build_config = crow_core::config::BuildConfig::default();
         build_config.archiver = crow_core::config::ArchiverConfig::Simple(archiver_kind);
-
-        let compiler_kind = if archiver_kind.is_msvc() {
-            CompilerKind::Msvc
-        } else {
-            CompilerKind::Clang
-        };
         build_config.compiler = crow_core::config::CompilerConfig::Simple(compiler_kind);
-
-        let linker_kind = if archiver_kind.is_msvc() {
-            LinkerKind::Link
-        } else {
-            LinkerKind::Lld
-        };
         build_config.linker = crow_core::config::LinkerConfig::Simple(linker_kind);
 
         let config = CrowConfig {
@@ -66,7 +56,7 @@ mod tests {
     #[test]
     fn test_static_link_builder_new() -> Result<()> {
         let temp_dir = tempdir()?;
-        let project = create_test_project(&temp_dir, "test_lib", archiver_for_platform())?;
+        let project = create_test_project(&temp_dir, "test_lib", toolchain_kinds_for_platform().2)?;
         let object_files: &[ObjectFilePath] = &[];
         let linking_builder = LinkingBuilder::new("test_lib", "lib", &project, object_files, None);
         let _builder = StaticLinkBuilder::new(&linking_builder);
@@ -110,7 +100,7 @@ mod tests {
         let obj_file_path = temp_dir.path().join("test.o");
         fs::write(&obj_file_path, "content")?;
 
-        let project = create_test_project(&temp_dir, "test", archiver_for_platform())?;
+        let project = create_test_project(&temp_dir, "test", toolchain_kinds_for_platform().2)?;
         let object_file = ObjectFilePath(obj_file_path);
         let object_files = &[object_file];
         let linking_builder = LinkingBuilder::new("test", "a", &project, object_files, None);
@@ -131,7 +121,7 @@ mod tests {
             object_paths.push(ObjectFilePath(obj_file_path));
         }
 
-        let project = create_test_project(&temp_dir, "multi_lib", archiver_for_platform())?;
+        let project = create_test_project(&temp_dir, "multi_lib", toolchain_kinds_for_platform().2)?;
         let linking_builder = LinkingBuilder::new("multi_lib", "a", &project, &object_paths, None);
 
         assert_eq!(linking_builder.objects().len(), 3);
@@ -142,7 +132,7 @@ mod tests {
     #[test]
     fn test_linking_builder_empty_objects() -> Result<()> {
         let temp_dir = tempdir()?;
-        let project = create_test_project(&temp_dir, "empty_lib", archiver_for_platform())?;
+        let project = create_test_project(&temp_dir, "empty_lib", toolchain_kinds_for_platform().2)?;
         let object_files: &[ObjectFilePath] = &[];
         let linking_builder = LinkingBuilder::new("empty_lib", "a", &project, object_files, None);
 
