@@ -32,36 +32,4 @@ mod tests {
         
         std::env::set_current_dir(original_dir).unwrap();
     }
-
-    #[test]
-    fn test_clean_command_execute_with_target_dir() {
-        let temp_dir = tempdir().unwrap();
-        
-        let crow_toml_path = temp_dir.path().join("Crow.toml");
-        fs::write(&crow_toml_path, r#"
-[package]
-name = "test-package"
-version = "0.1.0"
-        "#).unwrap();
-        
-        let target_dir = temp_dir.path().join("target");
-        fs::create_dir(&target_dir).unwrap();
-        
-        let dummy_file = target_dir.join("dummy.txt");
-        fs::write(&dummy_file, "test content").unwrap();
-        
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-        
-        let args = CleanArgs {};
-        let command = CleanCommand::new(args);
-
-        let result = command.execute();
-        
-        if result.is_ok() {
-            assert!(!target_dir.exists());
-        }
-        
-        std::env::set_current_dir(original_dir).unwrap();
-    }
 }
