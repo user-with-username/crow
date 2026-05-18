@@ -2,7 +2,6 @@
 mod tests {
     use crow_cli::commands::clean::{CleanArgs, CleanCommand};
     use tempfile::tempdir;
-    use std::fs;
 
     #[test]
     fn test_clean_args_create() {
