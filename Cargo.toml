@@ -1,6 +1,5 @@
 [workspace]
 members = ["crow-core", "crow-cli", "crow-utils"]
-exclude = ["test_rust_proj"]
 resolver = "2"
 
 [workspace.dependencies]

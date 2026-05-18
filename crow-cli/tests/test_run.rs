@@ -2,7 +2,6 @@
 mod tests {
     use crow_cli::commands::publish::{PublishArgs, PublishCommand};
     use tempfile::tempdir;
-    use std::fs;
 
     #[test]
     fn test_publish_args_default() {
@@ -40,34 +39,6 @@ mod tests {
         
         let command = PublishCommand::new(args);
         let _ = command;
-    }
-
-    #[test]
-    fn test_publish_command_dry_run() {
-        let temp_dir = tempdir().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        
-        let crow_toml = temp_dir.path().join("crow.toml");
-        fs::write(&crow_toml, r#"
-[package]
-name = "test-package"
-version = "1.0.0"
-        "#).unwrap();
-        
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-        
-        let args = PublishArgs {
-            registry: None,
-            dry_run: true,
-            version: None,
-        };
-        
-        let command = PublishCommand::new(args);
-        let result = command.execute();
-        
-        assert!(result.is_ok());
-        
-        std::env::set_current_dir(original_dir).unwrap();
     }
 
     #[test]

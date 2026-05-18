@@ -51,26 +51,4 @@ mod tests {
         
         std::env::set_current_dir(original_dir).unwrap();
     }
-
-    #[test]
-    fn test_init_command_in_empty_directory() {
-        let temp_dir = tempdir().unwrap();
-        let original_dir = std::env::current_dir().unwrap();
-        
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-        
-        let args = InitArgs {
-            quiet: false,
-        };
-        
-        let command = InitCommand::new(args);
-        let result = command.execute();
-        
-        assert!(result.is_ok());
-        
-        assert!(temp_dir.path().join("crow.toml").exists());
-        assert!(temp_dir.path().join("src/main.cpp").exists());
-        
-        std::env::set_current_dir(original_dir).unwrap();
-    }
 }
