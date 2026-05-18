@@ -1,14 +1,14 @@
-# CRow
+# Crow
 
 **Cargo, but for C/C++**
 
-![CRow Logo](assets/crow_logo.svg)
+![Crow Logo](assets/crow_logo.svg)
 
 ---
 
 ## Overview
 
-CRow is a build system for C++ designed for developers who want:
+Crow is a build system for C++ designed for developers who want:
 - **Simple configuration** (just `crow.toml`)
 - **Fast builds**
 - **Built-in dependency manager**
