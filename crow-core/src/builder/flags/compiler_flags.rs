@@ -307,8 +307,22 @@ impl CompilerFlags {
                 vec![format!("-Wl,--out-implib,{}", normalize_path(path))]
             }
 
-            Flag::CxxStandard(std) => vec![format!("-std={}", std)],
-            Flag::CStandard(std) => vec![format!("-std={}", std)],
+            Flag::CxxStandard(std) => {
+                let std = if std.chars().all(|c| c.is_numeric()) {
+                    format!("c++{}", std)
+                } else {
+                    std.clone()
+                };
+                vec![format!("-std={}", std)]
+            }
+            Flag::CStandard(std) => {
+                let std = if std.chars().all(|c| c.is_numeric()) {
+                    format!("c{}", std)
+                } else {
+                    std.clone()
+                };
+                vec![format!("-std={}", std)]
+            }
 
             Flag::IncludePath(path) => vec![format!("-I{}", normalize_path(path))],
             Flag::SystemIncludePath(path) => vec!["-isystem".to_string(), normalize_path(path)],
@@ -385,8 +399,22 @@ impl CompilerFlags {
             Flag::NoWarnings => vec!["/w".to_string()],
             Flag::SpecificWarning(w) => vec![format!("/W{}", w)],
 
-            Flag::CxxStandard(std) => vec![format!("/std:{}", std)],
-            Flag::CStandard(std) => vec![format!("/std:{}", std)],
+            Flag::CxxStandard(std) => {
+                let std = if std.chars().all(|c| c.is_numeric()) {
+                    format!("c++{}", std)
+                } else {
+                    std.clone()
+                };
+                vec![format!("/std:{}", std)]
+            }
+            Flag::CStandard(std) => {
+                let std = if std.chars().all(|c| c.is_numeric()) {
+                    format!("c{}", std)
+                } else {
+                    std.clone()
+                };
+                vec![format!("/std:{}", std)]
+            }
 
             Flag::IncludePath(path) => vec![format!("/I{}", path)],
             Flag::SystemIncludePath(path) => vec![format!("/I{}", path)],

@@ -5,6 +5,8 @@ pub mod bazel;
 pub mod cmake;
 pub mod meson;
 
+use crate::builder::kinds::compiler_kind::CompilerKind;
+
 /// Result of wheel build artifacts
 #[derive(Debug, Clone, Default)]
 pub struct WheelArtifacts {
@@ -27,6 +29,8 @@ pub trait Wheel: Send + Sync {
         profile: &str,
         compiler_flags: &[String],
         build_flags: &[String],
+        compiler_path: Option<&str>,
+        compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts>;
     /// Check if this build system is suitable for the given directory
     fn detects(&self, root: &Path) -> bool;
@@ -67,11 +71,19 @@ impl WheelType {
         profile: &str,
         compiler_flags: &[String],
         build_flags: &[String],
+        compiler_path: Option<&str>,
+        compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts> {
         match self {
-            WheelType::Cmake(w) => w.build(build_dir, profile, compiler_flags, build_flags),
-            WheelType::Meson(w) => w.build(build_dir, profile, compiler_flags, build_flags),
-            WheelType::Bazel(w) => w.build(build_dir, profile, compiler_flags, build_flags),
+            WheelType::Cmake(w) => {
+                w.build(build_dir, profile, compiler_flags, build_flags, compiler_path, compiler_kind)
+            }
+            WheelType::Meson(w) => {
+                w.build(build_dir, profile, compiler_flags, build_flags, compiler_path, compiler_kind)
+            }
+            WheelType::Bazel(w) => {
+                w.build(build_dir, profile, compiler_flags, build_flags, compiler_path, compiler_kind)
+            }
         }
     }
 

@@ -4,5 +4,12 @@
 version = 1
 
 [[package]]
-name = "simple_project"
+name = "play"
 version = "0.1.0"
+dependencies = ["fmt 0.0.0 (registry+https://github.com/user-with-username/crow-registry#fmt@407c905e)"]
+
+[[package]]
+name = "fmt"
+version = "0.0.0"
+source = "registry+https://github.com/user-with-username/crow-registry#fmt@407c905e"
+checksum = "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f"

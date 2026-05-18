@@ -19,10 +19,10 @@ fn apply_language_standard(flags: &mut CompilerFlags, source_path: &Path, standa
 
     match extension {
         Some(ext) if ["cpp", "cc", "cxx", "c++"].contains(&ext) => {
-            flags.cxx_standard(format!("c++{}", standard));
+            flags.cxx_standard(standard);
         }
         Some("c") => {
-            flags.c_standard(format!("c{}", standard));
+            flags.c_standard(standard);
         }
         _ => {}
     }

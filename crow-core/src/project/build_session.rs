@@ -49,6 +49,18 @@ impl<'a> BuildSession<'a> {
             crow_utils::hooks::run_hooks(&manifest_dir, &config.build.hooks.pre)?;
         }
 
+        let toolchain = crate::builder::toolchain::detect_toolchain(
+            config.build.compiler.path().cloned(),
+            Some(config.build.compiler.kind().clone()),
+            config.build.linker.path().cloned(),
+            Some(config.build.linker.kind().clone()),
+            config.build.archiver.path().cloned(),
+            Some(config.build.archiver.kind().clone()),
+        )?;
+
+        let compiler_path = toolchain.compiler_path().to_string();
+        let compiler_kind = toolchain.compiler_kind();
+
         let mut resolver = DependencyResolver::new();
 
         let compiler_flags = config.build.compiler.flags().to_vec();
@@ -87,6 +99,8 @@ impl<'a> BuildSession<'a> {
                         &root,
                         &compiler_flags,
                         &build_flags,
+                        Some(&compiler_path),
+                        compiler_kind,
                     )?;
                     wheel_artifacts.insert(root, artifacts);
                 }
@@ -242,6 +256,8 @@ impl<'a> BuildSession<'a> {
         root: &PathBuf,
         compiler_flags: &[String],
         build_flags: &[String],
+        compiler_path: Option<&str>,
+        compiler_kind: crate::builder::kinds::compiler_kind::CompilerKind,
     ) -> Result<WheelArtifacts> {
         let display = format!("{} (wheel)", name);
         if let Some(pb) = &self.progress {
@@ -250,7 +266,14 @@ impl<'a> BuildSession<'a> {
         } else {
             status!("Compiling", "{}", display);
         }
-        resolver.build_wheel(root, self.profile_name, compiler_flags, build_flags)
+        resolver.build_wheel(
+            root,
+            self.profile_name,
+            compiler_flags,
+            build_flags,
+            compiler_path,
+            compiler_kind,
+        )
     }
 
     fn compile_project(&self, project: &Project, is_dependency: bool) -> Result<()> {

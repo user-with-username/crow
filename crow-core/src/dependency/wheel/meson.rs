@@ -1,6 +1,7 @@
 use super::{get_artifacts, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
+use crate::builder::kinds::compiler_kind::CompilerKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -17,7 +18,12 @@ impl MesonWheel {
         }
     }
 
-    fn get_meson_args(&self, compiler_flags: &[String], build_flags: &[String]) -> Vec<String> {
+    fn get_meson_args(
+        &self,
+        compiler_flags: &[String],
+        build_flags: &[String],
+        _compiler_kind: CompilerKind,
+    ) -> Vec<String> {
         let mut args = Vec::new();
 
         #[cfg(target_os = "windows")]
@@ -28,7 +34,7 @@ impl MesonWheel {
             let has_utf8 = cpp_flags.iter().any(|f| f.contains("/utf-8"))
                 || c_flags.iter().any(|f| f.contains("/utf-8"));
 
-            if !has_utf8 {
+            if !has_utf8 && _compiler_kind.is_msvc() {
                 cpp_flags.push("/utf-8".to_string());
                 c_flags.push("/utf-8".to_string());
             }
@@ -80,6 +86,8 @@ impl Wheel for MesonWheel {
         profile: &str,
         compiler_flags: &[String],
         build_flags: &[String],
+        _compiler_path: Option<&str>,
+        compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("meson_wheel");
         fs::create_dir_all(&out_dir)?;
@@ -98,11 +106,11 @@ impl Wheel for MesonWheel {
             .arg(build_type)
             .arg("-Dtests=false")
             .arg("-Dbenchmarks=false")
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::piped());
+            .args(self.get_meson_args(compiler_flags, build_flags, compiler_kind));
 
-        for arg in self.get_meson_args(compiler_flags, build_flags) {
-            cmd.arg(arg);
+        if let Some(path) = _compiler_path {
+            cmd.env("CXX", path);
+            cmd.env("CC", path);
         }
 
         let output = cmd

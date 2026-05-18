@@ -1,6 +1,7 @@
 use super::{get_artifacts, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
+use crate::builder::kinds::compiler_kind::CompilerKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -17,7 +18,12 @@ impl BazelWheel {
         }
     }
 
-    fn get_bazel_args(&self, compiler_flags: &[String], build_flags: &[String]) -> Vec<String> {
+    fn get_bazel_args(
+        &self,
+        compiler_flags: &[String],
+        build_flags: &[String],
+        _compiler_kind: CompilerKind,
+    ) -> Vec<String> {
         let mut args = Vec::new();
 
         if !compiler_flags.is_empty() {
@@ -53,6 +59,8 @@ impl Wheel for BazelWheel {
         profile: &str,
         compiler_flags: &[String],
         build_flags: &[String],
+        _compiler_path: Option<&str>,
+        compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("bazel_wheel");
         fs::create_dir_all(&out_dir)?;
@@ -69,11 +77,11 @@ impl Wheel for BazelWheel {
             .arg(format!("--compilation_mode={}", compilation_mode))
             .arg("--symlink_prefix=")
             .arg(format!("--output_base={}", out_dir.display()))
-            .stdout(Stdio::inherit())
-            .stderr(Stdio::piped());
+            .args(self.get_bazel_args(compiler_flags, build_flags, compiler_kind));
 
-        for arg in self.get_bazel_args(compiler_flags, build_flags) {
-            cmd.arg(arg);
+        if let Some(path) = _compiler_path {
+            cmd.env("CXX", path);
+            cmd.env("CC", path);
         }
 
         let output = cmd

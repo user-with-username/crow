@@ -2,6 +2,7 @@ use super::{get_artifacts, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
 use serde::Deserialize;
+use crate::builder::kinds::compiler_kind::CompilerKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -18,8 +19,19 @@ impl CmakeWheel {
         }
     }
 
-    fn get_cxx_flags(&self, compiler_flags: &[String]) -> String {
-        compiler_flags.join(" ")
+    fn get_cxx_flags(&self, compiler_flags: &[String], compiler_kind: CompilerKind) -> String {
+        let mut flags = compiler_flags.to_vec();
+
+        // Ensure we don't pass MSVC flags to GCC or vice versa
+        flags.retain(|f| {
+            if compiler_kind.is_msvc() {
+                f.starts_with('/') || f.starts_with("-D") || f.starts_with("-I")
+            } else {
+                f.starts_with('-')
+            }
+        });
+
+        flags.join(" ")
     }
 
     fn write_file_api_query(build_dir: &Path) -> Result<()> {
@@ -151,6 +163,8 @@ impl Wheel for CmakeWheel {
         profile: &str,
         compiler_flags: &[String],
         build_flags: &[String],
+        compiler_path: Option<&str>,
+        compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("cmake_wheel");
         fs::create_dir_all(&out_dir)?;
@@ -160,13 +174,23 @@ impl Wheel for CmakeWheel {
             _ => "Debug",
         };
 
-        let cxx_flags = self.get_cxx_flags(compiler_flags);
+        let cxx_flags = self.get_cxx_flags(compiler_flags, compiler_kind);
 
         Self::write_file_api_query(&out_dir)?;
 
         let cmake_exe = find_executable("cmake")?;
 
         let mut cmd = Command::new(&cmake_exe);
+
+        #[cfg(target_os = "windows")]
+        if !compiler_kind.is_msvc() {
+            if find_executable("ninja").is_ok() {
+                cmd.arg("-G").arg("Ninja");
+            } else {
+                cmd.arg("-G").arg("MinGW Makefiles");
+            }
+        }
+
         cmd.arg("-B")
             .arg(&out_dir)
             .arg("-S")
@@ -175,6 +199,10 @@ impl Wheel for CmakeWheel {
             .arg("-DCMAKE_INSTALL_PREFIX=install")
             .arg("-DBUILD_SHARED_LIBS=OFF")
             .arg("-DCMAKE_CXX_EXTENSIONS=OFF");
+
+        if let Some(path) = compiler_path {
+            cmd.arg(format!("-DCMAKE_CXX_COMPILER={}", path));
+        }
 
         for flag in build_flags {
             cmd.arg(format!(
@@ -193,7 +221,7 @@ impl Wheel for CmakeWheel {
         }
 
         #[cfg(target_os = "windows")]
-        {
+        if compiler_kind.is_msvc() {
             let runtime = match build_type {
                 "Debug" => "MultiThreadedDebugDLL",
                 _ => "MultiThreadedDLL",

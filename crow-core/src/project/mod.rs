@@ -82,8 +82,18 @@ impl Project {
             None,
         )?;
         let target_dir = bootstrap_project.target_dir();
+        let compiler_path = bootstrap_project.compiler_path().to_string();
+        let compiler_kind = bootstrap_project.compiler_kind();
+
         let mut resolver = DependencyResolver::new();
-        resolver.resolve_for(config, manifest_dir, profile_name, &target_dir)
+        resolver.resolve_for(
+            config,
+            manifest_dir,
+            profile_name,
+            &target_dir,
+            Some(&compiler_path),
+            compiler_kind,
+        )
     }
 
     fn merge_dependency_inputs(config: &mut CrowConfig, resolved: &ResolvedDependencyBuild) {

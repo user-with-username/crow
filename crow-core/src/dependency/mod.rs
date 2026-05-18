@@ -9,6 +9,7 @@ mod wheel;
 pub use git::GitDependencyFetcher;
 pub use graph::DependencyGraph;
 pub use lockfile::LockfileBuilder;
+use crate::builder::kinds::compiler_kind::CompilerKind;
 pub use merge::{apply_dependency_standard, format_lock_dependencies, merge_dependency_inputs};
 pub use registry::RegistryFetcher;
 pub use version_req::VersionReq;
@@ -226,6 +227,8 @@ impl DependencyResolver {
         profile_name: &str,
         compiler_flags: &[String],
         build_flags: &[String],
+        compiler_path: Option<&str>,
+        compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts> {
         let base_build_dir = self.cache_root.join(profile_name);
         std::fs::create_dir_all(&base_build_dir)?;
@@ -234,12 +237,22 @@ impl DependencyResolver {
         use std::hash::{Hash, Hasher};
         let mut hasher = DefaultHasher::new();
         dep_root.hash(&mut hasher);
+        compiler_kind.hash(&mut hasher);
+        compiler_flags.hash(&mut hasher);
+        build_flags.hash(&mut hasher);
         let hash = format!("{:016x}", hasher.finish());
         let unique_build_dir = base_build_dir.join(hash);
 
         let wheel = create_wheel(dep_root)
             .with_context(|| format!("no known build system found at {}", dep_root.display()))?;
-        wheel.build(&unique_build_dir, profile_name, compiler_flags, build_flags)
+        wheel.build(
+            &unique_build_dir,
+            profile_name,
+            compiler_flags,
+            build_flags,
+            compiler_path,
+            compiler_kind,
+        )
     }
 
     pub fn resolve_for(
@@ -248,6 +261,8 @@ impl DependencyResolver {
         root_dir: &Path,
         profile_name: &str,
         target_dir: &Path,
+        compiler_path: Option<&str>,
+        compiler_kind: CompilerKind,
     ) -> Result<ResolvedDependencyBuild> {
         self.dependency_constraints.remove(profile_name);
         self.dependency_owners.remove(profile_name);
@@ -296,17 +311,7 @@ impl DependencyResolver {
         let build_order = graph.resolve_order()?;
         let mut wheel_artifacts: HashMap<PathBuf, WheelArtifacts> = HashMap::new();
 
-        let mut compiler_flags = root_config.build.compiler.flags().to_vec();
-
-        if let Some(pkg) = &root_config.package {
-            if let Some(std) = &pkg.standard {
-                if cfg!(target_os = "windows") {
-                    compiler_flags.push(format!("/std:c++{}", std));
-                } else {
-                    compiler_flags.push(format!("-std=c++{}", std));
-                }
-            }
-        }
+        let compiler_flags = root_config.build.compiler.flags().to_vec();
 
         for idx in &build_order {
             if *idx == root_idx {
@@ -320,6 +325,8 @@ impl DependencyResolver {
                     profile_name,
                     &compiler_flags,
                     &payload.build_flags,
+                    compiler_path,
+                    compiler_kind,
                 )?;
                 wheel_artifacts.insert(payload.root.clone(), artifacts);
             }
