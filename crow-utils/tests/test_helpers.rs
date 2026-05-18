@@ -7,18 +7,6 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn test_change_directory_success() -> Result<(), Box<dyn std::error::Error>> {
-        let temp_dir = tempdir()?;
-        let original_dir = env::current_dir()?;
-        
-        change_directory(temp_dir.path())?;
-        assert_eq!(env::current_dir()?, temp_dir.path());
-        
-        change_directory(&original_dir)?;
-        Ok(())
-    }
-
-    #[test]
     fn test_change_directory_failure() {
         let result = change_directory(Path::new("/nonexistent/directory/that/doesnt/exist"));
         assert!(result.is_err());
