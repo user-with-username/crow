@@ -4,7 +4,7 @@ mod tests {
     use tempfile::tempdir;
     use std::env;
     use std::fs;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn test_change_directory_success() -> Result<(), Box<dyn std::error::Error>> {
