@@ -4,7 +4,7 @@ mod tests {
     use tempfile::tempdir;
     use std::env;
     use std::fs;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     #[test]
     fn test_change_directory_success() -> Result<(), Box<dyn std::error::Error>> {
@@ -144,6 +144,8 @@ mod tests {
     #[test]
     #[cfg(target_os = "macos")]
     fn test_find_executable_macos_common_locations() -> Result<(), Box<dyn std::error::Error>> {
+        use std::path::PathBuf;
+
         let result = find_executable("ls")?;
         assert_eq!(result, PathBuf::from("/bin/ls"));
         Ok(())
