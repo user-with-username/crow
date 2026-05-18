@@ -8,24 +8,50 @@ env:
   BIN_NAME: "crow"
 
 jobs:
-  get-version:
-    name: Get version
+  bump-version:
+    name: Bump version
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get-version.outputs.version }}
+      version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get crate version
-        id: get-version
+      - name: Bump patch version in crates
+        id: bump
         run: |
+          bump_patch() {
+            local crate=$1
+            local current=$(grep -m1 '^version =' $crate/Cargo.toml | cut -d '"' -f2)
+            local major=$(echo $current | cut -d. -f1)
+            local minor=$(echo $current | cut -d. -f2)
+            local patch=$(echo $current | cut -d. -f3)
+            local new_patch=$((patch + 1))
+            local new_version="${major}.${minor}.${new_patch}"
+            
+            sed -i "0,/^version = \"${current}\"/s//version = \"${new_version}\"/" $crate/Cargo.toml
+            
+            echo "Bumped $crate: $current -> $new_version"
+          }
+          
+          bump_patch "crow-utils"
+          bump_patch "crow-core"
+          bump_patch "crow-cli"
+          
           version=$(grep -m1 '^version =' crow-cli/Cargo.toml | cut -d '"' -f2)
           echo "version=${version}" >> $GITHUB_OUTPUT
-          echo "Using version: ${version}"
+          echo "New version: ${version}"
+          
+      - name: Commit and push bumped version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add crow-utils/Cargo.toml crow-core/Cargo.toml crow-cli/Cargo.toml
+          git commit -m "Bump version to ${{ steps.bump.outputs.version }}" || echo "No changes to commit"
+          git push
 
   build:
     name: Build ${{ matrix.target }}
-    needs: get-version
+    needs: bump-version
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -102,7 +128,7 @@ jobs:
 
   release:
     name: Create release
-    needs: [get-version, build]
+    needs: [bump-version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -120,10 +146,10 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.get-version.outputs.version }}
-          name: "v${{ needs.get-version.outputs.version }}"
+          tag_name: v${{ needs.bump-version.outputs.version }}
+          name: "v${{ needs.bump-version.outputs.version }}"
           body: |
-            Build for version ${{ needs.get-version.outputs.version }}.
+            Build for version ${{ needs.bump-version.outputs.version }}.
             
             Thank you for using crow!
           files: |
