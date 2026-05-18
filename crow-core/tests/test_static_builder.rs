@@ -16,6 +16,8 @@ mod tests {
     fn toolchain_kinds_for_platform() -> (CompilerKind, LinkerKind, ArchiverKind) {
         if cfg!(windows) {
             (CompilerKind::Msvc, LinkerKind::Link, ArchiverKind::Lib)
+        } else if cfg!(target_os = "macos") {
+            (CompilerKind::ClangPP, LinkerKind::Lld, ArchiverKind::LlvmAr)
         } else {
             (CompilerKind::Gcc, LinkerKind::Ld, ArchiverKind::Ar)
         }
