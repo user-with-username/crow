@@ -154,6 +154,8 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_find_executable_linux_common_locations() -> Result<(), Box<dyn std::error::Error>> {
+        use std::path::PathBuf;
+
         let result = find_executable("ls")?;
         assert!(result == PathBuf::from("/bin/ls") || result == PathBuf::from("/usr/bin/ls"));
         Ok(())
