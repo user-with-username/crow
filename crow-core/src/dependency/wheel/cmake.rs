@@ -1,4 +1,4 @@
-use super::{get_artifacts, Wheel, WheelArtifacts};
+use super::{get_artifacts, link_name_from_library_file, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
 use serde::Deserialize;
@@ -94,13 +94,7 @@ impl CmakeWheel {
                     Err(_) => continue,
                 };
 
-                let is_library = matches!(
-                    target.r#type.as_str(),
-                    "STATIC_LIBRARY" | "SHARED_LIBRARY" | "MODULE_LIBRARY" | "OBJECT_LIBRARY"
-                );
-                let is_imported = target.is_imported.unwrap_or(false);
-
-                if is_library && !is_imported {
+                if Self::is_consumer_library_target(&target) {
                     library_targets.push(target.name.clone());
                 }
             }
@@ -109,6 +103,98 @@ impl CmakeWheel {
         library_targets.dedup();
 
         Ok(library_targets)
+    }
+
+    fn is_consumer_library_target(target: &TargetFile) -> bool {
+        let is_library = matches!(
+            target.r#type.as_str(),
+            "STATIC_LIBRARY" | "SHARED_LIBRARY" | "MODULE_LIBRARY"
+        );
+        if !is_library || target.is_imported.unwrap_or(false) {
+            return false;
+        }
+
+        let name = target.name.to_ascii_lowercase();
+        if name.contains("test")
+            || name.contains("gtest")
+            || name.contains("mock")
+            || name.contains("benchmark")
+        {
+            return false;
+        }
+
+        if let Some(artifacts) = &target.artifacts {
+            for artifact in artifacts {
+                let path = Path::new(&artifact.path);
+                if super::should_skip_library_path(path) {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    fn artifacts_from_built_targets(
+        build_dir: &Path,
+        target_names: &[String],
+    ) -> Result<WheelArtifacts> {
+        let reply_dir = build_dir.join(".cmake/api/v1/reply");
+        let mut artifacts = WheelArtifacts::default();
+
+        for entry in fs::read_dir(&reply_dir).with_context(|| {
+            format!(
+                "failed to read cmake File API reply dir: {}",
+                reply_dir.display()
+            )
+        })? {
+            let entry = entry?;
+            let file_name = entry.file_name();
+            let Some(name) = file_name.to_str() else {
+                continue;
+            };
+            if !name.starts_with("target-") || !name.ends_with(".json") {
+                continue;
+            }
+
+            let target_text = fs::read_to_string(entry.path())?;
+            let target: TargetFile = match serde_json::from_str(&target_text) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+
+            if !target_names.iter().any(|n| n == &target.name) {
+                continue;
+            }
+
+            let Some(artifact_paths) = &target.artifacts else {
+                continue;
+            };
+
+            for artifact in artifact_paths {
+                let artifact_path = build_dir.join(&artifact.path);
+                if !artifact_path.is_file() {
+                    continue;
+                }
+
+                let Some(lib_name) = link_name_from_library_file(&artifact_path) else {
+                    continue;
+                };
+                let parent = artifact_path
+                    .parent()
+                    .context("library artifact has no parent directory")?
+                    .to_path_buf();
+
+                if !artifacts.lib_names.contains(&lib_name) {
+                    artifacts.lib_names.push(lib_name);
+                }
+                if !artifacts.lib_paths.contains(&parent) {
+                    artifacts.lib_paths.push(parent);
+                }
+            }
+        }
+
+        Ok(artifacts)
     }
 }
 
@@ -146,6 +232,12 @@ struct TargetFile {
     r#type: String,
     #[serde(rename = "isImported")]
     is_imported: Option<bool>,
+    artifacts: Option<Vec<TargetArtifact>>,
+}
+
+#[derive(Deserialize)]
+struct TargetArtifact {
+    path: String,
 }
 
 impl Wheel for CmakeWheel {
@@ -198,6 +290,7 @@ impl Wheel for CmakeWheel {
             .arg(format!("-DCMAKE_BUILD_TYPE={}", build_type))
             .arg("-DCMAKE_INSTALL_PREFIX=install")
             .arg("-DBUILD_SHARED_LIBS=OFF")
+            .arg("-DBUILD_TESTING=OFF")
             .arg("-DCMAKE_CXX_EXTENSIONS=OFF");
 
         if let Some(path) = compiler_path {
@@ -286,19 +379,36 @@ impl Wheel for CmakeWheel {
 
         let install_dir = out_dir.join("install");
 
-        let artifacts = get_artifacts(
-            &self.root,
-            &out_dir,
-            vec![out_dir.join("generated"), install_dir.join("include")],
-            vec![
-                out_dir.clone(),
-                out_dir.join(build_type),
-                out_dir.join(build_type.to_lowercase()),
-                out_dir.join("lib"),
-                install_dir.join("lib"),
-            ],
-            4,
-        )?;
+        let mut artifacts = Self::artifacts_from_built_targets(&out_dir, &library_targets)?;
+
+        if artifacts.lib_names.is_empty() {
+            artifacts = get_artifacts(
+                &self.root,
+                &out_dir,
+                vec![out_dir.join("generated"), install_dir.join("include")],
+                vec![
+                    install_dir.join("lib"),
+                    out_dir.clone(),
+                    out_dir.join(build_type),
+                    out_dir.join(build_type.to_lowercase()),
+                    out_dir.join("lib"),
+                ],
+                4,
+            )?;
+        } else {
+            let include_artifacts = get_artifacts(
+                &self.root,
+                &out_dir,
+                vec![out_dir.join("generated"), install_dir.join("include")],
+                vec![install_dir.clone()],
+                4,
+            )?;
+            for include_dir in include_artifacts.include_dirs {
+                if !artifacts.include_dirs.contains(&include_dir) {
+                    artifacts.include_dirs.push(include_dir);
+                }
+            }
+        }
 
         Ok(artifacts)
     }

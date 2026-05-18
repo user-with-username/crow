@@ -127,9 +127,10 @@ pub fn get_artifacts(
         }
     }
 
-    // Define library extensions per platform
+    // Define library extensions per platform.
+    // MinGW/Clang on Windows use `.a` for static libraries (e.g. libfmt.a, libfmtd.a).
     #[cfg(windows)]
-    let lib_extensions = vec!["lib", "dll", "dll.a"];
+    let lib_extensions = vec!["a", "lib", "dll", "dll.a"];
     #[cfg(target_os = "macos")]
     let lib_extensions = vec!["a", "dylib", "so"];
     #[cfg(all(not(windows), not(target_os = "macos")))]
@@ -147,15 +148,19 @@ pub fn get_artifacts(
             .filter_map(|e| e.ok())
         {
             if entry.file_type().is_file() {
-                if let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) {
+                let path = entry.path();
+                if should_skip_library_path(path) {
+                    continue;
+                }
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                     if lib_extensions.contains(&ext) {
-                        if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
+                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                             let lib_name = stem.trim_start_matches("lib").to_string();
 
                             if !artifacts.lib_names.contains(&lib_name) {
                                 artifacts.lib_names.push(lib_name.clone());
 
-                                let parent = entry.path().parent().unwrap().to_path_buf();
+                                let parent = path.parent().unwrap().to_path_buf();
                                 if !artifacts.lib_paths.contains(&parent) {
                                     artifacts.lib_paths.push(parent);
                                 }
@@ -168,4 +173,21 @@ pub fn get_artifacts(
     }
 
     Ok(artifacts)
+}
+
+pub(crate) fn should_skip_library_path(path: &Path) -> bool {
+    path.components().any(|component| {
+        component
+            .as_os_str()
+            .eq_ignore_ascii_case("test")
+            || component
+                .as_os_str()
+                .eq_ignore_ascii_case("tests")
+    })
+}
+
+pub(crate) fn link_name_from_library_file(path: &Path) -> Option<String> {
+    path.file_stem()
+        .and_then(|s| s.to_str())
+        .map(|stem| stem.trim_start_matches("lib").to_string())
 }

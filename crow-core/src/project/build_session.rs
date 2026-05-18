@@ -75,10 +75,31 @@ impl<'a> BuildSession<'a> {
             &mut visited,
         )?;
 
-        self.total_count = buildable.len();
+        let lockfile_path = manifest_dir.join("crow.lock");
+        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+        let mut root_config_for_count = config.clone();
+        Project::merge_dependency_inputs(&mut root_config_for_count, &resolved);
+        let root_needs_build = Project::new(
+            root_config_for_count,
+            manifest_dir.clone(),
+            self.profile_name,
+            Some(resolved.clone()),
+        )?
+        .should_build(&lock_hash)?;
+
+        self.total_count = buildable.len() + usize::from(root_needs_build);
 
         if self.total_count > 0 {
-            let first_label = buildable[0].1.clone();
+            let first_label = buildable
+                .first()
+                .map(|(_, label)| label.clone())
+                .unwrap_or_else(|| {
+                    config
+                        .package
+                        .as_ref()
+                        .map(|p| format!("{} v{}", p.name, p.version))
+                        .unwrap_or_else(|| "project".to_string())
+                });
             self.progress = Some(ProgressBar::new(self.total_count, first_label));
         }
 
@@ -105,8 +126,7 @@ impl<'a> BuildSession<'a> {
                     wheel_artifacts.insert(root, artifacts);
                 }
                 Buildable::Project(project) => {
-                    let is_root = project.root == manifest_dir;
-                    self.compile_project(&project, !is_root)?;
+                    self.compile_project(&project, true)?;
                 }
             }
 
@@ -128,6 +148,19 @@ impl<'a> BuildSession<'a> {
             self.profile_name,
             Some(resolved.clone()),
         )?;
+        root_project.configure_parallelism(self.jobs);
+
+        let lockfile_path = manifest_dir.join("crow.lock");
+        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+        if root_project.should_build(&lock_hash)? {
+            let start = Instant::now();
+            self.compile_project(&root_project, false)?;
+            self.total_duration += start.elapsed();
+            self.built_count += 1;
+            if let Some(pb) = &self.progress {
+                pb.inc();
+            }
+        }
 
         let opt_level = if root_project.profile.opt_level() != "0" {
             "optimized"
@@ -237,14 +270,8 @@ impl<'a> BuildSession<'a> {
         )?;
         root_project.configure_parallelism(self.jobs);
 
-        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
-        if root_project.should_build(&lock_hash)? {
-            let label = format!(
-                "{} v{}",
-                root_project.package.name, root_project.package.version
-            );
-            out.push((Buildable::Project(root_project), label));
-        }
+        let _ = root_project;
+        let _ = hash_files(std::slice::from_ref(&lockfile_path))?;
 
         Ok(())
     }

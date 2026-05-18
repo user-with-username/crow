@@ -1,8 +1,38 @@
 use super::LinkingBuilder;
 use crate::builder::flags::LinkerFlags;
 use crate::builder::linking::platform_builder::PlatformSetup;
+use crate::builder::paths::ObjectFilePath;
 use anyhow::Result;
 use std::process::{Command, Stdio};
+
+fn is_library_link_arg(arg: &str) -> bool {
+    arg.starts_with("-l")
+        || arg.starts_with("-L")
+        || arg.ends_with(".a")
+        || arg.ends_with(".so")
+        || arg.ends_with(".dylib")
+}
+
+/// GCC/Clang require object files before `-l` flags when linking static libraries.
+fn order_gcc_like_link_args(mut flags: Vec<String>, objects: &[ObjectFilePath]) -> Vec<String> {
+    let mut prefix = Vec::new();
+    let mut libraries = Vec::new();
+
+    for flag in flags.drain(..) {
+        if is_library_link_arg(&flag) {
+            libraries.push(flag);
+        } else {
+            prefix.push(flag);
+        }
+    }
+
+    let mut args = prefix;
+    for obj in objects {
+        args.push(obj.as_path().to_string_lossy().into_owned());
+    }
+    args.extend(libraries);
+    args
+}
 
 pub struct DynamicLinkBuilder<'a> {
     builder: &'a LinkingBuilder<'a>,
@@ -32,11 +62,15 @@ impl<'a> DynamicLinkBuilder<'a> {
 
         self.builder.apply_library_flags(&mut flags);
 
-        let mut args = flags.build();
-
-        for obj in self.builder.objects() {
-            args.push(obj.as_path().to_string_lossy().into_owned());
-        }
+        let args = if is_msvc {
+            let mut args = flags.build();
+            for obj in self.builder.objects() {
+                args.push(obj.as_path().to_string_lossy().into_owned());
+            }
+            args
+        } else {
+            order_gcc_like_link_args(flags.build(), self.builder.objects())
+        };
 
         let response_filename = format!(
             "{}_{}.args",
