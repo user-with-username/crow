@@ -1,12 +1,16 @@
 #[cfg(test)]
 mod tests {
 use crow_core::builder::toolchain::{MsvcToolchain, Toolchain};
+#[cfg(target_os = "windows")]
 use crow_core::builder::kinds::archiver_kind::ArchiverKind;
+#[cfg(target_os = "windows")]
 use crow_core::builder::kinds::compiler_kind::CompilerKind;
+#[cfg(target_os = "windows")]
 use crow_core::builder::kinds::linker_kind::LinkerKind;
+#[cfg(target_os = "windows")]
 use std::process::Command;
 
-
+    #[cfg(target_os = "windows")]
     fn print_result_error(result: &anyhow::Result<MsvcToolchain>) {
         match result {
             Ok(_) => println!("Result: Ok(MsvcToolchain)"),
@@ -291,12 +295,12 @@ use std::process::Command;
             None,
             None,
         );
-        
+
         match toolchain {
             Ok(tc) => {
-                println!("Compiler: {} ({:?})", tc.compiler_path(), tc.compiler_kind());
-                println!("Linker: {} ({:?})", tc.linker_path(), tc.linker_kind());
-                println!("Archiver: {} ({:?})", tc.archiver_path(), tc.archiver_kind());
+                println!("Compiler: {}", tc.compiler_path());
+                println!("Linker: {}", tc.linker_path());
+                println!("Archiver: {}", tc.archiver_path());
             }
             Err(e) => {
                 println!("Failed to detect MSVC toolchain: {}", e);

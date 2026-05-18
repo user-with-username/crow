@@ -5,7 +5,6 @@ mod tests {
     use std::env;
     use std::fs;
     use std::path::Path;
-    use std::path::PathBuf;
 
     #[test]
     fn test_change_directory_success() -> Result<(), Box<dyn std::error::Error>> {
@@ -153,6 +152,8 @@ mod tests {
     #[test]
     #[cfg(target_os = "linux")]
     fn test_find_executable_linux_common_locations() -> Result<(), Box<dyn std::error::Error>> {
+        use std::path::PathBuf;
+
         let result = find_executable("ls")?;
         assert!(result == PathBuf::from("/bin/ls") || result == PathBuf::from("/usr/bin/ls"));
         Ok(())
@@ -207,7 +208,6 @@ mod tests {
         Ok(())
     }
 
-    // Тест для проверки работы с UNC путями на Windows
     #[test]
     #[cfg(windows)]
     fn test_normalize_path_unc_complex() {
