@@ -34,16 +34,19 @@ impl InitCommand {
         let main_cpp = current_dir.join("src/main.cpp");
 
         let overwrite = if !self.args.quiet && (config_path.exists() || main_cpp.exists()) {
-            println!("{}", style("Looks like the project there is already exists").yellow());
-            
+            println!(
+                "{}",
+                style("Looks like the project there is already exists").yellow()
+            );
+
             let confirmed = Confirm::with_theme(&ColorfulTheme::default())
                 .with_prompt("Overwrite existing files?")
                 .default(false)
                 .wait_for_newline(false)
                 .interact_opt()?;
-            
+
             print!("\x1B[2A\x1B[2K\r\x1B[2K\r");
-            
+
             match confirmed {
                 Some(true) => true,
                 _ => {

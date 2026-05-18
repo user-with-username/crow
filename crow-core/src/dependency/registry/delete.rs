@@ -4,8 +4,8 @@ use std::fs;
 
 use crow_utils::environment::Environment;
 
-use super::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
 use super::fetcher::{RegistryEntry, RegistryIndex};
+use super::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
 use super::github::GithubRepo;
 
 pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> Result<()> {
@@ -14,10 +14,7 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
     let (_temp_dir, registry_repo) = clone_registry(registry_url, &token)?;
     let base_branch = checkout_default_branch(&registry_repo)?;
 
-    let packages_dir = registry_repo
-        .workdir()
-        .unwrap()
-        .join("packages");
+    let packages_dir = registry_repo.workdir().unwrap().join("packages");
     let index_file = packages_dir.join(format!("{package_name}.toml"));
 
     if !index_file.exists() {
@@ -26,9 +23,8 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
 
     let existing_content = fs::read_to_string(&index_file)?;
     let mut versions: HashMap<String, RegistryEntry> = {
-        let index: RegistryIndex = toml::from_str(&existing_content).with_context(|| {
-            format!("Failed to parse registry index for {package_name}")
-        })?;
+        let index: RegistryIndex = toml::from_str(&existing_content)
+            .with_context(|| format!("Failed to parse registry index for {package_name}"))?;
         index.versions
     };
 
@@ -55,7 +51,8 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
     registry_repo.set_head(branch_ref.name().unwrap())?;
 
     if versions.is_empty() {
-        fs::remove_file(&index_file).with_context(|| format!("Failed to delete {}", index_file.display()))?;
+        fs::remove_file(&index_file)
+            .with_context(|| format!("Failed to delete {}", index_file.display()))?;
     } else {
         let index = RegistryIndex { versions };
         let content = toml::to_string_pretty(&index)?;

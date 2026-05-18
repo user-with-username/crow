@@ -2,7 +2,7 @@
 mod tests {
     use std::fs;
 
-use crow_cli::templates::{create_project_structure, CROW_TOML_TEMPLATE, GITIGNORE, MAIN_CPP};
+    use crow_cli::templates::{create_project_structure, CROW_TOML_TEMPLATE, GITIGNORE, MAIN_CPP};
     use tempfile::tempdir;
 
     #[test]
@@ -15,25 +15,16 @@ use crow_cli::templates::{create_project_structure, CROW_TOML_TEMPLATE, GITIGNOR
 
         let main_cpp_path = base_path.join("src/main.cpp");
         assert!(main_cpp_path.exists());
-        assert_eq!(
-            fs::read_to_string(main_cpp_path).unwrap(),
-            MAIN_CPP
-        );
+        assert_eq!(fs::read_to_string(main_cpp_path).unwrap(), MAIN_CPP);
 
         let crow_toml_path = base_path.join("crow.toml");
         assert!(crow_toml_path.exists());
         let expected_toml = CROW_TOML_TEMPLATE.replace("{name}", package_name);
-        assert_eq!(
-            fs::read_to_string(crow_toml_path).unwrap(),
-            expected_toml
-        );
+        assert_eq!(fs::read_to_string(crow_toml_path).unwrap(), expected_toml);
 
         let gitignore_path = base_path.join(".gitignore");
         assert!(gitignore_path.exists());
-        assert_eq!(
-            fs::read_to_string(gitignore_path).unwrap(),
-            GITIGNORE
-        );
+        assert_eq!(fs::read_to_string(gitignore_path).unwrap(), GITIGNORE);
     }
 
     #[test]

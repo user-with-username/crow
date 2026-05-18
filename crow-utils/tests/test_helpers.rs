@@ -1,22 +1,28 @@
 #[cfg(test)]
 mod tests {
     use crow_utils::helpers::{change_directory, find_executable, fix_msvc_path, normalize_path};
-    use tempfile::tempdir;
     use std::env;
     use std::fs;
     use std::path::Path;
+    use tempfile::tempdir;
 
     #[test]
     fn test_change_directory_failure() {
         let result = change_directory(Path::new("/nonexistent/directory/that/doesnt/exist"));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("failed to change directory"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("failed to change directory"));
     }
 
     #[test]
     fn test_normalize_path_windows_remove_extended_prefix() {
         if cfg!(windows) {
-            assert_eq!(normalize_path(r"\\?\C:\Windows\System32"), r"C:\Windows\System32");
+            assert_eq!(
+                normalize_path(r"\\?\C:\Windows\System32"),
+                r"C:\Windows\System32"
+            );
             assert_eq!(normalize_path(r"\\?\UNC\server\share"), r"\\server\share");
             assert_eq!(normalize_path(r"\\?\C:\test\file.txt"), r"C:\test\file.txt");
         }
@@ -26,7 +32,10 @@ mod tests {
     fn test_normalize_path_windows_unc() {
         if cfg!(windows) {
             assert_eq!(normalize_path(r"UNC\server\share"), r"\\server\share");
-            assert_eq!(normalize_path(r"UNC\long\path\to\file"), r"\\long\path\to\file");
+            assert_eq!(
+                normalize_path(r"UNC\long\path\to\file"),
+                r"\\long\path\to\file"
+            );
         }
     }
 
@@ -35,7 +44,10 @@ mod tests {
         if !cfg!(windows) {
             assert_eq!(normalize_path(r"path\to\file"), "path/to/file");
             assert_eq!(normalize_path(r"C:\windows\style"), "C:/windows/style");
-            assert_eq!(normalize_path(r"back\slash\mix/here"), "back/slash/mix/here");
+            assert_eq!(
+                normalize_path(r"back\slash\mix/here"),
+                "back/slash/mix/here"
+            );
         }
     }
 
@@ -44,14 +56,20 @@ mod tests {
         if cfg!(windows) {
             assert_eq!(normalize_path("path/to/file"), r"path\to\file");
             assert_eq!(normalize_path("unix/style/path"), r"unix\style\path");
-            assert_eq!(normalize_path("C:/Program Files/App"), r"C:\Program Files\App");
+            assert_eq!(
+                normalize_path("C:/Program Files/App"),
+                r"C:\Program Files\App"
+            );
         }
     }
 
     #[test]
     fn test_normalize_path_preserves_unchanged() {
         if cfg!(windows) {
-            assert_eq!(normalize_path(r"C:\Windows\System32"), r"C:\Windows\System32");
+            assert_eq!(
+                normalize_path(r"C:\Windows\System32"),
+                r"C:\Windows\System32"
+            );
             assert_eq!(normalize_path(r"relative\path"), r"relative\path");
         } else {
             assert_eq!(normalize_path("/usr/local/bin"), "/usr/local/bin");
@@ -63,12 +81,20 @@ mod tests {
     fn test_fix_msvc_path_add_extension() {
         assert_eq!(
             fix_msvc_path("output", Some(".exe")),
-            if cfg!(windows) { "output.exe" } else { "output.exe" }
+            if cfg!(windows) {
+                "output.exe"
+            } else {
+                "output.exe"
+            }
         );
-        
+
         assert_eq!(
             fix_msvc_path("file.obj", Some(".exe")),
-            if cfg!(windows) { "file.exe" } else { "file.exe" }
+            if cfg!(windows) {
+                "file.exe"
+            } else {
+                "file.exe"
+            }
         );
     }
 
@@ -76,12 +102,20 @@ mod tests {
     fn test_fix_msvc_path_preserve_existing_extension() {
         assert_eq!(
             fix_msvc_path("program.exe", Some(".exe")),
-            if cfg!(windows) { "program.exe" } else { "program.exe" }
+            if cfg!(windows) {
+                "program.exe"
+            } else {
+                "program.exe"
+            }
         );
-        
+
         assert_eq!(
             fix_msvc_path("library.dll", Some(".exe")),
-            if cfg!(windows) { "library.exe" } else { "library.exe" }
+            if cfg!(windows) {
+                "library.exe"
+            } else {
+                "library.exe"
+            }
         );
     }
 
@@ -89,12 +123,20 @@ mod tests {
     fn test_fix_msvc_path_multiple_dots() {
         assert_eq!(
             fix_msvc_path("archive.tar.gz", Some(".exe")),
-            if cfg!(windows) { "archive.tar.exe" } else { "archive.tar.exe" }
+            if cfg!(windows) {
+                "archive.tar.exe"
+            } else {
+                "archive.tar.exe"
+            }
         );
-        
+
         assert_eq!(
             fix_msvc_path("file.name.with.dots.txt", Some(".exe")),
-            if cfg!(windows) { "file.name.with.dots.exe" } else { "file.name.with.dots.exe" }
+            if cfg!(windows) {
+                "file.name.with.dots.exe"
+            } else {
+                "file.name.with.dots.exe"
+            }
         );
     }
 
@@ -102,12 +144,20 @@ mod tests {
     fn test_fix_msvc_path_no_extension() {
         assert_eq!(
             fix_msvc_path("myprogram", None),
-            if cfg!(windows) { "myprogram" } else { "myprogram" }
+            if cfg!(windows) {
+                "myprogram"
+            } else {
+                "myprogram"
+            }
         );
-        
+
         assert_eq!(
             fix_msvc_path("path/to/program", None),
-            if cfg!(windows) { "path\\to\\program" } else { "path/to/program" }
+            if cfg!(windows) {
+                "path\\to\\program"
+            } else {
+                "path/to/program"
+            }
         );
     }
 
@@ -124,8 +174,10 @@ mod tests {
         let result = find_executable("powershell");
         if result.is_ok() {
             let path = result.unwrap();
-            assert!(path.to_string_lossy().contains("PowerShell") || 
-                    path.to_string_lossy().contains("powershell"));
+            assert!(
+                path.to_string_lossy().contains("PowerShell")
+                    || path.to_string_lossy().contains("powershell")
+            );
         }
     }
 
@@ -153,15 +205,15 @@ mod tests {
     fn test_normalize_and_fix_combined() {
         let path = "C:/Program Files/MyApp/bin/tool";
         let normalized = normalize_path(path);
-        
+
         if cfg!(windows) {
             assert_eq!(normalized, r"C:\Program Files\MyApp\bin\tool");
-            
+
             let fixed = fix_msvc_path(&normalized, Some(".exe"));
             assert_eq!(fixed, r"C:\Program Files\MyApp\bin\tool.exe");
         } else {
             assert_eq!(normalized, "C:/Program Files/MyApp/bin/tool");
-            
+
             let fixed = fix_msvc_path(&normalized, Some(".exe"));
             assert_eq!(fixed, "C:/Program Files/MyApp/bin/tool.exe");
         }
@@ -176,9 +228,9 @@ mod tests {
         } else {
             temp_dir.path().join(exe_name)
         };
-        
+
         fs::write(&exe_path, "")?;
-        
+
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -186,15 +238,15 @@ mod tests {
             perms.set_mode(0o755);
             fs::set_permissions(&exe_path, perms)?;
         }
-        
+
         let original_path = env::var_os("PATH").unwrap_or_default();
         env::set_var("PATH", temp_dir.path());
-        
+
         let result = find_executable(exe_name)?;
         env::set_var("PATH", original_path);
-        
+
         assert_eq!(result, exe_path);
-        
+
         Ok(())
     }
 
@@ -205,7 +257,7 @@ mod tests {
             normalize_path(r"\\?\UNC\server\share\folder\file.txt"),
             r"\\server\share\folder\file.txt"
         );
-        
+
         assert_eq!(
             normalize_path(r"UNC\server\share\folder\file.txt"),
             r"\\server\share\folder\file.txt"

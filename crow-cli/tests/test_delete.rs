@@ -11,7 +11,7 @@ mod tests {
             yes: false,
             dry_run: false,
         };
-        
+
         assert_eq!(args.package, "test-pkg");
         assert_eq!(args.version, None);
         assert_eq!(args.registry, None);
@@ -28,10 +28,13 @@ mod tests {
             yes: true,
             dry_run: true,
         };
-        
+
         assert_eq!(args.package, "serde");
         assert_eq!(args.version, Some("1.0.0".to_string()));
-        assert_eq!(args.registry, Some("https://custom-registry.com".to_string()));
+        assert_eq!(
+            args.registry,
+            Some("https://custom-registry.com".to_string())
+        );
         assert!(args.yes);
         assert!(args.dry_run);
     }
@@ -45,7 +48,7 @@ mod tests {
             yes: false,
             dry_run: false,
         };
-        
+
         let command = DeleteCommand::new(args);
         let _ = command;
     }
@@ -59,10 +62,10 @@ mod tests {
             yes: true,
             dry_run: true,
         };
-        
+
         let command = DeleteCommand::new(args);
         let result = command.execute();
-        
+
         assert!(result.is_ok());
     }
 
@@ -75,11 +78,11 @@ mod tests {
             yes: true,
             dry_run: false,
         };
-        
+
         let command = DeleteCommand::new(args);
-        
+
         let result = command.execute();
-        
+
         assert!(result.is_err());
     }
 
@@ -92,10 +95,10 @@ mod tests {
             yes: true,
             dry_run: true,
         };
-        
+
         let command = DeleteCommand::new(args);
         let result = command.execute();
-        
+
         assert!(result.is_ok());
     }
 
@@ -108,17 +111,17 @@ mod tests {
             yes: true,
             dry_run: true,
         };
-        
+
         let command = DeleteCommand::new(args);
         let result = command.execute();
-        
+
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_delete_command_custom_registry_url() {
         let custom_registry = "https://my-registry.com/api";
-        
+
         let args = DeleteArgs {
             package: "custom-pkg".to_string(),
             version: Some("2.0.0".to_string()),
@@ -126,10 +129,10 @@ mod tests {
             yes: true,
             dry_run: true,
         };
-        
+
         let command = DeleteCommand::new(args);
         let result = command.execute();
-        
+
         assert!(result.is_ok());
     }
 }

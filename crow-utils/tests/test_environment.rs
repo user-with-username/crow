@@ -42,7 +42,7 @@ mod tests {
         with_var("GITHUB_TOKEN", None::<&str>, || {
             let token = Environment::github_token();
             assert!(token.is_err());
-            
+
             let err = token.unwrap_err();
             let err_msg = format!("{}", err);
             assert!(err_msg.contains("GITHUB_TOKEN"));

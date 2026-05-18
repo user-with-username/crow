@@ -38,17 +38,15 @@ impl AddCommand {
 
         let version_req = self.args.version.as_deref().unwrap_or("*");
 
-        let coords = RegistryFetcher::global().resolve_str(
-            &self.args.package,
-            version_req,
-            registry_url,
-        )?;
+        let coords =
+            RegistryFetcher::global().resolve_str(&self.args.package, version_req, registry_url)?;
 
         let config_path = PathBuf::from("crow.toml");
         let content = fs::read_to_string(&config_path)
             .map_err(|_| anyhow::anyhow!("failed to read crow.toml"))?;
 
-        let mut doc: DocumentMut = content.parse()
+        let mut doc: DocumentMut = content
+            .parse()
             .map_err(|e| anyhow::anyhow!("failed to parse crow.toml: {}", e))?;
 
         if let Some(deps_table) = doc.get("dependencies").and_then(|t| t.as_table()) {
@@ -58,19 +56,27 @@ impl AddCommand {
             }
         }
 
-        let deps_table = doc.entry("dependencies")
+        let deps_table = doc
+            .entry("dependencies")
             .or_insert(Item::Table(toml_edit::Table::new()))
             .as_table_mut()
             .ok_or_else(|| anyhow::anyhow!("expected table for dependencies"))?;
 
         deps_table.insert(
             &self.args.package,
-            Item::Value(Value::String(toml_edit::Formatted::new(coords.version.clone()))),
+            Item::Value(Value::String(toml_edit::Formatted::new(
+                coords.version.clone(),
+            ))),
         );
 
         fs::write(&config_path, doc.to_string())?;
 
-        status!("Adding", "{} v{} to dependencies", self.args.package, coords.version);
+        status!(
+            "Adding",
+            "{} v{} to dependencies",
+            self.args.package,
+            coords.version
+        );
         Ok(())
     }
 }

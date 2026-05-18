@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
-use crow_core::builder::toolchain::{MsvcToolchain, Toolchain};
-#[cfg(target_os = "windows")]
-use crow_core::builder::kinds::archiver_kind::ArchiverKind;
-#[cfg(target_os = "windows")]
-use crow_core::builder::kinds::compiler_kind::CompilerKind;
-#[cfg(target_os = "windows")]
-use crow_core::builder::kinds::linker_kind::LinkerKind;
-#[cfg(target_os = "windows")]
-use std::process::Command;
+    #[cfg(target_os = "windows")]
+    use crow_core::builder::kinds::archiver_kind::ArchiverKind;
+    #[cfg(target_os = "windows")]
+    use crow_core::builder::kinds::compiler_kind::CompilerKind;
+    #[cfg(target_os = "windows")]
+    use crow_core::builder::kinds::linker_kind::LinkerKind;
+    use crow_core::builder::toolchain::{MsvcToolchain, Toolchain};
+    #[cfg(target_os = "windows")]
+    use std::process::Command;
 
     #[cfg(target_os = "windows")]
     fn print_result_error(result: &anyhow::Result<MsvcToolchain>) {
@@ -21,13 +21,13 @@ use std::process::Command;
     #[test]
     fn test_msvc_only_available_on_windows() {
         let result = MsvcToolchain::detect(None, None, None, None);
-        
+
         #[cfg(target_os = "windows")]
         {
             println!("MSVC detection result on Windows:");
             print_result_error(&result);
         }
-        
+
         #[cfg(not(target_os = "windows"))]
         {
             assert!(result.is_err());
@@ -37,11 +37,10 @@ use std::process::Command;
         }
     }
 
-
     #[test]
     fn test_detect_with_no_preferences() {
         let result = MsvcToolchain::detect(None, None, None, None);
-        
+
         #[cfg(target_os = "windows")]
         {
             if let Ok(toolchain) = result {
@@ -54,7 +53,7 @@ use std::process::Command;
                 println!("MSVC not found on this system: {:?}", result.err());
             }
         }
-        
+
         #[cfg(not(target_os = "windows"))]
         {
             assert!(result.is_err());
@@ -67,14 +66,10 @@ use std::process::Command;
         {
             if let Ok(output) = Command::new("cl.exe").arg("/?").output() {
                 if output.status.success() {
-                    let result = MsvcToolchain::detect(
-                        Some("cl.exe".to_string()),
-                        None,
-                        None,
-                        None,
-                    );
+                    let result =
+                        MsvcToolchain::detect(Some("cl.exe".to_string()), None, None, None);
                     assert!(result.is_ok());
-                    
+
                     let toolchain = result.unwrap();
                     assert!(toolchain.compiler_path().contains("cl.exe"));
                     assert_eq!(toolchain.compiler_kind(), CompilerKind::Msvc);
@@ -87,13 +82,8 @@ use std::process::Command;
     fn test_detect_with_preferred_linker() {
         #[cfg(target_os = "windows")]
         {
-            let result = MsvcToolchain::detect(
-                None,
-                Some("link.exe".to_string()),
-                None,
-                None,
-            );
-            
+            let result = MsvcToolchain::detect(None, Some("link.exe".to_string()), None, None);
+
             if let Ok(toolchain) = result {
                 assert!(!toolchain.linker_path().is_empty());
                 assert!(toolchain.linker_path().contains("link.exe"));
@@ -111,7 +101,7 @@ use std::process::Command;
                 Some("lib.exe".to_string()),
                 Some(ArchiverKind::Lib),
             );
-            
+
             if let Ok(toolchain) = result {
                 assert!(toolchain.archiver_path().contains("lib.exe"));
                 assert_eq!(toolchain.archiver_kind(), ArchiverKind::Lib);
@@ -133,7 +123,7 @@ use std::process::Command;
                 let _archiver_kind = toolchain.archiver_kind();
                 let _include_dirs = toolchain.system_include_dirs();
                 let _library_dirs = toolchain.system_library_dirs();
-                
+
                 assert!(!_compiler_path.is_empty());
                 assert!(!_linker_path.is_empty());
                 assert!(!_archiver_path.is_empty());
@@ -191,7 +181,7 @@ use std::process::Command;
                 }
             }
         }
-        
+
         #[cfg(not(target_os = "windows"))]
         {
             let result = MsvcToolchain::identify_compiler("cl.exe");
@@ -216,7 +206,7 @@ use std::process::Command;
                 }
             }
         }
-        
+
         #[cfg(not(target_os = "windows"))]
         {
             let is_linker = MsvcToolchain::identify_linker("link.exe");
@@ -267,7 +257,7 @@ use std::process::Command;
         {
             let result1 = MsvcToolchain::detect(None, None, None, None);
             let result2 = MsvcToolchain::detect(None, None, None, None);
-            
+
             match (&result1, &result2) {
                 (Ok(tc1), Ok(tc2)) => {
                     assert_eq!(tc1.compiler_path(), tc2.compiler_path());
@@ -289,12 +279,7 @@ use std::process::Command;
 
     #[test]
     fn test_example_usage() {
-        let toolchain = MsvcToolchain::detect(
-            Some("cl.exe".to_string()),
-            None,
-            None,
-            None,
-        );
+        let toolchain = MsvcToolchain::detect(Some("cl.exe".to_string()), None, None, None);
 
         match toolchain {
             Ok(tc) => {

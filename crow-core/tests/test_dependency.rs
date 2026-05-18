@@ -107,9 +107,7 @@ mod tests {
             profile: Profiles::default(),
         };
         let mut resolved = ResolvedDependencyBuild::default();
-        resolved
-            .include_dirs
-            .push(PathBuf::from("extra_include"));
+        resolved.include_dirs.push(PathBuf::from("extra_include"));
         resolved.libs.push("mylib".to_string());
         resolved.lib_paths.push(PathBuf::from("extra_lib"));
         resolved.max_standard = Some("20".to_string());
@@ -122,10 +120,7 @@ mod tests {
             .include_dirs
             .contains(&PathBuf::from("extra_include")));
         assert!(config.build.libs.contains(&"mylib".to_string()));
-        assert!(config
-            .build
-            .lib_dirs
-            .contains(&PathBuf::from("extra_lib")));
+        assert!(config.build.lib_dirs.contains(&PathBuf::from("extra_lib")));
         assert_eq!(
             config.package.as_ref().and_then(|p| p.standard.as_deref()),
             Some("20")

@@ -18,8 +18,8 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        let project = Project::new(config, root.path().to_path_buf(), "dev", None)
-            .expect("create project");
+        let project =
+            Project::new(config, root.path().to_path_buf(), "dev", None).expect("create project");
         (root, project)
     }
 
@@ -35,7 +35,9 @@ mod tests {
         let (_tmp, project) = minimal_project();
         let exe = project.compiler_path();
         let builder = CompilationBuilder::new(exe, &project);
-        let objects = builder.compile(None).expect("compile with empty source set");
+        let objects = builder
+            .compile(None)
+            .expect("compile with empty source set");
         assert!(objects.is_empty());
     }
 }

@@ -18,7 +18,8 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        Project::new(config, root.to_path_buf(), "dev", None).expect("Failed to create test project")
+        Project::new(config, root.to_path_buf(), "dev", None)
+            .expect("Failed to create test project")
     }
 
     fn args_as_stored(project: &Project, base: Vec<String>) -> Vec<String> {

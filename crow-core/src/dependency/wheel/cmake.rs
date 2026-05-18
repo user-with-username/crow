@@ -1,8 +1,8 @@
 use super::{get_artifacts, link_name_from_library_file, Wheel, WheelArtifacts};
+use crate::builder::kinds::compiler_kind::CompilerKind;
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
 use serde::Deserialize;
-use crate::builder::kinds::compiler_kind::CompilerKind;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

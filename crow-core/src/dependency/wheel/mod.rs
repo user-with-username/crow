@@ -75,15 +75,30 @@ impl WheelType {
         compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts> {
         match self {
-            WheelType::Cmake(w) => {
-                w.build(build_dir, profile, compiler_flags, build_flags, compiler_path, compiler_kind)
-            }
-            WheelType::Meson(w) => {
-                w.build(build_dir, profile, compiler_flags, build_flags, compiler_path, compiler_kind)
-            }
-            WheelType::Bazel(w) => {
-                w.build(build_dir, profile, compiler_flags, build_flags, compiler_path, compiler_kind)
-            }
+            WheelType::Cmake(w) => w.build(
+                build_dir,
+                profile,
+                compiler_flags,
+                build_flags,
+                compiler_path,
+                compiler_kind,
+            ),
+            WheelType::Meson(w) => w.build(
+                build_dir,
+                profile,
+                compiler_flags,
+                build_flags,
+                compiler_path,
+                compiler_kind,
+            ),
+            WheelType::Bazel(w) => w.build(
+                build_dir,
+                profile,
+                compiler_flags,
+                build_flags,
+                compiler_path,
+                compiler_kind,
+            ),
         }
     }
 
@@ -177,12 +192,8 @@ pub fn get_artifacts(
 
 pub(crate) fn should_skip_library_path(path: &Path) -> bool {
     path.components().any(|component| {
-        component
-            .as_os_str()
-            .eq_ignore_ascii_case("test")
-            || component
-                .as_os_str()
-                .eq_ignore_ascii_case("tests")
+        component.as_os_str().eq_ignore_ascii_case("test")
+            || component.as_os_str().eq_ignore_ascii_case("tests")
     })
 }
 

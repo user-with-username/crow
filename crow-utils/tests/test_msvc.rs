@@ -15,7 +15,6 @@ mod tests {
         env::remove_var("TARGET");
     }
 
-
     #[test]
     fn test_find_vswhere() {
         let result = find_vswhere();

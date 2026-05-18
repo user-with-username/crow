@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     use crow_cli::commands::test::{TestArgs, TestCommand};
@@ -11,7 +10,7 @@ mod tests {
             bin: None,
             args: vec![],
         };
-        
+
         assert!(!args.release);
         assert_eq!(args.jobs, None);
         assert_eq!(args.bin, None);
@@ -26,7 +25,7 @@ mod tests {
             bin: Some("my_test".to_string()),
             args: vec!["--nocapture".to_string(), "--test-threads=1".to_string()],
         };
-        
+
         assert!(args.release);
         assert_eq!(args.jobs, Some(4));
         assert_eq!(args.bin, Some("my_test".to_string()));
@@ -43,7 +42,7 @@ mod tests {
             bin: None,
             args: vec!["--help".to_string()],
         };
-        
+
         assert!(!args.release);
         assert_eq!(args.args, vec!["--help".to_string()]);
     }
@@ -56,7 +55,7 @@ mod tests {
             bin: None,
             args: vec![],
         };
-        
+
         let command = TestCommand::new(args);
         let _ = command;
     }
@@ -69,7 +68,7 @@ mod tests {
             bin: Some("integration_test".to_string()),
             args: vec!["--exact".to_string(), "test_name".to_string()],
         };
-        
+
         let command = TestCommand::new(args);
         let _ = command;
     }
@@ -82,7 +81,7 @@ mod tests {
             bin: None,
             args: vec![],
         };
-        
+
         let command_release = TestCommand::new(args_release);
 
         let args_test = TestArgs {
@@ -91,9 +90,9 @@ mod tests {
             bin: None,
             args: vec![],
         };
-        
+
         let command_test = TestCommand::new(args_test);
-        
+
         let _ = (command_release, command_test);
     }
 
@@ -105,10 +104,10 @@ mod tests {
             bin: None,
             args: vec![],
         };
-        
+
         let command = TestCommand::new(args);
         let result = command.execute();
-        
+
         match result {
             Ok(_) => (),
             Err(e) => {
@@ -126,10 +125,10 @@ mod tests {
             bin: Some("unit_tests".to_string()),
             args: vec!["--verbose".to_string()],
         };
-        
+
         let command = TestCommand::new(args);
         let result = command.execute();
-        
+
         let _ = result;
     }
 
@@ -141,7 +140,7 @@ mod tests {
             bin: None,
             args: vec![],
         };
-        
+
         let command = TestCommand::new(args);
         let _ = command;
     }
@@ -158,7 +157,7 @@ mod tests {
                 "--quiet".to_string(),
             ],
         };
-        
+
         let command = TestCommand::new(args);
         let _ = command;
     }

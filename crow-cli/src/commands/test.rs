@@ -32,17 +32,8 @@ impl TestCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let profile = if self.args.release {
-            "release"
-        } else {
-            "test"
-        };
+        let profile = if self.args.release { "release" } else { "test" };
 
-        run_with_profile(
-            profile,
-            self.args.jobs,
-            self.args.bin,
-            self.args.args,
-        )
+        run_with_profile(profile, self.args.jobs, self.args.bin, self.args.args)
     }
 }

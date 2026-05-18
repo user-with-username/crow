@@ -123,7 +123,8 @@ mod tests {
             object_paths.push(ObjectFilePath(obj_file_path));
         }
 
-        let project = create_test_project(&temp_dir, "multi_lib", toolchain_kinds_for_platform().2)?;
+        let project =
+            create_test_project(&temp_dir, "multi_lib", toolchain_kinds_for_platform().2)?;
         let linking_builder = LinkingBuilder::new("multi_lib", "a", &project, &object_paths, None);
 
         assert_eq!(linking_builder.objects().len(), 3);
@@ -134,7 +135,8 @@ mod tests {
     #[test]
     fn test_linking_builder_empty_objects() -> Result<()> {
         let temp_dir = tempdir()?;
-        let project = create_test_project(&temp_dir, "empty_lib", toolchain_kinds_for_platform().2)?;
+        let project =
+            create_test_project(&temp_dir, "empty_lib", toolchain_kinds_for_platform().2)?;
         let object_files: &[ObjectFilePath] = &[];
         let linking_builder = LinkingBuilder::new("empty_lib", "a", &project, object_files, None);
 

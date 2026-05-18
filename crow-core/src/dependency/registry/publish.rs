@@ -4,9 +4,9 @@ use std::fs;
 
 use crow_utils::environment::Environment;
 
+use super::fetcher::{RegistryEntry, RegistryIndex};
 use super::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
 use super::github::GithubRepo;
-use super::fetcher::{RegistryEntry, RegistryIndex};
 
 pub fn publish(
     project_root: &std::path::PathBuf,
@@ -34,17 +34,15 @@ pub fn publish(
     let (_temp_dir, registry_repo) = clone_registry(registry_url, &token)?;
     let base_branch = checkout_default_branch(&registry_repo)?;
 
-    let packages_dir = registry_repo
-        .workdir()
-        .unwrap()
-        .join("packages");
+    let packages_dir = registry_repo.workdir().unwrap().join("packages");
     let index_file = packages_dir.join(format!("{package_name}.toml"));
 
     let mut versions: HashMap<String, RegistryEntry> = if index_file.exists() {
         let existing_content = fs::read_to_string(&index_file)?;
-        let existing_index: RegistryIndex = toml::from_str(&existing_content).with_context(|| {
-            format!("Failed to parse existing registry index for {package_name}")
-        })?;
+        let existing_index: RegistryIndex =
+            toml::from_str(&existing_content).with_context(|| {
+                format!("Failed to parse existing registry index for {package_name}")
+            })?;
 
         if existing_index.versions.contains_key(version) {
             let existing_entry = &existing_index.versions[version];

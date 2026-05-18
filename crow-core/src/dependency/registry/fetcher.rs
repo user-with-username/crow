@@ -81,7 +81,8 @@ impl RegistryFetcher {
             .iter()
             .find(|(v, _, _)| version_req.matches(&v.to_string()))
             .with_context(|| {
-                let versions: Vec<String> = available.iter().map(|(_, v, _)| v.to_string()).collect();
+                let versions: Vec<String> =
+                    available.iter().map(|(_, v, _)| v.to_string()).collect();
                 format!(
                     "no version of `{dep_name}` satisfies `{}` in registry `{registry_url}`\n\
                      available versions: {}",
@@ -186,17 +187,15 @@ impl RegistryFetcher {
 
     fn read_index(&self, repo: &Repository, dep_name: &str) -> Result<RegistryIndex> {
         let blob_path = format!("packages/{dep_name}.toml");
-        let raw_bytes = self.read_blob(&repo, &blob_path).with_context(|| {
-            format!("failed to read registry index for `{dep_name}`")
-        })?;
+        let raw_bytes = self
+            .read_blob(&repo, &blob_path)
+            .with_context(|| format!("failed to read registry index for `{dep_name}`"))?;
 
-        let raw_str = std::str::from_utf8(&raw_bytes).with_context(|| {
-            format!("registry index for `{dep_name}` is not valid UTF-8")
-        })?;
+        let raw_str = std::str::from_utf8(&raw_bytes)
+            .with_context(|| format!("registry index for `{dep_name}` is not valid UTF-8"))?;
 
-        let index: RegistryIndex = toml::from_str(raw_str).with_context(|| {
-            format!("invalid registry index for `{dep_name}` at {blob_path}")
-        })?;
+        let index: RegistryIndex = toml::from_str(raw_str)
+            .with_context(|| format!("invalid registry index for `{dep_name}` at {blob_path}"))?;
 
         Ok(index)
     }

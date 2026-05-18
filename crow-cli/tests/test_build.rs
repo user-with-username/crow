@@ -11,7 +11,7 @@ mod tests {
             bin: None,
             profile: "debug".to_string(),
         };
-        
+
         assert!(!args.release);
         assert_eq!(args.target, None);
         assert_eq!(args.jobs, None);
@@ -28,7 +28,7 @@ mod tests {
             bin: Some("myapp".to_string()),
             profile: "custom".to_string(),
         };
-        
+
         assert!(args.release);
         assert_eq!(args.target, Some("x86_64-unknown-linux-gnu".to_string()));
         assert_eq!(args.jobs, Some(4));
@@ -45,7 +45,7 @@ mod tests {
             bin: None,
             profile: "debug".to_string(),
         };
-        
+
         let command = BuildCommand::new(args);
         let _ = command;
     }
@@ -59,7 +59,7 @@ mod tests {
             bin: None,
             profile: "custom".to_string(),
         };
-        
+
         let command_profile = BuildCommand::new(args_profile);
         let _ = command_profile;
     }
@@ -73,7 +73,7 @@ mod tests {
             bin: None,
             profile: "debug".to_string(),
         };
-        
+
         let command = BuildCommand::new(args);
         let result = command.execute();
         assert!(result.is_err());
