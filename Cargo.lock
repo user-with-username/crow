@@ -277,7 +277,7 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "crow-cli"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "anyhow",
  "clap",
@@ -292,7 +292,7 @@ dependencies = [
 
 [[package]]
 name = "crow-core"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "anyhow",
  "blake3",
@@ -320,7 +320,7 @@ dependencies = [
 
 [[package]]
 name = "crow-utils"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "anyhow",
  "indicatif",

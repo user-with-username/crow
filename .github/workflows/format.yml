@@ -2,7 +2,7 @@ name: Format
 
 on:
   push:
-    branches: [ main ]
+    branches: [ dev ]
 
 permissions:
   contents: write
