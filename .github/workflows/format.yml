@@ -39,5 +39,5 @@ jobs:
             echo "No changes after formatting"
           else
             git commit -m "style: format with cargo fmt [skip ci]"
-            git push origin main
+            git push origin dev
           fi
