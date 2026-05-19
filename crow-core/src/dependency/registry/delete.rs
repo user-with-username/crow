@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 
 use crow_utils::environment::Environment;
+use crow_utils::status;
 
 use super::fetcher::{RegistryEntry, RegistryIndex};
 use super::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
@@ -64,13 +65,29 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
         None => format!("delete: {package_name} (all versions)"),
     };
 
-    commit_and_push(
+    let push_result = commit_and_push(
         &registry_repo,
         &delete_branch,
         &commit_message,
         "crow-delete",
         &token,
-    )?;
+    );
+
+    if let Err(e) = push_result {
+        let msg = e.to_string();
+        if msg.contains("non-fastforward") || msg.contains("already exists") {
+            let repo_info = GithubRepo::from_url(registry_url)?;
+            let prs_url = format!(
+                "https://github.com/{}/{}/pulls?q=head:{}",
+                repo_info.owner, repo_info.repo, delete_branch
+            );
+            status!("Note", "A pull request may already exist: {}", prs_url);
+            anyhow::bail!(
+                "Branch '{delete_branch}' already exists in registry; a PR for this deletion likely already exists."
+            );
+        }
+        return Err(e.context("Failed to push to registry"));
+    }
 
     let pr_title = commit_message.clone();
     let pr_body = match version {
