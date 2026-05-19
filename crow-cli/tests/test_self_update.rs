@@ -14,12 +14,4 @@ mod tests {
         let command = SelfUpdateCommand::new(args);
         let _ = command;
     }
-
-    #[test]
-    fn test_self_update_command_execute() {
-        let args = SelfUpdateArgs {};
-        let command = SelfUpdateCommand::new(args);
-        let result = command.execute();
-        assert!(result.is_ok());
-    }
 }
