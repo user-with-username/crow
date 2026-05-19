@@ -7,6 +7,7 @@ pub mod init;
 pub mod new;
 pub mod publish;
 pub mod run;
+pub mod self_update;
 pub mod test;
 
 use anyhow::Result;
@@ -43,6 +44,9 @@ pub enum Command {
 
     /// Delete a library package from the registry
     Delete(delete::DeleteArgs),
+
+    /// Update crow to the latest release
+    SelfUpdate(self_update::SelfUpdateArgs),
 }
 
 impl Command {
@@ -58,6 +62,7 @@ impl Command {
             Self::Clean(args) => clean::CleanCommand::new(args).execute(),
             Self::Publish(args) => publish::PublishCommand::new(args).execute(),
             Self::Delete(args) => delete::DeleteCommand::new(args).execute(),
+            Self::SelfUpdate(args) => self_update::SelfUpdateCommand::new(args).execute(),
         }
     }
 }
