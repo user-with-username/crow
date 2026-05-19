@@ -50,7 +50,10 @@ mod tests {
     fn project_find_tests_uses_test_dirs() -> anyhow::Result<()> {
         let dir = tempdir()?;
         std::fs::create_dir_all(dir.path().join("tests"))?;
-        std::fs::write(dir.path().join("tests/test_one.cpp"), "int main() { return 0; }")?;
+        std::fs::write(
+            dir.path().join("tests/test_one.cpp"),
+            "int main() { return 0; }",
+        )?;
         std::fs::create_dir_all(dir.path().join("src"))?;
         std::fs::write(dir.path().join("src/main.cpp"), "int main() { return 0; }")?;
 

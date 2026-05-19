@@ -21,9 +21,10 @@ impl Project {
                     .filter_map(|e| e.ok())
                     .filter(|entry| {
                         entry.file_type().is_file()
-                            && entry.path().extension().map_or(false, |ext| {
-                                extensions.iter().any(|e| e.as_str() == ext)
-                            })
+                            && entry
+                                .path()
+                                .extension()
+                                .map_or(false, |ext| extensions.iter().any(|e| e.as_str() == ext))
                     })
                     .map(|entry| entry.path().to_path_buf())
                     .collect::<Vec<_>>()

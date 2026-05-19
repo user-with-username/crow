@@ -31,11 +31,7 @@ impl TestCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let profile = if self.args.release {
-            "release"
-        } else {
-            "test"
-        };
+        let profile = if self.args.release { "release" } else { "test" };
 
         let workspace = Workspace::load()?;
         let binary_members = workspace.binary_members();
