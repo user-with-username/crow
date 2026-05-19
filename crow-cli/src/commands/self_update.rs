@@ -4,7 +4,6 @@ use crow_utils::status;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 
 const REPO: &str = "user-with-username/crow";
 
@@ -153,6 +152,7 @@ impl SelfUpdateCommand {
         #[cfg(windows)]
         {
             use crow_utils::find_executable;
+            use std::process::Command;
 
             let tmp_str = tmp.to_str().context("invalid tmp path")?;
             let exe_str = exe.to_str().context("invalid exe path")?;
