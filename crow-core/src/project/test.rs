@@ -1,7 +1,7 @@
+use crate::builder::incremental::hash_files;
 use crate::builder::linking::{DynamicLinkBuilder, LinkingBuilder};
 use crate::builder::paths::ObjectFilePath;
 use crate::builder::CompilationBuilder;
-use crate::builder::incremental::hash_files;
 use crate::project::Project;
 use anyhow::{Context, Result};
 use crow_utils::status;
@@ -40,7 +40,8 @@ impl Project {
 
         for case in &cases {
             status!(
-                "     Running", "{} ({})",
+                "     Running",
+                "{} ({})",
                 case.source
                     .strip_prefix(&self.root)
                     .unwrap_or(&case.source)
@@ -75,15 +76,15 @@ impl Project {
 
         println!();
         let status = if failed == 0 {
-    "\x1b[32mok\x1b[0m"
-} else {
-    "\x1b[31mFAILED\x1b[0m"
-};
+            "\x1b[32mok\x1b[0m"
+        } else {
+            "\x1b[31mFAILED\x1b[0m"
+        };
 
-println!(
-    "test result: {}. {} passed; {} failed; 0 ignored; 0 measured; 0 filtered out",
-    status, passed, failed
-);
+        println!(
+            "test result: {}. {} passed; {} failed; 0 ignored; 0 measured; 0 filtered out",
+            status, passed, failed
+        );
 
         if failed > 0 {
             anyhow::bail!("{failed} test(s) failed");
@@ -119,7 +120,11 @@ println!(
             .context("test source has no file name")?;
         let hash = hash_files(&[source.to_path_buf()])?;
         let suffix = &hash[..16.min(hash.len())];
-        let ext = if cfg!(target_os = "windows") { "exe" } else { "" };
+        let ext = if cfg!(target_os = "windows") {
+            "exe"
+        } else {
+            ""
+        };
         let name = if ext.is_empty() {
             format!("{stem}-{suffix}")
         } else {
@@ -207,6 +212,11 @@ println!(
             extra_inputs.push(lib_path.to_string_lossy().into_owned());
         }
 
-        DynamicLinkBuilder::new(&linker).build_executable(output, &link_objects, &extra_inputs, false)
+        DynamicLinkBuilder::new(&linker).build_executable(
+            output,
+            &link_objects,
+            &extra_inputs,
+            false,
+        )
     }
 }

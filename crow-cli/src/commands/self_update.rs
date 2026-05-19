@@ -25,19 +25,25 @@ impl SelfUpdateCommand {
 
         let artifact = Self::detect_artifact();
         if artifact == "unknown" {
-            bail!("unsupported platform: {}-{}", std::env::consts::OS, std::env::consts::ARCH);
+            bail!(
+                "unsupported platform: {}-{}",
+                std::env::consts::OS,
+                std::env::consts::ARCH
+            );
         }
         status!("Target", "{}", artifact);
 
         status!("Fetching", "latest release metadata...");
-        
+
         let client = reqwest::blocking::Client::builder()
             .user_agent("crow-self-updater/1.0")
             .build()
             .context("failed to build HTTP client")?;
-        
+
         let release: serde_json::Value = client
-            .get(format!("https://api.github.com/repos/{REPO}/releases/latest"))
+            .get(format!(
+                "https://api.github.com/repos/{REPO}/releases/latest"
+            ))
             .header("Accept", "application/vnd.github.v3+json")
             .send()
             .context("failed to fetch release metadata")?
@@ -55,7 +61,7 @@ impl SelfUpdateCommand {
 
         let current_data = fs::read(&current_exe).context("failed to read current executable")?;
         let current_hash = format!("{:x}", Sha256::digest(&current_data));
-        
+
         if current_hash == expected_hash {
             status!("Up to date", "already running the latest version ({tag})");
             return Ok(());
@@ -98,22 +104,22 @@ impl SelfUpdateCommand {
         let assets = release["assets"]
             .as_array()
             .context("no assets array in release")?;
-        
+
         let asset = assets
             .iter()
             .find(|a| a["name"].as_str() == Some(artifact))
             .context(format!("asset '{}' not found in release", artifact))?;
-        
+
         let digest = asset["digest"]
             .as_str()
             .context("asset missing digest field")?;
-        
+
         let hash = digest
             .strip_prefix("sha256:")
             .context("invalid digest format, expected 'sha256:hash'")?
             .trim()
             .to_lowercase();
-        
+
         Ok(hash)
     }
 
@@ -121,17 +127,17 @@ impl SelfUpdateCommand {
         let assets = release["assets"]
             .as_array()
             .context("no assets array in release")?;
-        
+
         let asset = assets
             .iter()
             .find(|a| a["name"].as_str() == Some(artifact))
             .context(format!("asset '{}' not found in release", artifact))?;
-        
+
         let url = asset["browser_download_url"]
             .as_str()
             .context("asset missing browser_download_url")?
             .to_string();
-        
+
         Ok(url)
     }
 
@@ -156,28 +162,31 @@ impl SelfUpdateCommand {
 
             let tmp_str = tmp.to_str().context("invalid tmp path")?;
             let exe_str = exe.to_str().context("invalid exe path")?;
-            
+
             let ps_command = format!(
                 "Start-Sleep -Seconds 2; \
                  Move-Item -Force -Path '{}' -Destination '{}'; \
                  Remove-Item -LiteralPath $MyInvocation.MyCommand.Path -Force",
                 tmp_str, exe_str
             );
-            
+
             let ps_script = exe.with_extension("ps1");
             fs::write(&ps_script, &ps_command)?;
-            
+
             let powershell = find_executable("powershell")?;
 
             Command::new(&powershell)
                 .args(&[
-                    "-WindowStyle", "Hidden",
-                    "-ExecutionPolicy", "Bypass",
-                    "-File", ps_script.to_str().unwrap(),
+                    "-WindowStyle",
+                    "Hidden",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    ps_script.to_str().unwrap(),
                 ])
                 .spawn()
                 .context("failed to spawn PowerShell replacement script")?;
-            
+
             Ok(())
         }
     }
