@@ -40,6 +40,10 @@ impl Project {
         self.find_sources_in(&self.config.build.test_dirs)
     }
 
+    pub fn find_benches(&self) -> Vec<PathBuf> {
+        self.find_sources_in(&self.config.build.bench_dirs)
+    }
+
     pub fn target_dir(&self) -> PathBuf {
         crow_utils::environment::Environment::target_dir()
     }

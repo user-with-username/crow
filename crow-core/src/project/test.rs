@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use crow_utils::status;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Instant;
 
 struct TestCase {
     source: PathBuf,
@@ -14,26 +15,61 @@ struct TestCase {
     executable: PathBuf,
 }
 
+enum RunKind {
+    Test,
+    Bench,
+}
+
+impl RunKind {
+    fn name(&self) -> &'static str {
+        match self {
+            RunKind::Test => "test",
+            RunKind::Bench => "benchmark",
+        }
+    }
+
+    fn singular(&self) -> &'static str {
+        match self {
+            RunKind::Test => "test",
+            RunKind::Bench => "benchmark",
+        }
+    }
+}
+
 impl Project {
     pub fn test(&self, trailing: &[String]) -> Result<()> {
-        let tests = self.find_tests();
-        if tests.is_empty() {
-            crow_utils::status!("Test", "no tests found");
+        self.run_tests_or_benches(RunKind::Test, trailing)
+    }
+
+    pub fn bench(&self, trailing: &[String]) -> Result<()> {
+        self.run_tests_or_benches(RunKind::Bench, trailing)
+    }
+
+    fn run_tests_or_benches(&self, kind: RunKind, trailing: &[String]) -> Result<()> {
+        let start_time = Instant::now();
+        
+        let sources = match kind {
+            RunKind::Test => self.find_tests(),
+            RunKind::Bench => self.find_benches(),
+        };
+
+        if sources.is_empty() {
+            status!("no", "{}s found", kind.name());
             return Ok(());
         }
 
-        let cases: Vec<TestCase> = tests
+        let cases: Vec<TestCase> = sources
             .iter()
             .map(|source| {
                 Ok(TestCase {
-                    display_name: self.test_display_name(source),
-                    executable: self.test_executable_path(source)?,
+                    display_name: self.make_display_name(source),
+                    executable: self.make_executable_path(source)?,
                     source: source.clone(),
                 })
             })
             .collect::<Result<_>>()?;
 
-        let project_objects = self.compile_project_objects_for_tests()?;
+        let project_objects = self.compile_project_objects_for_tests_or_benches()?;
 
         let mut passed = 0usize;
         let mut failed = 0usize;
@@ -49,12 +85,12 @@ impl Project {
                 case.executable.display()
             );
 
-            let test_objects = self.compile_test_source(&case.source)?;
+            let source_objects = self.compile_source(&case.source)?;
 
-            self.link_test_executable(&case.executable, &project_objects, &test_objects)?;
+            self.link_executable(&case.executable, &project_objects, &source_objects, &kind)?;
 
-            print!("\nrunning 1 test\n");
-            print!("test {} ... ", case.display_name);
+            print!("\nrunning 1 {}\n", kind.singular());
+            print!("{} {} ... ", kind.singular(), case.display_name);
 
             let status = {
                 let mut cmd = Command::new(&case.executable);
@@ -75,25 +111,32 @@ impl Project {
         }
 
         println!();
-        let status = if failed == 0 {
+        
+        let duration = start_time.elapsed();
+        let status_text = if failed == 0 { "ok" } else { "FAILED" };
+        let status_color = if failed == 0 {
             "\x1b[32mok\x1b[0m"
         } else {
             "\x1b[31mFAILED\x1b[0m"
         };
 
         println!(
-            "test result: {}. {} passed; {} failed; 0 ignored; 0 measured; 0 filtered out",
-            status, passed, failed
+            "{} result: {}. {} passed; {} failed; finished in {:.2}s",
+            kind.name(),
+            status_color,
+            passed,
+            failed,
+            duration.as_secs_f64()
         );
 
         if failed > 0 {
-            anyhow::bail!("{failed} test(s) failed");
+            anyhow::bail!("{} failed, {} passed", status_text, passed);
         }
 
         Ok(())
     }
 
-    fn test_display_name(&self, source: &Path) -> String {
+    fn make_display_name(&self, source: &Path) -> String {
         let relative = source.strip_prefix(&self.root).unwrap_or(source);
         let parent = relative.parent().unwrap_or_else(|| Path::new(""));
         let module = parent
@@ -113,11 +156,11 @@ impl Project {
         }
     }
 
-    fn test_executable_path(&self, source: &Path) -> Result<PathBuf> {
+    fn make_executable_path(&self, source: &Path) -> Result<PathBuf> {
         let stem = source
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())
-            .context("test source has no file name")?;
+            .context("source has no file name")?;
         let hash = hash_files(&[source.to_path_buf()])?;
         let suffix = &hash[..16.min(hash.len())];
         let ext = if cfg!(target_os = "windows") {
@@ -133,7 +176,7 @@ impl Project {
         Ok(self.profile_dir().join("deps").join(name))
     }
 
-    fn compile_project_objects_for_tests(&self) -> Result<Vec<ObjectFilePath>> {
+    fn compile_project_objects_for_tests_or_benches(&self) -> Result<Vec<ObjectFilePath>> {
         if self.package.r#type.is_static() {
             return Ok(Vec::new());
         }
@@ -153,7 +196,7 @@ impl Project {
         CompilationBuilder::new(&compiler_exe, self).compile_paths(&sources, None)
     }
 
-    fn compile_test_source(&self, source: &Path) -> Result<Vec<ObjectFilePath>> {
+    fn compile_source(&self, source: &Path) -> Result<Vec<ObjectFilePath>> {
         let compiler_exe = self.compiler_exe_string();
         CompilationBuilder::new(&compiler_exe, self).compile_paths(&[source.to_path_buf()], None)
     }
@@ -174,11 +217,12 @@ impl Project {
             .is_some_and(|name| entry_points.iter().any(|entry| entry == name))
     }
 
-    fn link_test_executable(
+    fn link_executable(
         &self,
         output: &Path,
         project_objects: &[ObjectFilePath],
-        test_objects: &[ObjectFilePath],
+        source_objects: &[ObjectFilePath],
+        kind: &RunKind,
     ) -> Result<()> {
         let linker_exe = self
             .config
@@ -198,15 +242,16 @@ impl Project {
         let linker = LinkingBuilder::new(linker_exe, archiver_exe, self, &[], None);
 
         let mut link_objects: Vec<ObjectFilePath> = project_objects.to_vec();
-        link_objects.extend_from_slice(test_objects);
+        link_objects.extend_from_slice(source_objects);
 
         let mut extra_inputs = Vec::new();
         if self.package.r#type.is_static() {
             let lib_path = self.output_path();
             if !lib_path.exists() {
                 anyhow::bail!(
-                    "Library '{}' not found. Build the project before running tests.",
-                    lib_path.display()
+                    "Library '{}' not found. Build the project before running {}s.",
+                    lib_path.display(),
+                    kind.name()
                 );
             }
             extra_inputs.push(lib_path.to_string_lossy().into_owned());

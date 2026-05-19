@@ -8,11 +8,13 @@ mod tests {
             jobs: None,
             bin: None,
             args: vec![],
+            release: false,
         };
 
         assert_eq!(args.jobs, None);
         assert_eq!(args.bin, None);
         assert!(args.args.is_empty());
+        assert_eq!(args.release, false);
     }
 
     #[test]
@@ -25,11 +27,13 @@ mod tests {
                 "--iterations".to_string(),
                 "100".to_string(),
             ],
+            release: true,
         };
 
         assert_eq!(args.jobs, Some(4));
         assert_eq!(args.bin, Some("my_bench".to_string()));
         assert_eq!(args.args.len(), 3);
+        assert_eq!(args.release, true);
     }
 
     #[test]
@@ -38,12 +42,11 @@ mod tests {
             jobs: Some(2),
             bin: None,
             args: vec!["--test".to_string()],
+            release: false,
         };
 
         let command = BenchCommand::new(args);
 
-        // Просто проверяем, что команда создалась (не паникует)
-        // и имеет правильный тип
         let _command = command;
     }
 
@@ -53,12 +56,11 @@ mod tests {
             jobs: Some(1),
             bin: Some("test_bin".to_string()),
             args: vec!["--help".to_string()],
+            release: false,
         };
 
         let command = BenchCommand::new(args);
 
-        // Этот тест проверяет, что execute не паникует
-        // В реальном окружении run_with_profile может вернуть ошибку
         let _ = command.execute();
     }
 }

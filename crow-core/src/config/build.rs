@@ -28,6 +28,9 @@ pub struct BuildConfig {
     #[default(vec![PathBuf::from("tests")])]
     pub test_dirs: Vec<PathBuf>,
 
+    #[default(vec![PathBuf::from("benches")])]
+    pub bench_dirs: Vec<PathBuf>,
+
     #[default(vec!["cpp".to_string(), "c".to_string(), "cc".to_string(), "cxx".to_string()])]
     pub src_extensions: Vec<String>,
 
