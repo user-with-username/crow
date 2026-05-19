@@ -32,6 +32,7 @@ include_dirs = ["include"]
 lib_dirs = ["lib"]
 libs = ["m", "pthread"]
 src_dirs = ["src"]
+test_dirs = ["tests"]
 preprocessor_defines = ["FOO=1"]
 warnings_as_errors = false
 parallelism = true

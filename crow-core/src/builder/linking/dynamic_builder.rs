@@ -3,6 +3,7 @@ use crate::builder::flags::LinkerFlags;
 use crate::builder::linking::platform_builder::PlatformSetup;
 use crate::builder::paths::ObjectFilePath;
 use anyhow::Result;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 fn is_library_link_arg(arg: &str) -> bool {
@@ -14,7 +15,10 @@ fn is_library_link_arg(arg: &str) -> bool {
 }
 
 /// GCC/Clang require object files before `-l` flags when linking static libraries.
-fn order_gcc_like_link_args(mut flags: Vec<String>, objects: &[ObjectFilePath]) -> Vec<String> {
+pub(crate) fn order_gcc_like_link_args(
+    mut flags: Vec<String>,
+    objects: &[ObjectFilePath],
+) -> Vec<String> {
     let mut prefix = Vec::new();
     let mut libraries = Vec::new();
 
@@ -45,13 +49,39 @@ impl<'a> DynamicLinkBuilder<'a> {
 
     pub fn build(&self) -> Result<()> {
         let project = self.builder.project();
-        let mut flags = LinkerFlags::new(project.compiler_kind());
         let p_type = &project.package.r#type;
+        let extra_inputs = Vec::new();
+        if p_type.is_shared() {
+            self.build_executable(
+                &project.output_path(),
+                self.builder.objects(),
+                &extra_inputs,
+                true,
+            )
+        } else {
+            self.build_executable(
+                &project.output_path(),
+                self.builder.objects(),
+                &extra_inputs,
+                false,
+            )
+        }
+    }
+
+    pub fn build_executable(
+        &self,
+        output: &Path,
+        objects: &[ObjectFilePath],
+        extra_inputs: &[String],
+        shared: bool,
+    ) -> Result<()> {
+        let project = self.builder.project();
+        let mut flags = LinkerFlags::new(project.compiler_kind());
         let is_msvc = project.compiler_kind().is_msvc();
 
-        flags.output_file(project.output_path().to_string_lossy().into_owned());
+        flags.output_file(output.to_string_lossy().into_owned());
 
-        if p_type.is_shared() {
+        if shared {
             flags.shared_library();
         }
 
@@ -62,20 +92,27 @@ impl<'a> DynamicLinkBuilder<'a> {
 
         self.builder.apply_library_flags(&mut flags);
 
+        for input in extra_inputs {
+            flags.add_raw(input.clone());
+        }
+
         let args = if is_msvc {
             let mut args = flags.build();
-            for obj in self.builder.objects() {
+            for obj in objects {
                 args.push(obj.as_path().to_string_lossy().into_owned());
             }
             args
         } else {
-            order_gcc_like_link_args(flags.build(), self.builder.objects())
+            order_gcc_like_link_args(flags.build(), objects)
         };
 
         let response_filename = format!(
-            "{}_{}.args",
-            project.package.name,
-            if p_type.is_shared() { "shared" } else { "bin" }
+            "link_{}_{}.args",
+            output
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "out".into()),
+            project.package.name
         );
         let response_file_path =
             crow_utils::write_to(project.profile_dir(), &response_filename, &args, is_msvc)?;

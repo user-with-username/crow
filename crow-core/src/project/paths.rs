@@ -4,31 +4,39 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 impl Project {
-    pub fn find_sources(&self) -> Vec<PathBuf> {
+    pub fn find_sources_in(&self, dirs: &[PathBuf]) -> Vec<PathBuf> {
         let extensions = &self.config.build.src_extensions;
-        self.config
-            .build
-            .src_dirs
-            .iter()
-            .flat_map(|src_dir| {
-                let dir = if src_dir.is_relative() {
-                    self.root.join(src_dir)
+        dirs.iter()
+            .flat_map(|dir| {
+                let root = if dir.is_relative() {
+                    self.root.join(dir)
                 } else {
-                    src_dir.clone()
+                    dir.clone()
                 };
-                WalkDir::new(dir)
+                if !root.exists() {
+                    return Vec::new();
+                }
+                WalkDir::new(root)
                     .into_iter()
                     .filter_map(|e| e.ok())
                     .filter(|entry| {
-                        entry
-                            .path()
-                            .extension()
-                            .map_or(false, |ext| extensions.iter().any(|e| e.as_str() == ext))
+                        entry.file_type().is_file()
+                            && entry.path().extension().map_or(false, |ext| {
+                                extensions.iter().any(|e| e.as_str() == ext)
+                            })
                     })
                     .map(|entry| entry.path().to_path_buf())
                     .collect::<Vec<_>>()
             })
             .collect()
+    }
+
+    pub fn find_sources(&self) -> Vec<PathBuf> {
+        self.find_sources_in(&self.config.build.src_dirs)
+    }
+
+    pub fn find_tests(&self) -> Vec<PathBuf> {
+        self.find_sources_in(&self.config.build.test_dirs)
     }
 
     pub fn target_dir(&self) -> PathBuf {

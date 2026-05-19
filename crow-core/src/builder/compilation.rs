@@ -22,6 +22,18 @@ impl<'a> CompilationBuilder<'a> {
     }
 
     pub fn compile(&self, progress: Option<&ProgressBar>) -> Result<Vec<ObjectFilePath>> {
+        self.compile_paths(&self.project.find_sources(), progress)
+    }
+
+    pub fn compile_paths(
+        &self,
+        sources: &[PathBuf],
+        progress: Option<&ProgressBar>,
+    ) -> Result<Vec<ObjectFilePath>> {
+        if sources.is_empty() {
+            return Ok(Vec::new());
+        }
+
         self.project.create_dirs()?;
 
         let context = CompilationContext::new(self.compiler_exe, self.project, progress)?;
@@ -31,8 +43,6 @@ impl<'a> CompilationBuilder<'a> {
         ));
         let cache_manager =
             IncrementalManager::new(&cache_path, self.project.profile.incremental());
-
-        let sources = self.project.find_sources();
 
         let compile_task = |path: &PathBuf| -> Result<(ObjectFilePath, PathBuf, Vec<String>)> {
             context.compile_unit(path, &cache_manager)
