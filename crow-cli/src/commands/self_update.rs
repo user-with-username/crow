@@ -31,8 +31,6 @@ impl SelfUpdateCommand {
                 std::env::consts::ARCH
             );
         }
-        status!("Target", "{}", artifact);
-
         status!("Fetching", "latest release metadata...");
 
         let client = reqwest::blocking::Client::builder()
