@@ -47,7 +47,9 @@ impl CmakeWheel {
 
         for entry in entries.filter_map(|e| e.ok()) {
             let file_name = entry.file_name();
-            let Some(name) = file_name.to_str() else { continue };
+            let Some(name) = file_name.to_str() else {
+                continue;
+            };
             if !name.starts_with("target-") || !name.ends_with(".json") {
                 continue;
             }
@@ -117,7 +119,9 @@ impl CmakeWheel {
             if !target_names.iter().any(|n| n == &target.name) {
                 continue;
             }
-            let Some(artifact_paths) = &target.artifacts else { continue };
+            let Some(artifact_paths) = &target.artifacts else {
+                continue;
+            };
             for artifact in artifact_paths {
                 let artifact_path = build_dir.join(&artifact.path);
                 if !artifact_path.is_file() {
@@ -282,8 +286,8 @@ impl Wheel for CmakeWheel {
             anyhow::bail!("cmake configure failed:\n{}", stderr);
         }
 
-        let all_targets = Self::scan_all_target_files(&out_dir)
-            .context("failed to read cmake File API reply")?;
+        let all_targets =
+            Self::scan_all_target_files(&out_dir).context("failed to read cmake File API reply")?;
 
         let library_target_names: Vec<String> = all_targets
             .iter()
@@ -337,8 +341,7 @@ impl Wheel for CmakeWheel {
         let mut artifacts = if is_header_only || nothing_found {
             WheelArtifacts::default()
         } else {
-            let mut arts =
-                Self::artifacts_from_built_targets(&out_dir, &library_target_names)?;
+            let mut arts = Self::artifacts_from_built_targets(&out_dir, &library_target_names)?;
 
             if arts.lib_names.is_empty() {
                 arts = get_artifacts(
