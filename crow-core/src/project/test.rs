@@ -47,7 +47,7 @@ impl Project {
 
     fn run_tests_or_benches(&self, kind: RunKind, trailing: &[String]) -> Result<()> {
         let start_time = Instant::now();
-        
+
         let sources = match kind {
             RunKind::Test => self.find_tests(),
             RunKind::Bench => self.find_benches(),
@@ -111,7 +111,7 @@ impl Project {
         }
 
         println!();
-        
+
         let duration = start_time.elapsed();
         let status_text = if failed == 0 { "ok" } else { "FAILED" };
         let status_color = if failed == 0 {
