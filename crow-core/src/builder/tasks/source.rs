@@ -31,6 +31,7 @@ impl SourceCompilationTask {
         deps_dir: &Path,
         project: &crate::project::Project,
         profile: &crate::config::Profile,
+        extra_flags: &[String],
     ) -> Result<Self> {
         let compiler_kind = project.compiler_kind();
         let is_msvc = compiler_kind.is_msvc();
@@ -69,6 +70,10 @@ impl SourceCompilationTask {
 
         for raw_flag in &build_config.compiler.flags().to_vec() {
             flags.add_raw(raw_flag.clone());
+        }
+
+        for flag in extra_flags {
+            flags.add_raw(flag.clone());
         }
 
         let source_file_stem = source

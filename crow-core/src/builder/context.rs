@@ -105,11 +105,8 @@ impl<'a> CompilationContext<'a> {
             &self.deps_dir,
             self.project,
             &self.project.profile,
+            &extra_flags,
         )?;
-
-        for flag in extra_flags {
-            task.args.push(flag);
-        }
 
         let object_path = task.object.clone();
         let mut args = vec![self.compiler_exe.to_string()];
