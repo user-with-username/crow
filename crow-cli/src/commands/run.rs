@@ -43,50 +43,21 @@ impl RunCommand {
             self.args.profile.clone()
         };
 
-        run_with_profile(&profile_name, self.args.jobs, self.args.bin, self.args.args)
-    }
-
-    fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {
-        let executable = project.output_path();
-
-        if !executable.exists() {
-            anyhow::bail!(
-                "Executable '{}' not found. Did the build succeed?",
-                executable.display()
-            );
-        }
-
-        status!("Running", "`{}`", executable.display());
-
-        let mut cmd = Command::new(executable);
-        if !trailing.is_empty() {
-            cmd.args(trailing);
-        }
-
-        let status = cmd.status().with_context(|| "Failed to start executable")?;
-
-        if !status.success() {
-            anyhow::bail!(
-                "Process exited with non-zero status (code: {})",
-                status.code().unwrap_or(-1)
-            );
-        }
-
-        Ok(())
+        let project = build_project(&profile_name, self.args.jobs, self.args.bin)?;
+        execute_project_binary(project, &self.args.args)
     }
 }
 
-pub(crate) fn run_with_profile(
+pub(crate) fn build_project(
     profile_name: &str,
     jobs: Option<usize>,
     bin: Option<String>,
-    trailing: Vec<String>,
-) -> Result<()> {
+) -> Result<Project> {
     let workspace = Workspace::load()?;
     let binary_members = workspace.binary_members();
 
     if binary_members.is_empty() {
-        anyhow::bail!("No binary packages found to run");
+        anyhow::bail!("No binary packages found");
     }
 
     let (_, selected_root) = match &bin {
@@ -111,7 +82,34 @@ pub(crate) fn run_with_profile(
         }
     };
 
-    let project = Project::build(&selected_root, profile_name, jobs)?;
+    Project::build(&selected_root, profile_name, jobs)
+}
 
-    RunCommand::execute_project_binary(project, &trailing)
+fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {
+    let executable = project.output_path();
+
+    if !executable.exists() {
+        anyhow::bail!(
+            "Executable '{}' not found. Did the build succeed?",
+            executable.display()
+        );
+    }
+
+    status!("Running", "`{}`", executable.display());
+
+    let mut cmd = Command::new(executable);
+    if !trailing.is_empty() {
+        cmd.args(trailing);
+    }
+
+    let status = cmd.status().with_context(|| "Failed to start executable")?;
+
+    if !status.success() {
+        anyhow::bail!(
+            "Process exited with non-zero status (code: {})",
+            status.code().unwrap_or(-1)
+        );
+    }
+
+    Ok(())
 }

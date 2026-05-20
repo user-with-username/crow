@@ -54,7 +54,7 @@ impl Project {
         };
 
         if sources.is_empty() {
-            status!("no", "{}s found", kind.name());
+            status!("No", "{}s found", kind.name());
             return Ok(());
         }
 
