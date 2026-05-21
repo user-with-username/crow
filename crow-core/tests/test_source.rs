@@ -44,6 +44,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         );
 
         assert!(result.is_ok());
@@ -74,6 +75,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         );
 
         assert!(result.is_ok());
@@ -95,6 +97,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         );
 
         assert!(result.is_ok());
@@ -116,6 +119,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         );
 
         assert!(result.is_ok());
@@ -136,6 +140,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         );
 
         assert!(result.is_ok());
@@ -156,6 +161,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         )
         .unwrap();
 
@@ -182,6 +188,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         )
         .unwrap();
 
@@ -207,6 +214,7 @@ mod tests {
             deps_dir,
             &project,
             &profile,
+            &[],
         );
 
         assert!(result.is_err());
