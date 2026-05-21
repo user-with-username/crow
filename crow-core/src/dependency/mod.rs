@@ -7,7 +7,7 @@ pub mod version_req;
 mod wheel;
 
 use crate::builder::kinds::compiler_kind::CompilerKind;
-use crow_utils::environment::{DEFAULT_REGISTRY_URL, Environment};
+use crow_utils::environment::{Environment, DEFAULT_REGISTRY_URL};
 pub use git::GitDependencyFetcher;
 pub use graph::DependencyGraph;
 pub use lockfile::LockfileBuilder;

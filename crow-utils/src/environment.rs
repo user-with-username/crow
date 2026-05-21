@@ -19,9 +19,8 @@ impl Environment {
             )
         })
     }
-    
+
     pub fn registry_url() -> String {
-        std::env::var("CROW_REGISTRY")
-        .unwrap_or_else(|_| DEFAULT_REGISTRY_URL.to_string())
+        std::env::var("CROW_REGISTRY").unwrap_or_else(|_| DEFAULT_REGISTRY_URL.to_string())
     }
 }
