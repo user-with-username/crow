@@ -34,7 +34,7 @@ impl AddCommand {
             .args
             .registry
             .as_deref()
-            .unwrap_or(crow_core::dependency::DEFAULT_REGISTRY_URL);
+            .unwrap_or(crow_utils::environment::DEFAULT_REGISTRY_URL);
 
         let version_req = self.args.version.as_deref().unwrap_or("*");
 

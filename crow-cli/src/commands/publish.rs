@@ -60,7 +60,7 @@ impl PublishCommand {
             .args
             .registry
             .as_deref()
-            .unwrap_or(crow_core::dependency::DEFAULT_REGISTRY_URL);
+            .unwrap_or(crow_utils::environment::DEFAULT_REGISTRY_URL);
 
         let published =
             RegistryFetcher::publish(&manifest_dir, &package.name, &version, registry_url)?;

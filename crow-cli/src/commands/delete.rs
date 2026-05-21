@@ -41,7 +41,7 @@ impl DeleteCommand {
             .args
             .registry
             .as_deref()
-            .unwrap_or(crow_core::dependency::DEFAULT_REGISTRY_URL);
+            .unwrap_or(crow_utils::environment::DEFAULT_REGISTRY_URL);
 
         let target = match &self.args.version {
             Some(version) => format!("{} v{}", self.args.package, version),

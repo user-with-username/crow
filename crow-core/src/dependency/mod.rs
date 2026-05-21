@@ -7,6 +7,7 @@ pub mod version_req;
 mod wheel;
 
 use crate::builder::kinds::compiler_kind::CompilerKind;
+use crow_utils::environment::{DEFAULT_REGISTRY_URL, Environment};
 pub use git::GitDependencyFetcher;
 pub use graph::DependencyGraph;
 pub use lockfile::LockfileBuilder;
@@ -22,8 +23,6 @@ use anyhow::{bail, Context, Result};
 use crow_utils::normalize_path;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-
-pub const DEFAULT_REGISTRY_URL: &str = "https://github.com/user-with-username/crow-registry";
 
 #[derive(Debug, Clone)]
 pub struct ResolvedPackage {
@@ -582,8 +581,7 @@ impl DependencyResolver {
                     &source_build_flags,
                 )?,
                 (None, None, None, Some(version_req)) => {
-                    let registry_url = std::env::var("CROW_REGISTRY")
-                        .unwrap_or_else(|_| DEFAULT_REGISTRY_URL.to_string());
+                    let registry_url = Environment::registry_url();
                     self.resolve_from_registry(
                         dep_name,
                         &version_req,
