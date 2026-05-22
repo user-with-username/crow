@@ -2,7 +2,7 @@ mod build;
 mod build_session;
 mod paths;
 mod state;
-mod test;
+mod test_runner;
 
 pub use build_session::BuildSession;
 
