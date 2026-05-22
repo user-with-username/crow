@@ -1,8 +1,8 @@
-use super::{get_artifacts, link_name_from_library_file, Wheel, WheelArtifacts};
+use super::target::TargetFile;
 use crate::builder::kinds::compiler_kind::CompilerKind;
+use crate::dependency::wheel::{get_artifacts, link_name_from_library_file, Wheel, WheelArtifacts};
 use anyhow::{Context, Result};
 use crow_utils::find_executable;
-use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -85,7 +85,7 @@ impl CmakeWheel {
         }
         if let Some(artifacts) = &target.artifacts {
             for artifact in artifacts {
-                if super::should_skip_library_path(Path::new(&artifact.path)) {
+                if crate::dependency::wheel::should_skip_library_path(Path::new(&artifact.path)) {
                     return false;
                 }
             }
@@ -169,28 +169,11 @@ impl CmakeWheel {
         }
 
         add(install_dir.join("include"));
-
         add(root.join("include"));
         add(root.join("single_include"));
 
         dirs
     }
-}
-
-#[derive(Deserialize)]
-struct TargetFile {
-    name: String,
-    r#type: String,
-    #[serde(rename = "isImported")]
-    is_imported: Option<bool>,
-    #[serde(rename = "sourceDir")]
-    source_dir: Option<String>,
-    artifacts: Option<Vec<TargetArtifact>>,
-}
-
-#[derive(Deserialize)]
-struct TargetArtifact {
-    path: String,
 }
 
 impl Wheel for CmakeWheel {
