@@ -69,27 +69,22 @@ impl<'a> BuildSession<'a> {
 
         let mut buildable: Vec<(Buildable, String)> = Vec::new();
         let mut visited: HashSet<PathBuf> = HashSet::new();
-        
+
         let lockfile_path = manifest_dir.join("crow.lock");
         let lockfile_changed = crate::dependency::LockfileBuilder::build_and_save_if_changed(
             &config,
             &resolved,
             &lockfile_path,
         )?;
-        
-        self.collect_buildable(
-            &manifest_dir,
-            &resolved,
-            &mut buildable,
-            &mut visited,
-        )?;
+
+        self.collect_buildable(&manifest_dir, &resolved, &mut buildable, &mut visited)?;
 
         let lock_hash = if lockfile_changed {
             None
         } else {
             Some(hash_files(std::slice::from_ref(&lockfile_path))?)
         };
-        
+
         let mut root_config_for_count = config.clone();
         Project::merge_dependency_inputs(&mut root_config_for_count, &resolved);
         let root_needs_build = match &lock_hash {
@@ -100,7 +95,7 @@ impl<'a> BuildSession<'a> {
                 Some(resolved.clone()),
             )?
             .should_build(hash)?,
-            None => true, 
+            None => true,
         };
 
         self.total_count = buildable.len() + usize::from(root_needs_build);
@@ -170,7 +165,7 @@ impl<'a> BuildSession<'a> {
             Some(hash) => root_project.should_build(hash)?,
             None => true,
         };
-        
+
         if root_should_build {
             let start = Instant::now();
             self.compile_project(&root_project, false)?;
