@@ -21,16 +21,17 @@
       "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt",
       "/IC:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\include",
       "/IC:\\Users\\user\\.crow\\git_cache\\fmt-77984052dc41b78b-407c905e45ad75fc\\include",
-      "/IC:\\Users\\user\\.crow\\wheel_builds\\debug\\9bc3071b664b00ef\\cmake_wheel\\install\\include",
+      "/IC:\\Users\\user\\.crow\\wheel_builds\\debug\\6e85c54513a01b59\\cmake_wheel\\install\\include",
       "/IC:\\Users\\user\\.crow\\git_cache\\nlohmann_json-77640386057cb853-55f93686c0152822\\include",
-      "/IC:\\Users\\user\\.crow\\wheel_builds\\debug\\311bacaa77e66aeb\\cmake_wheel\\include",
-      "/IC:\\Users\\user\\.crow\\wheel_builds\\debug\\311bacaa77e66aeb\\cmake_wheel\\install\\include",
+      "/IC:\\Users\\user\\.crow\\git_cache\\nlohmann_json-77640386057cb853-55f93686c0152822\\single_include",
+      "/IC:\\Users\\user\\.crow\\git_cache\\nlohmann_json-77640386057cb853-55f93686c0152822",
+      "/IC:\\Users\\user\\.crow\\wheel_builds\\debug\\40f8846d8c53630a\\cmake_wheel\\install\\include",
       "/IC:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\include",
+      "/std:c++17",
       "/showIncludes",
       "/Fo:target\\debug\\text_formatter.obj",
       "/Fdtarget\\debug\\pdb\\text_formatter.pdb",
-      "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\src\\text_formatter.cpp",
-      "/std:c++17"
+      "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\src\\text_formatter.cpp"
     ],
     "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\example_lib\\src\\text_formatter.cpp"
   }

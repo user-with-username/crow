@@ -1,6 +1,8 @@
 use crate::builder::incremental::hash_files;
 use crate::config::CrowConfig;
-use crate::dependency::{DependencyResolver, ResolvedDependencyBuild, WheelArtifacts};
+use crate::dependency::DependencyResolver;
+use crate::dependency::ResolvedDependencyBuild;
+use crate::dependency::WheelArtifacts;
 use crate::project::Project;
 use anyhow::Result;
 use crow_utils::progress::ProgressBar;
