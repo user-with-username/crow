@@ -1,12 +1,14 @@
-use crate::config::{BuildConfig, CrowConfig, DependencySpec, LibraryConfig, Profiles, ProjectType};
+use crate::config::{
+    BuildConfig, CrowConfig, DependencySpec, LibraryConfig, Profiles, ProjectType,
+};
 use crate::dependency::git::GitDependencyFetcher;
 use crate::dependency::registry::RegistryFetcher;
-use crate::dependency::ResolvedPackage;
-use crate::dependency::DependencyResolver;
 use crate::dependency::version_req::VersionReq;
 use crate::dependency::wheel::create_wheel;
+use crate::dependency::DependencyResolver;
+use crate::dependency::ResolvedPackage;
 use anyhow::{bail, Context, Result};
-use crow_utils::environment::{DEFAULT_REGISTRY_URL, Environment};
+use crow_utils::environment::{Environment, DEFAULT_REGISTRY_URL};
 use crow_utils::normalize_path;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

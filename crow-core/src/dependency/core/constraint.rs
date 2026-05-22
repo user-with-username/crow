@@ -11,7 +11,11 @@ pub(crate) struct DependencyConstraint {
 }
 
 impl DependencyConstraint {
-    pub fn new(source: Option<String>, version: Option<String>, source_type: String) -> Result<Self> {
+    pub fn new(
+        source: Option<String>,
+        version: Option<String>,
+        source_type: String,
+    ) -> Result<Self> {
         let parsed_version = match version {
             Some(v) if source_type != "system" => Some(VersionReq::parse(&v)?),
             None => None,
