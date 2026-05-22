@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CrowLockfile {
     pub version: u32,
     #[serde(rename = "package")]
     pub packages: Vec<LockedPackage>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LockedPackage {
     pub name: String,
     pub version: String,
@@ -40,5 +40,27 @@ impl CrowLockfile {
         );
         fs::write(path, content)?;
         Ok(())
+    }
+
+    pub fn load(path: &Path) -> Result<Self> {
+        let content = fs::read_to_string(path)?;
+        let toml_content = content
+            .lines()
+            .filter(|line| !line.trim_start().starts_with('#'))
+            .collect::<Vec<_>>()
+            .join("\n");
+        Ok(toml::from_str(&toml_content)?)
+    }
+
+    pub fn load_if_exists(path: &Path) -> Result<Option<Self>> {
+        if path.exists() {
+            Ok(Some(Self::load(path)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn is_equivalent_to(&self, other: &Self) -> Result<bool> {
+        Ok(toml::to_string(self)? == toml::to_string(other)?)
     }
 }

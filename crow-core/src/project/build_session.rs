@@ -69,25 +69,39 @@ impl<'a> BuildSession<'a> {
 
         let mut buildable: Vec<(Buildable, String)> = Vec::new();
         let mut visited: HashSet<PathBuf> = HashSet::new();
-        self.collect_buildable(
+        
+        let lockfile_path = manifest_dir.join("crow.lock");
+        let lockfile_changed = crate::dependency::LockfileBuilder::build_and_save_if_changed(
             &config,
+            &resolved,
+            &lockfile_path,
+        )?;
+        
+        self.collect_buildable(
             &manifest_dir,
             &resolved,
             &mut buildable,
             &mut visited,
         )?;
 
-        let lockfile_path = manifest_dir.join("crow.lock");
-        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+        let lock_hash = if lockfile_changed {
+            None
+        } else {
+            Some(hash_files(std::slice::from_ref(&lockfile_path))?)
+        };
+        
         let mut root_config_for_count = config.clone();
         Project::merge_dependency_inputs(&mut root_config_for_count, &resolved);
-        let root_needs_build = Project::new(
-            root_config_for_count,
-            manifest_dir.clone(),
-            self.profile_name,
-            Some(resolved.clone()),
-        )?
-        .should_build(&lock_hash)?;
+        let root_needs_build = match &lock_hash {
+            Some(hash) => Project::new(
+                root_config_for_count,
+                manifest_dir.clone(),
+                self.profile_name,
+                Some(resolved.clone()),
+            )?
+            .should_build(hash)?,
+            None => true, 
+        };
 
         self.total_count = buildable.len() + usize::from(root_needs_build);
 
@@ -152,9 +166,12 @@ impl<'a> BuildSession<'a> {
         )?;
         root_project.configure_parallelism(self.jobs);
 
-        let lockfile_path = manifest_dir.join("crow.lock");
-        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
-        if root_project.should_build(&lock_hash)? {
+        let root_should_build = match &lock_hash {
+            Some(hash) => root_project.should_build(hash)?,
+            None => true,
+        };
+        
+        if root_should_build {
             let start = Instant::now();
             self.compile_project(&root_project, false)?;
             self.total_duration += start.elapsed();
@@ -204,7 +221,6 @@ impl<'a> BuildSession<'a> {
 
     fn collect_buildable(
         &mut self,
-        config: &CrowConfig,
         manifest_dir: &Path,
         resolved: &ResolvedDependencyBuild,
         out: &mut Vec<(Buildable, String)>,
@@ -255,25 +271,6 @@ impl<'a> BuildSession<'a> {
                 out.push((Buildable::Project(project), label));
             }
         }
-
-        let lockfile_path = manifest_dir.join("crow.lock");
-        let lockfile = crate::dependency::LockfileBuilder::build(config, resolved)?;
-        lockfile.save(&lockfile_path)?;
-
-        let mut root_config = config.clone();
-        Project::apply_dependency_standard(&mut root_config, resolved);
-        Project::merge_dependency_inputs(&mut root_config, resolved);
-
-        let root_project = Project::new(
-            root_config,
-            manifest_dir.to_path_buf(),
-            self.profile_name,
-            Some(resolved.clone()),
-        )?;
-        root_project.configure_parallelism(self.jobs);
-
-        let _ = root_project;
-        let _ = hash_files(std::slice::from_ref(&lockfile_path))?;
 
         Ok(())
     }

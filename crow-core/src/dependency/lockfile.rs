@@ -4,6 +4,7 @@ use crate::dependency::{ResolvedDependencyBuild, ResolvedPackage};
 use crate::lockfile::{CrowLockfile, LockedPackage};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
+use std::path::Path;
 
 pub struct LockfileBuilder;
 
@@ -43,5 +44,24 @@ impl LockfileBuilder {
         }
 
         Ok(CrowLockfile::new(packages))
+    }
+
+    pub fn build_and_save_if_changed(
+        config: &CrowConfig,
+        resolved: &ResolvedDependencyBuild,
+        lockfile_path: &Path,
+    ) -> Result<bool> {
+        let new_lockfile = Self::build(config, resolved)?;
+
+        let should_save = match CrowLockfile::load_if_exists(lockfile_path)? {
+            Some(existing) => !new_lockfile.is_equivalent_to(&existing)?,
+            None => true,
+        };
+
+        if should_save {
+            new_lockfile.save(lockfile_path)?;
+        }
+
+        Ok(should_save)
     }
 }
