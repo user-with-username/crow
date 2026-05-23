@@ -1,7 +1,7 @@
 use crate::builder::flags::LinkerFlags;
 use crate::builder::paths::ObjectFilePath;
 use crate::project::Project;
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::progress::ProgressBar;
 use crow_utils::show_output;
 use std::process::Command;
@@ -60,7 +60,7 @@ impl<'a> LinkingBuilder<'a> {
                 pb.finish();
             }
             show_output!(output, self.project);
-            anyhow::bail!(
+            anyhowed::bail!(
                 "{} failed with exit code {}",
                 action,
                 output.status.code().unwrap_or(-1)

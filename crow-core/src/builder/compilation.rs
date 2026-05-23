@@ -3,7 +3,7 @@ use crate::builder::incremental::IncrementalManager;
 use crate::builder::paths::ObjectFilePath;
 use crate::builder::tasks::database::CompilationDatabase;
 use crate::project::Project;
-use anyhow::Result;
+use anyhowed::Result;
 use crow_utils::progress::ProgressBar;
 use rayon::prelude::*;
 use std::path::PathBuf;

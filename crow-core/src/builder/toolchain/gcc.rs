@@ -2,7 +2,7 @@ use crate::builder::kinds::archiver_kind::ArchiverKind;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::toolchain::Toolchain;
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::msvc;
 use std::path::PathBuf;
 use std::process::Command;
@@ -89,7 +89,7 @@ impl GccToolchain {
         };
 
         if compiler_kind == CompilerKind::Unknown {
-            anyhow::bail!(
+            anyhowed::bail!(
                 "Could not determine a known compiler kind for '{}'. \
                 This might not be a GCC-like compiler or it's an unsupported variant.",
                 compiler_exe
@@ -171,7 +171,7 @@ impl GccToolchain {
 
         if let Some(pref_kind) = preferred_archiver_kind {
             if pref_kind != default_kind {
-                anyhow::bail!(
+                anyhowed::bail!(
                     "Incompatible archiver kind: requested {:?} but default for this toolchain is {:?}",
                     pref_kind, default_kind
                 );

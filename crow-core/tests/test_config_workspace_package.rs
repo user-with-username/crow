@@ -14,7 +14,7 @@ mod tests {
     }
 
     #[test]
-    fn crow_config_is_virtual_from_toml() -> anyhow::Result<()> {
+    fn crow_config_is_virtual_from_toml() -> anyhowed::Result<()> {
         let virtual_cfg: CrowConfig = toml::from_str(
             r#"
 [workspace]
@@ -35,7 +35,7 @@ version = "0.1.0"
     }
 
     #[test]
-    fn crow_config_load_from_minimal_toml() -> anyhow::Result<()> {
+    fn crow_config_load_from_minimal_toml() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         fs::write(
             dir.path().join("crow.toml"),
@@ -54,7 +54,7 @@ version = "2.0.0"
     }
 
     #[test]
-    fn crow_config_find_in_tree_walks_up() -> anyhow::Result<()> {
+    fn crow_config_find_in_tree_walks_up() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         fs::write(
             dir.path().join("crow.toml"),
@@ -72,7 +72,7 @@ version = "1.0.0"
     }
 
     #[test]
-    fn workspace_from_non_virtual_single_member() -> anyhow::Result<()> {
+    fn workspace_from_non_virtual_single_member() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         fs::write(
             dir.path().join("crow.toml"),

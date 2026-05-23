@@ -1,5 +1,5 @@
 use crate::config::CrowConfig;
-use anyhow::{anyhow, Result};
+use anyhowed::{anyhow, Result};
 use petgraph::algo::toposort;
 use petgraph::graph::{Graph, NodeIndex};
 use std::collections::{HashMap, HashSet};

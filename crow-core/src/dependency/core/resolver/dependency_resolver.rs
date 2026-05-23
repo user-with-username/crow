@@ -4,7 +4,7 @@ use crate::dependency::core::constraint::DependencyConstraint;
 use crate::dependency::graph::DependencyGraph;
 use crate::dependency::wheel::{create_wheel, WheelArtifacts};
 use crate::dependency::{ResolvedDependencyBuild, ResolvedPackage};
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::normalize_path;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -88,7 +88,7 @@ impl DependencyResolver {
                     .map(|v| v.join(", "))
                     .unwrap_or_else(|| "unknown".to_string());
 
-                anyhow::bail!(
+                anyhowed::bail!(
                     "conflict for `{}`: {} requires {}, but {} requires {}\n",
                     dep_name,
                     owner_name,

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use reqwest::blocking::Client;
 use serde_json::json;
 use url::Url;
@@ -14,7 +14,7 @@ impl GithubRepo {
             .with_context(|| format!("Invalid registry URL: {registry_url}"))?;
 
         let segments: Vec<&str> = parsed.path().trim_matches('/').split('/').collect();
-        anyhow::ensure!(
+        anyhowed::ensure!(
             segments.len() >= 2,
             "Invalid registry URL format: expected github.com/owner/repo, got {registry_url}"
         );
@@ -60,7 +60,7 @@ impl GithubRepo {
             if status == 422 && text.contains("A pull request already exists") {
                 return Ok(());
             }
-            anyhow::bail!("GitHub API error ({status}): {text}");
+            anyhowed::bail!("GitHub API error ({status}): {text}");
         }
 
         Ok(())

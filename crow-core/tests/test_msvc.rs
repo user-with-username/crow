@@ -11,7 +11,7 @@ mod tests {
     use std::process::Command;
 
     #[cfg(target_os = "windows")]
-    fn print_result_error(result: &anyhow::Result<MsvcToolchain>) {
+    fn print_result_error(result: &anyhowed::Result<MsvcToolchain>) {
         match result {
             Ok(_) => println!("Result: Ok(MsvcToolchain)"),
             Err(e) => println!("Result: Err({})", e),

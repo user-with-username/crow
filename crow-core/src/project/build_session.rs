@@ -4,7 +4,7 @@ use crate::dependency::DependencyResolver;
 use crate::dependency::ResolvedDependencyBuild;
 use crate::dependency::WheelArtifacts;
 use crate::project::Project;
-use anyhow::Result;
+use anyhowed::Result;
 use crow_utils::progress::ProgressBar;
 use crow_utils::status;
 use std::collections::{HashMap, HashSet};

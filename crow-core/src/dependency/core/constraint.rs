@@ -1,6 +1,6 @@
 use crate::config::{DependencySource, DependencySpec};
 use crate::dependency::VersionReq;
-use anyhow::{bail, Result};
+use anyhowed::{bail, Result};
 use std::path::Path;
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
+    use anyhowed::Result;
     use crow_core::builder::flags::archiver_flags::ArchiverFlags;
     use crow_core::builder::kinds::archiver_kind::ArchiverKind;
     use crow_core::builder::kinds::compiler_kind::CompilerKind;

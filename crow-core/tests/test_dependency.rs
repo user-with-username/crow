@@ -21,7 +21,7 @@ mod tests {
     }
 
     #[test]
-    fn version_req_parse_star_and_matches() -> anyhow::Result<()> {
+    fn version_req_parse_star_and_matches() -> anyhowed::Result<()> {
         let any = VersionReq::parse("*")?;
         assert!(any.matches("1.2.3"));
 
@@ -36,7 +36,7 @@ mod tests {
     }
 
     #[test]
-    fn dependency_graph_topological_order() -> anyhow::Result<()> {
+    fn dependency_graph_topological_order() -> anyhowed::Result<()> {
         let mut g = DependencyGraph::new();
         let tmp = tempdir()?;
         let root_a = tmp.path().join("a");
@@ -67,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn dependency_graph_cycle_errors() -> anyhow::Result<()> {
+    fn dependency_graph_cycle_errors() -> anyhowed::Result<()> {
         let mut g = DependencyGraph::new();
         let tmp = tempdir()?;
         let root_a = tmp.path().join("a");
@@ -143,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn lockfile_builder_root_only() -> anyhow::Result<()> {
+    fn lockfile_builder_root_only() -> anyhowed::Result<()> {
         let config = CrowConfig {
             package: Some(Package::new("root", "3.0.0")),
             workspace: None,
@@ -159,14 +159,14 @@ mod tests {
     }
 
     #[test]
-    fn create_wheel_unknown_directory() -> anyhow::Result<()> {
+    fn create_wheel_unknown_directory() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         assert!(create_wheel(dir.path()).is_none());
         Ok(())
     }
 
     #[test]
-    fn create_wheel_detects_cmake_layout() -> anyhow::Result<()> {
+    fn create_wheel_detects_cmake_layout() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         std::fs::write(
             dir.path().join("CMakeLists.txt"),
@@ -178,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    fn create_wheel_detects_meson_layout() -> anyhow::Result<()> {
+    fn create_wheel_detects_meson_layout() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         std::fs::write(dir.path().join("meson.build"), "project('x', 'c')\n")?;
         let wheel = create_wheel(dir.path()).expect("meson");
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn create_wheel_detects_bazel_layout() -> anyhow::Result<()> {
+    fn create_wheel_detects_bazel_layout() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         std::fs::write(dir.path().join("WORKSPACE"), "")?;
         let wheel = create_wheel(dir.path()).expect("bazel");

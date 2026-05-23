@@ -9,7 +9,7 @@ pub fn hash_source(
     headers: &[PathBuf],
     compiler: &str,
     flags: &[String],
-) -> anyhow::Result<String> {
+) -> anyhowed::Result<String> {
     let mut hasher = Hasher::new();
 
     hasher.update(compiler.as_bytes());
@@ -38,7 +38,7 @@ pub fn hash_source(
     Ok(hasher.finalize().to_hex().to_string())
 }
 
-pub fn hash_files(paths: &[PathBuf]) -> anyhow::Result<String> {
+pub fn hash_files(paths: &[PathBuf]) -> anyhowed::Result<String> {
     let mut sorted_paths = paths.to_vec();
     sorted_paths.sort();
 

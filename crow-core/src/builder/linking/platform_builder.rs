@@ -1,7 +1,7 @@
 use super::LinkingBuilder;
 use crate::builder::flags::LinkerFlags;
 use crate::builder::paths::PdbFileNaming;
-use anyhow::Result;
+use anyhowed::Result;
 use std::fs;
 
 pub struct PlatformSetup<'a> {

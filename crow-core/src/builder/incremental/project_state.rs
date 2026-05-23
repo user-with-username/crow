@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};

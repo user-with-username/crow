@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::normalize_path;
 use std::fs;
 use std::io::Write;

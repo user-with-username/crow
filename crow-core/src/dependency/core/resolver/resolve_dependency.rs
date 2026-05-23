@@ -7,7 +7,7 @@ use crate::dependency::version_req::VersionReq;
 use crate::dependency::wheel::create_wheel;
 use crate::dependency::DependencyResolver;
 use crate::dependency::ResolvedPackage;
-use anyhow::{bail, Context, Result};
+use anyhowed::{bail, Context, Result};
 use crow_utils::environment::{Environment, DEFAULT_REGISTRY_URL};
 use crow_utils::normalize_path;
 use std::collections::HashMap;
@@ -141,7 +141,7 @@ impl DependencyResolver {
                     };
                     (dummy_config, true)
                 } else {
-                    anyhow::bail!(
+                    anyhowed::bail!(
                         "failed to load config for dependency `{dep_name}` at {} \
                          and no known build system found (CMakeLists.txt, meson.build, WORKSPACE)",
                         dep_root.display()

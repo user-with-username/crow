@@ -22,7 +22,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn execute(self) -> anyhow::Result<()> {
+    pub fn execute(self) -> anyhowed::Result<()> {
         if let Some(dir) = &self.directory {
             change_directory(dir)?;
         }
@@ -31,7 +31,7 @@ impl Cli {
     }
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> anyhowed::Result<()> {
     let cli = Cli::parse();
     cli.execute()
 }

@@ -1,5 +1,5 @@
 use crate::templates;
-use anyhow::Result;
+use anyhowed::Result;
 use clap::Args;
 use crow_utils::status;
 use std::fs;
@@ -28,7 +28,7 @@ impl NewCommand {
         let package_name = &self.args.name;
 
         if !self.is_valid_package_name(package_name) {
-            anyhow::bail!(
+            anyhowed::bail!(
                 "Invalid package name `{}`. Package names must start with a letter and contain \
                  only alphanumeric characters, hyphens, or underscores.",
                 package_name
@@ -40,7 +40,7 @@ impl NewCommand {
         } else {
             let dir = PathBuf::from(package_name);
             if dir.exists() {
-                anyhow::bail!("Directory `{}` already exists", package_name);
+                anyhowed::bail!("Directory `{}` already exists", package_name);
             }
             dir
         };

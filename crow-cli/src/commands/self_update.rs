@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhowed::{bail, Context, Result};
 use clap::Args;
 use crow_utils::status;
 use sha2::{Digest, Sha256};

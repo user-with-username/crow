@@ -1,6 +1,6 @@
 use crate::builder::{CompilationBuilder, LinkingBuilder};
 use crate::project::Project;
-use anyhow::Result;
+use anyhowed::Result;
 use crow_utils::progress::ProgressBar;
 use std::path::PathBuf;
 

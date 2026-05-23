@@ -4,7 +4,7 @@ mod tests {
     use crow_core::builder::kinds::compiler_kind::CompilerKind;
     use crow_core::builder::toolchain::{GccToolchain, Toolchain};
 
-    fn print_result_error(result: &anyhow::Result<GccToolchain>) {
+    fn print_result_error(result: &anyhowed::Result<GccToolchain>) {
         match result {
             Ok(_) => println!("Result: Ok(GccToolchain)"),
             Err(e) => println!("Result: Err({})", e),

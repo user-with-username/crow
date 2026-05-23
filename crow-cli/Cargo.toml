@@ -10,7 +10,7 @@ path = "src/main.rs"
 [dependencies]
 crow-core = { path = "../crow-core" }
 crow-utils = { path = "../crow-utils" }
-anyhow = { workspace = true }
+anyhowed = { workspace = true }
 clap = { workspace = true }
 rayon = { workspace = true }
 once_cell = "1.21.3"

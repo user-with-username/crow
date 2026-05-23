@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 
@@ -51,7 +51,7 @@ pub fn publish(
                 return Ok(false);
             }
 
-            anyhow::bail!(
+            anyhowed::bail!(
                 "Version {version} of package '{package_name}' is already published with a different commit.\n\
                  Existing: git = \"{}\", commit = \"{}\"\n\
                  New: git = \"{}\", commit = \"{}\"",
@@ -103,7 +103,7 @@ pub fn publish(
                 repo_info.owner, repo_info.repo, publish_branch
             );
             status!("Note", "A pull request may already exist: {}", prs_url);
-            anyhow::bail!(
+            anyhowed::bail!(
                 "Version {version} of package '{package_name}' has already been published \
                  (branch '{publish_branch}' already exists in registry)."
             );

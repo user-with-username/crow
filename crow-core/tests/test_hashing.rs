@@ -7,7 +7,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_hash_source_basic() -> anyhow::Result<()> {
+    fn test_hash_source_basic() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("main.c");
 
@@ -28,7 +28,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_same_content_same_hash() -> anyhow::Result<()> {
+    fn test_hash_source_same_content_same_hash() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path1 = dir.path().join("file1.c");
         let src_path2 = dir.path().join("file2.c");
@@ -49,7 +49,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_different_content_different_hash() -> anyhow::Result<()> {
+    fn test_hash_source_different_content_different_hash() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("main.c");
 
@@ -65,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_different_compiler_different_hash() -> anyhow::Result<()> {
+    fn test_hash_source_different_compiler_different_hash() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("main.c");
         File::create(&src_path)?.write_all(b"int main() { return 0; }")?;
@@ -79,7 +79,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_different_flags_different_hash() -> anyhow::Result<()> {
+    fn test_hash_source_different_flags_different_hash() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("main.c");
         File::create(&src_path)?.write_all(b"int main() { return 0; }")?;
@@ -93,7 +93,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_with_headers() -> anyhow::Result<()> {
+    fn test_hash_source_with_headers() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("main.c");
         let header_path = dir.path().join("utils.h");
@@ -110,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_headers_order_independent() -> anyhow::Result<()> {
+    fn test_hash_source_headers_order_independent() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("main.c");
         let header1 = dir.path().join("a.h");
@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_missing_header() -> anyhow::Result<()> {
+    fn test_hash_source_missing_header() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("main.c");
         let missing_header = dir.path().join("missing.h");
@@ -147,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_empty_file() -> anyhow::Result<()> {
+    fn test_hash_source_empty_file() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("empty.c");
         File::create(&src_path)?;
@@ -160,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_source_large_file() -> anyhow::Result<()> {
+    fn test_hash_source_large_file() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let src_path = dir.path().join("large.c");
 
@@ -176,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hash_files_basic() -> anyhow::Result<()> {
+    fn test_hash_files_basic() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let file1 = dir.path().join("file1.txt");
         let file2 = dir.path().join("file2.txt");

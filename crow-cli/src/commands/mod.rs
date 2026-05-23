@@ -10,7 +10,7 @@ pub mod run;
 pub mod self_update;
 pub mod test;
 
-use anyhow::Result;
+use anyhowed::Result;
 use clap::Subcommand;
 
 #[derive(Subcommand)]

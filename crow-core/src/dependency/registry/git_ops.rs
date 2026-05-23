@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use git2::{FetchOptions, RemoteCallbacks, Repository};
 use tempfile::TempDir;
 

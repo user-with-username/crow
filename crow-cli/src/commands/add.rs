@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use clap::Args;
 use crow_core::dependency::RegistryFetcher;
 use crow_utils::status;
@@ -43,11 +43,11 @@ impl AddCommand {
 
         let config_path = PathBuf::from("crow.toml");
         let content = fs::read_to_string(&config_path)
-            .map_err(|_| anyhow::anyhow!("failed to read crow.toml"))?;
+            .map_err(|_| anyhowed::anyhow!("failed to read crow.toml"))?;
 
         let mut doc: DocumentMut = content
             .parse()
-            .map_err(|e| anyhow::anyhow!("failed to parse crow.toml: {}", e))?;
+            .map_err(|e| anyhowed::anyhow!("failed to parse crow.toml: {}", e))?;
 
         if let Some(deps_table) = doc.get("dependencies").and_then(|t| t.as_table()) {
             if deps_table.contains_key(&self.args.package) {
@@ -60,7 +60,7 @@ impl AddCommand {
             .entry("dependencies")
             .or_insert(Item::Table(toml_edit::Table::new()))
             .as_table_mut()
-            .ok_or_else(|| anyhow::anyhow!("expected table for dependencies"))?;
+            .ok_or_else(|| anyhowed::anyhow!("expected table for dependencies"))?;
 
         deps_table.insert(
             &self.args.package,

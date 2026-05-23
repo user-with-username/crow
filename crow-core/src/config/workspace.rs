@@ -1,5 +1,5 @@
 use crate::config::CrowConfig;
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 

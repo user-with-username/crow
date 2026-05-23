@@ -1,7 +1,7 @@
 use super::target::TargetFile;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::dependency::wheel::{get_artifacts, link_name_from_library_file, Wheel, WheelArtifacts};
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::find_executable;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -266,7 +266,7 @@ impl Wheel for CmakeWheel {
         let output = cmd.output().context("failed to run cmake configure")?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("cmake configure failed:\n{}", stderr);
+            anyhowed::bail!("cmake configure failed:\n{}", stderr);
         }
 
         let all_targets =
@@ -303,7 +303,7 @@ impl Wheel for CmakeWheel {
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                anyhow::bail!("cmake build of target '{}' failed:\n{}", target, stderr);
+                anyhowed::bail!("cmake build of target '{}' failed:\n{}", target, stderr);
             }
         }
 

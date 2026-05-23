@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use clap::Args;
 use crow_core::{config::CrowConfig, dependency::RegistryFetcher};
 use crow_utils::status;
@@ -42,7 +42,7 @@ impl PublishCommand {
         };
 
         if version != package.version {
-            anyhow::bail!(
+            anyhowed::bail!(
                 "Version mismatch: specified version `{}` does not match package version `{}`",
                 version,
                 package.version

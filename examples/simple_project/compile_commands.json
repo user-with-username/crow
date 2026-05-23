@@ -20,12 +20,12 @@
       "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\winrt",
       "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt",
       "/IC:\\Users\\user\\Documents\\GitHub\\crow\\examples\\simple_project\\include",
+      "/std:c++20",
       "/showIncludes",
-      "/Fo:target\\test\\test.obj",
-      "/Fdtarget\\test\\pdb\\test.pdb",
-      "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\simple_project\\tests\\test.cpp",
-      "/std:c++20"
+      "/Fo:target\\debug\\main.obj",
+      "/Fdtarget\\debug\\pdb\\main.pdb",
+      "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\simple_project\\src\\main.cpp"
     ],
-    "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\simple_project\\tests\\test.cpp"
+    "file": "C:\\Users\\user\\Documents\\GitHub\\crow\\examples\\simple_project\\src\\main.cpp"
   }
 ]

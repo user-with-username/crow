@@ -12,7 +12,7 @@ mod tests {
     }
 
     #[test]
-    fn crow_lockfile_save_roundtrip() -> anyhow::Result<()> {
+    fn crow_lockfile_save_roundtrip() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("Crow.lock");
         let lock = CrowLockfile::new(vec![LockedPackage {

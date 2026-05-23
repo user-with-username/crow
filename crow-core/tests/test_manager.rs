@@ -231,7 +231,7 @@ mod tests {
     }
 
     #[test]
-    fn test_finalize_inc_disabled() -> anyhow::Result<()> {
+    fn test_finalize_inc_disabled() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("cache.json");
 
@@ -252,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn test_finalize_inc_enabled() -> anyhow::Result<()> {
+    fn test_finalize_inc_enabled() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("cache.json");
 

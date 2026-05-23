@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use std::collections::HashMap;
 use std::fs;
 
@@ -19,7 +19,7 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
     let index_file = packages_dir.join(format!("{package_name}.toml"));
 
     if !index_file.exists() {
-        anyhow::bail!("Package '{package_name}' not found in registry");
+        anyhowed::bail!("Package '{package_name}' not found in registry");
     }
 
     let existing_content = fs::read_to_string(&index_file)?;
@@ -32,7 +32,7 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
     let versions_to_delete: Vec<String> = match version {
         Some(ver) => {
             if !versions.contains_key(ver) {
-                anyhow::bail!("Version '{ver}' of package '{package_name}' not found in registry");
+                anyhowed::bail!("Version '{ver}' of package '{package_name}' not found in registry");
             }
             vec![ver.to_string()]
         }
@@ -82,7 +82,7 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
                 repo_info.owner, repo_info.repo, delete_branch
             );
             status!("Note", "A pull request may already exist: {}", prs_url);
-            anyhow::bail!(
+            anyhowed::bail!(
                 "Branch '{delete_branch}' already exists in registry; a PR for this deletion likely already exists."
             );
         }

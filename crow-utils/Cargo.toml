@@ -4,7 +4,7 @@ version = "0.2.33"
 edition = "2021"
 
 [dependencies]
-anyhow = { workspace = true }
+anyhowed = { workspace = true }
 regex = { workspace = true }
 indicatif = "0.18"
 which = "8.0.0"

@@ -11,9 +11,9 @@ impl Environment {
             .unwrap_or_else(|| PathBuf::from("target"))
     }
 
-    pub fn github_token() -> anyhow::Result<String> {
+    pub fn github_token() -> anyhowed::Result<String> {
         std::env::var("GITHUB_TOKEN").map_err(|_| {
-            anyhow::anyhow!(
+            anyhowed::anyhow!(
                 "GITHUB_TOKEN environment variable is required.\n\
                  Create a token with 'repo' scope at https://github.com/settings/tokens"
             )

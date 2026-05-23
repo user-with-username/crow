@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use crow_utils::normalize_path;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use clap::Args;
 use crow_core::{config::Workspace, Project};
 use std::path::PathBuf;
@@ -51,12 +51,12 @@ impl BuildCommand {
 
         if members_to_build.is_empty() {
             if self.args.bin.is_some() {
-                anyhow::bail!(
+                anyhowed::bail!(
                     "No binary package named `{}` found",
                     self.args.bin.as_ref().unwrap()
                 );
             } else {
-                anyhow::bail!("No packages found to build");
+                anyhowed::bail!("No packages found to build");
             }
         }
 

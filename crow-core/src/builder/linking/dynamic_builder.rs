@@ -2,7 +2,7 @@ use super::LinkingBuilder;
 use crate::builder::flags::LinkerFlags;
 use crate::builder::linking::platform_builder::PlatformSetup;
 use crate::builder::paths::ObjectFilePath;
-use anyhow::Result;
+use anyhowed::Result;
 use std::path::Path;
 use std::process::{Command, Stdio};
 

@@ -1,7 +1,7 @@
 use crate::dependency::core::constraint::DependencyConstraint;
 use crate::dependency::graph::DependencyGraph;
 use crate::dependency::DependencyResolver;
-use anyhow::Result;
+use anyhowed::Result;
 use petgraph::graph::NodeIndex;
 use std::path::Path;
 

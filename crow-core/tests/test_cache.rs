@@ -54,7 +54,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_or_default_with_existing_file() -> anyhow::Result<()> {
+    fn test_load_or_default_with_existing_file() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("cache.json");
 
@@ -95,7 +95,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_with_existing_file() -> anyhow::Result<()> {
+    fn test_load_with_existing_file() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("cache.json");
 
@@ -127,7 +127,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_with_invalid_json() -> anyhow::Result<()> {
+    fn test_load_with_invalid_json() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("invalid.json");
 
@@ -141,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn test_save_cache() -> anyhow::Result<()> {
+    fn test_save_cache() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("saved_cache.json");
 
@@ -168,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn test_save_and_load_roundtrip() -> anyhow::Result<()> {
+    fn test_save_and_load_roundtrip() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("roundtrip.json");
 
@@ -206,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_cache_save() -> anyhow::Result<()> {
+    fn test_empty_cache_save() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("empty.json");
 
@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_empty_cache_file() -> anyhow::Result<()> {
+    fn test_load_empty_cache_file() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("empty_cache.json");
 
@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_with_special_characters_in_path() -> anyhow::Result<()> {
+    fn test_cache_with_special_characters_in_path() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("cache.json");
 
@@ -267,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_with_long_hash() -> anyhow::Result<()> {
+    fn test_cache_with_long_hash() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("cache.json");
 
@@ -291,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_save_overwrite() -> anyhow::Result<()> {
+    fn test_multiple_save_overwrite() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("overwrite.json");
 
@@ -326,7 +326,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_entry_serialization() -> anyhow::Result<()> {
+    fn test_cache_entry_serialization() -> anyhowed::Result<()> {
         let entry = CacheEntry {
             hash: "test_hash".to_string(),
             object: PathBuf::from("test.o"),
@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn test_incremental_cache_serialization() -> anyhow::Result<()> {
+    fn test_incremental_cache_serialization() -> anyhowed::Result<()> {
         let mut files = HashMap::new();
         files.insert(
             "test.cpp".to_string(),
@@ -426,7 +426,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_with_windows_paths() -> anyhow::Result<()> {
+    fn test_cache_with_windows_paths() -> anyhowed::Result<()> {
         let dir = tempdir().unwrap();
         let cache_path = dir.path().join("cache.json");
 

@@ -1,6 +1,6 @@
 use super::{get_artifacts, Wheel, WheelArtifacts};
 use crate::builder::kinds::compiler_kind::CompilerKind;
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::find_executable;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -119,7 +119,7 @@ impl Wheel for MesonWheel {
             .context("failed to run meson setup")?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("meson setup failed:\n{}", stderr);
+            anyhowed::bail!("meson setup failed:\n{}", stderr);
         }
 
         let ninja_exe = find_executable("ninja")?;
@@ -132,7 +132,7 @@ impl Wheel for MesonWheel {
             .context("failed to run ninja")?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("ninja build failed:\n{}", stderr);
+            anyhowed::bail!("ninja build failed:\n{}", stderr);
         }
 
         let artifacts = get_artifacts(

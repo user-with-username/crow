@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use semver::{Version, VersionReq as SemverVersionReq};
 use std::fmt;
 use std::str::FromStr;
@@ -36,7 +36,7 @@ impl VersionReq {
                 if let Ok(version) = Version::parse(trimmed) {
                     Ok(VersionReq::Exact(version))
                 } else {
-                    anyhow::bail!("invalid version requirement: {}", trimmed)
+                    anyhowed::bail!("invalid version requirement: {}", trimmed)
                 }
             }
         }
@@ -50,7 +50,7 @@ impl VersionReq {
             if *part == "*" {
                 for remaining in &parts[i + 1..] {
                     if *remaining != "*" {
-                        anyhow::bail!("invalid wildcard pattern: '*' must be at the end");
+                        anyhowed::bail!("invalid wildcard pattern: '*' must be at the end");
                     }
                 }
                 break;
@@ -58,7 +58,7 @@ impl VersionReq {
 
             let num: u32 = part
                 .parse()
-                .map_err(|_| anyhow::anyhow!("invalid version number: {}", part))?;
+                .map_err(|_| anyhowed::anyhow!("invalid version number: {}", part))?;
             prefix.push(num);
         }
 
@@ -117,7 +117,7 @@ impl fmt::Display for VersionReq {
 }
 
 impl FromStr for VersionReq {
-    type Err = anyhow::Error;
+    type Err = anyhowed::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::parse(s)

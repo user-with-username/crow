@@ -21,7 +21,7 @@ impl IncrementalCache {
         Self::load(path).unwrap_or_else(|_e| Self::default())
     }
 
-    pub fn load(path: &Path) -> anyhow::Result<Self> {
+    pub fn load(path: &Path) -> anyhowed::Result<Self> {
         if path.exists() {
             Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
         } else {
@@ -29,7 +29,7 @@ impl IncrementalCache {
         }
     }
 
-    pub fn save(&self, path: &Path) -> anyhow::Result<()> {
+    pub fn save(&self, path: &Path) -> anyhowed::Result<()> {
         fs::write(path, serde_json::to_string_pretty(self)?)?;
         Ok(())
     }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use std::path::{Path, PathBuf};
 
 pub mod bazel;

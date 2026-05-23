@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use dirs::home_dir;
 use git2::{FetchOptions, Repository};
 use once_cell::sync::Lazy;

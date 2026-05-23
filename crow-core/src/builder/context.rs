@@ -5,7 +5,7 @@ use crate::builder::{
     tasks::{database::CompilationDatabase, source::SourceCompilationTask, IncludeTask},
 };
 use crate::project::Project;
-use anyhow::{anyhow, Result};
+use anyhowed::{anyhow, Result};
 use crow_utils::progress::ProgressBar;
 use crow_utils::show_output;
 use std::fs;

@@ -3,7 +3,7 @@ use crate::builder::linking::{DynamicLinkBuilder, LinkingBuilder};
 use crate::builder::paths::ObjectFilePath;
 use crate::builder::CompilationBuilder;
 use crate::project::Project;
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::status;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -130,7 +130,7 @@ impl Project {
         );
 
         if failed > 0 {
-            anyhow::bail!("{} failed, {} passed", status_text, passed);
+            anyhowed::bail!("{} failed, {} passed", status_text, passed);
         }
 
         Ok(())
@@ -248,7 +248,7 @@ impl Project {
         if self.package.r#type.is_static() {
             let lib_path = self.output_path();
             if !lib_path.exists() {
-                anyhow::bail!(
+                anyhowed::bail!(
                     "Library '{}' not found. Build the project before running {}s.",
                     lib_path.display(),
                     kind.name()

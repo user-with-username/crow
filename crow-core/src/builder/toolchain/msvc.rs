@@ -2,7 +2,7 @@ use crate::builder::kinds::archiver_kind::ArchiverKind;
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::builder::kinds::linker_kind::LinkerKind;
 use crate::builder::toolchain::Toolchain;
-use anyhow::{anyhow, Context, Result};
+use anyhowed::{anyhow, Context, Result};
 use crow_utils::msvc;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -72,7 +72,7 @@ impl MsvcToolchain {
         preferred_archiver_kind: Option<ArchiverKind>,
     ) -> Result<Self> {
         if !cfg!(target_os = "windows") {
-            anyhow::bail!("MSVC toolchain is only available on Windows");
+            anyhowed::bail!("MSVC toolchain is only available on Windows");
         }
 
         match preferred_compiler {

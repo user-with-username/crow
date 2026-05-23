@@ -4,7 +4,7 @@ version = "0.2.33"
 edition = "2021"
 
 [dependencies]
-anyhow = { workspace = true }
+anyhowed = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
 walkdir = { workspace = true }

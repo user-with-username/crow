@@ -1,6 +1,6 @@
 use crate::builder::incremental::{hash_files, BuildState};
 use crate::project::Project;
-use anyhow::Result;
+use anyhowed::Result;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use walkdir::WalkDir;

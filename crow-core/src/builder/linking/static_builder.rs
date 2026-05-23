@@ -1,6 +1,6 @@
 use super::LinkingBuilder;
 use crate::builder::flags::archiver_flags::ArchiverFlags;
-use anyhow::Result;
+use anyhowed::Result;
 use std::fs;
 use std::process::Command;
 

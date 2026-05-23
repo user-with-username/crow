@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use clap::Args;
 use crow_core::{config::Workspace, Project};
 use crow_utils::status;
@@ -57,7 +57,7 @@ pub(crate) fn build_project(
     let binary_members = workspace.binary_members();
 
     if binary_members.is_empty() {
-        anyhow::bail!("No binary packages found");
+        anyhowed::bail!("No binary packages found");
     }
 
     let (_, selected_root) = match &bin {
@@ -74,7 +74,7 @@ pub(crate) fn build_project(
                     .iter()
                     .filter_map(|(cfg, _)| cfg.package.as_ref().map(|p| p.name.clone()))
                     .collect();
-                anyhow::bail!(
+                anyhowed::bail!(
                     "Multiple binary packages available. Use `--bin` to specify one.\nAvailable binaries: {}",
                     names.join(", ")
                 );
@@ -89,7 +89,7 @@ fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {
     let executable = project.output_path();
 
     if !executable.exists() {
-        anyhow::bail!(
+        anyhowed::bail!(
             "Executable '{}' not found. Did the build succeed?",
             executable.display()
         );
@@ -105,7 +105,7 @@ fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {
     let status = cmd.status().with_context(|| "Failed to start executable")?;
 
     if !status.success() {
-        anyhow::bail!(
+        anyhowed::bail!(
             "Process exited with non-zero status (code: {})",
             status.code().unwrap_or(-1)
         );

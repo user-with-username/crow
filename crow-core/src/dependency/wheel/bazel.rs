@@ -1,6 +1,6 @@
 use super::{get_artifacts, Wheel, WheelArtifacts};
 use crate::builder::kinds::compiler_kind::CompilerKind;
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use crow_utils::find_executable;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -90,7 +90,7 @@ impl Wheel for BazelWheel {
             .context("failed to run bazel build")?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("bazel build failed:\n{}", stderr);
+            anyhowed::bail!("bazel build failed:\n{}", stderr);
         }
 
         let bazel_bin = out_dir

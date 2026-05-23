@@ -2,7 +2,7 @@ use crate::builder::paths::{
     DependencyFileNaming, DependencyFilePath, ObjectFilePath, SourceFilePath,
 };
 use crate::builder::{flags::CompilerFlags, incremental::CacheEntry, paths::ObjectFileNaming};
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use serde::Serialize;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::{path::Path, process::Command};

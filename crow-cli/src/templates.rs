@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use std::borrow::Cow;
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -7,7 +7,7 @@ pub use msvc::MsvcToolchain;
 use crate::builder::kinds::{
     archiver_kind::ArchiverKind, compiler_kind::CompilerKind, linker_kind::LinkerKind,
 };
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use std::path::PathBuf;
 
 pub trait Toolchain: Send + Sync {
@@ -104,7 +104,7 @@ pub fn detect_toolchain(
         .collect();
 
     if available_types.is_empty() {
-        anyhow::bail!(
+        anyhowed::bail!(
             "No toolchains available on this platform ({}). \
             This is unexpected - GCC-like toolchain should always be available.",
             std::env::consts::OS
@@ -161,7 +161,7 @@ pub fn detect_toolchain(
         }
 
         if working_types.is_empty() {
-            anyhow::bail!(
+            anyhowed::bail!(
                 "Could not detect any suitable toolchain on {}. \
                 Make sure a compatible compiler is installed and in PATH.",
                 std::env::consts::OS
@@ -209,7 +209,7 @@ pub fn detect_toolchain(
         }
 
         if possible_types.is_empty() {
-            anyhow::bail!("No toolchain matches the specified compiler kind");
+            anyhowed::bail!("No toolchain matches the specified compiler kind");
         }
 
         if possible_types.len() > 1 {
@@ -230,7 +230,7 @@ pub fn detect_toolchain(
         }
 
         if possible_types.is_empty() {
-            anyhow::bail!("No toolchain matches the specified linker kind");
+            anyhowed::bail!("No toolchain matches the specified linker kind");
         }
 
         if possible_types.len() > 1 {

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhowed::Result;
 use clap::Args;
 use crow_core::dependency::RegistryFetcher;
 use crow_utils::status;

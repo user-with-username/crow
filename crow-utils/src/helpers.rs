@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use std::path::{Path, PathBuf};
 
 pub fn change_directory(path: &Path) -> Result<()> {
@@ -107,7 +107,7 @@ pub fn find_executable(bin_name: &str) -> Result<PathBuf> {
         }
     }
 
-    anyhow::bail!(
+    anyhowed::bail!(
         "{} not found in PATH or common installation directories",
         bin_name
     )

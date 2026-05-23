@@ -9,7 +9,7 @@ pub use build_session::BuildSession;
 use crate::builder::toolchain::{self, Toolchain};
 use crate::config::{CrowConfig, Package};
 use crate::dependency::{DependencyResolver, ResolvedDependencyBuild};
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use std::path::{Path, PathBuf};
 
 pub struct Project {

@@ -5,7 +5,7 @@ mod tests {
     use crow_core::Project;
     use tempfile::tempdir;
 
-    fn project_header_only() -> anyhow::Result<Project> {
+    fn project_header_only() -> anyhowed::Result<Project> {
         let dir = tempdir()?;
         let config = CrowConfig {
             package: Some(Package {
@@ -31,7 +31,7 @@ mod tests {
     }
 
     #[test]
-    fn project_find_sources_empty_when_no_src_tree() -> anyhow::Result<()> {
+    fn project_find_sources_empty_when_no_src_tree() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let config = CrowConfig {
             package: Some(Package::new("nop", "0.1.0")),
@@ -47,7 +47,7 @@ mod tests {
     }
 
     #[test]
-    fn project_find_tests_uses_test_dirs() -> anyhow::Result<()> {
+    fn project_find_tests_uses_test_dirs() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         std::fs::create_dir_all(dir.path().join("tests"))?;
         std::fs::write(
@@ -73,7 +73,7 @@ mod tests {
     }
 
     #[test]
-    fn project_should_build_false_for_header_only() -> anyhow::Result<()> {
+    fn project_should_build_false_for_header_only() -> anyhowed::Result<()> {
         let project = project_header_only()?;
         assert!(!project.should_build("lockhash")?);
         Ok(())

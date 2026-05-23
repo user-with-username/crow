@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhowed::{Context, Result};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -79,7 +79,7 @@ impl CrowConfig {
             }
         }
 
-        anyhow::bail!(
+        anyhowed::bail!(
             "could not find `crow.toml` in {} or any parent directory",
             start_path.display()
         );
