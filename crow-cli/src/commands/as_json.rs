@@ -22,220 +22,69 @@ impl AsJsonCommand {
 
     pub fn execute(self) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-
-        // Load workspace and config
         let workspace = Workspace::load()?;
-        let (config, _) =
-            CrowConfig::find_in_tree(&current_dir)?;
+        let (config, _) = CrowConfig::find_in_tree(&current_dir)?;
+        let toolchain = toolchain::shared_toolchain(&config)?;
 
-        // Resolve toolchain
-        let toolchain =
-            toolchain::shared_toolchain(&config)?;
+        let compiler_path = toolchain.compiler_path().to_string();
+        let linker_path = config.build.linker
+            .path()
+            .map(|p| p.to_string())
+            .or_else(|| toolchain.compiler_kind().is_msvc().then(|| toolchain.linker_path().to_string()))
+            .unwrap_or_else(|| compiler_path.clone());
+        let archiver_path = config.build.archiver
+            .path()
+            .map(|p| p.to_string())
+            .unwrap_or_else(|| toolchain.archiver_path().to_string());
 
-        let compiler_path =
-            normalize_string_path(
-                toolchain.compiler_path().to_string(),
-            );
-
-        let linker_path =
-            if let Some(path) =
-                config.build.linker.path()
-            {
-                normalize_string_path(
-                    path.to_string(),
-                )
-            } else if toolchain
-                .compiler_kind()
-                .is_msvc()
-            {
-                normalize_string_path(
-                    toolchain
-                        .linker_path()
-                        .to_string(),
-                )
-            } else {
-                compiler_path.clone()
-            };
-
-        let archiver_path =
-            if let Some(path) =
-                config.build.archiver.path()
-            {
-                normalize_string_path(
-                    path.to_string(),
-                )
-            } else {
-                normalize_string_path(
-                    toolchain
-                        .archiver_path()
-                        .to_string(),
-                )
-            };
-
-        let is_workspace_member =
-            workspace.members().any(
-                |(_, path)| {
-                    path == &current_dir
-                        || current_dir
-                            .starts_with(path)
-                },
-            );
+        let workspace_root = workspace.root.clone();
+        let is_workspace_member = workspace.members().any(|(_, path)| path == &current_dir || current_dir.starts_with(path));
 
         let info = ShowInfo {
-            package: config.package.as_ref().map(
-                |p| PackageInfo {
-                    name: p.name.clone(),
-                    version: p.version.clone(),
-
-                    package_type:
-                        package_type(
-                            &p.r#type,
-                        ),
-
-                    description:
-                        p.description.clone(),
-
-                    authors: p
-                        .authors
-                        .clone()
-                        .unwrap_or_default(),
-
-                    license:
-                        p.license.clone(),
-                },
-            ),
-
+            package: config.package.as_ref().map(|p| PackageInfo {
+                name: p.name.clone(),
+                version: p.version.clone(),
+                package_type: format!("{:?}", p.r#type).split('(').next().unwrap_or("unknown").to_lowercase(),
+                description: p.description.clone(),
+                authors: p.authors.clone().unwrap_or_default(),
+                license: p.license.clone(),
+            }),
             workspace: WorkspaceInfo {
-                root:
-                    normalize_pathbuf(
-                        workspace
-                            .root
-                            .clone(),
-                    ),
-
+                root: workspace_root,
                 is_workspace_member,
             },
-
             toolchain: ToolchainInfo {
                 compiler: ToolInfo {
-                    kind: enum_lower(
-                        toolchain
-                            .compiler_kind(),
-                    ),
-
-                    path:
-                        compiler_path,
-
-                    flags: config
-                        .build
-                        .compiler
-                        .flags()
-                        .to_vec(),
+                    kind: format!("{:?}", toolchain.compiler_kind()).to_lowercase(),
+                    path: compiler_path,
+                    flags: config.build.compiler.flags().to_vec(),
                 },
-
                 linker: ToolInfo {
-                    kind: enum_lower(
-                        toolchain
-                            .linker_kind(),
-                    ),
-
-                    path:
-                        linker_path,
-
+                    kind: format!("{:?}", toolchain.linker_kind()).to_lowercase(),
+                    path: linker_path,
                     flags: vec![],
                 },
-
                 archiver: ToolInfo {
-                    kind: enum_lower(
-                        toolchain
-                            .archiver_kind(),
-                    ),
-
-                    path:
-                        archiver_path,
-
+                    kind: format!("{:?}", toolchain.archiver_kind()).to_lowercase(),
+                    path: archiver_path,
                     flags: vec![],
                 },
             },
-
             build: BuildInfo {
-                src_dirs: config
-                    .build
-                    .src_dirs
-                    .iter()
-                    .cloned()
-                    .map(
-                        normalize_pathbuf,
-                    )
-                    .collect(),
-
-                include_dirs: config
-                    .build
-                    .include_dirs
-                    .iter()
-                    .cloned()
-                    .map(
-                        normalize_pathbuf,
-                    )
-                    .collect(),
-
-                lib_dirs: config
-                    .build
-                    .lib_dirs
-                    .iter()
-                    .cloned()
-                    .map(
-                        normalize_pathbuf,
-                    )
-                    .collect(),
-
-                libs:
-                    config
-                        .build
-                        .libs
-                        .clone(),
-
-                test_dirs: config
-                    .build
-                    .test_dirs
-                    .iter()
-                    .cloned()
-                    .map(
-                        normalize_pathbuf,
-                    )
-                    .collect(),
-
-                bench_dirs: config
-                    .build
-                    .bench_dirs
-                    .iter()
-                    .cloned()
-                    .map(
-                        normalize_pathbuf,
-                    )
-                    .collect(),
-
-                parallelism:
-                    config
-                        .build
-                        .parallelism,
+                src_dirs: config.build.src_dirs,
+                include_dirs: config.build.include_dirs,
+                lib_dirs: config.build.lib_dirs,
+                libs: config.build.libs,
+                test_dirs: config.build.test_dirs,
+                bench_dirs: config.build.bench_dirs,
+                parallelism: config.build.parallelism,
             },
-
             paths: PathsInfo {
-                target_dir:
-                    normalize_pathbuf(
-                        environment::Environment::target_dir(),
-                    ),
+                target_dir: environment::Environment::target_dir(),
             },
         };
 
-        let json =
-            serde_json::to_string_pretty(
-                &info,
-            )?;
-
-        println!("{json}");
-
+        println!("{}", serde_json::to_string_pretty(&info)?);
         Ok(())
     }
 }
@@ -244,13 +93,9 @@ impl AsJsonCommand {
 struct ShowInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     package: Option<PackageInfo>,
-
     workspace: WorkspaceInfo,
-
     toolchain: ToolchainInfo,
-
     build: BuildInfo,
-
     paths: PathsInfo,
 }
 
@@ -258,20 +103,14 @@ struct ShowInfo {
 struct PackageInfo {
     name: String,
     version: String,
-
     #[serde(rename = "type")]
     package_type: String,
-
     #[serde(skip_serializing_if = "Option::is_none")]
-    description:
-        Option<String>,
-
+    description: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     authors: Vec<String>,
-
     #[serde(skip_serializing_if = "Option::is_none")]
-    license:
-        Option<String>,
+    license: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -291,7 +130,6 @@ struct ToolchainInfo {
 struct ToolInfo {
     kind: String,
     path: String,
-
     #[serde(skip_serializing_if = "Vec::is_empty")]
     flags: Vec<String>,
 }
@@ -299,65 +137,17 @@ struct ToolInfo {
 #[derive(Serialize)]
 struct BuildInfo {
     src_dirs: Vec<PathBuf>,
-
-    include_dirs:
-        Vec<PathBuf>,
-
+    include_dirs: Vec<PathBuf>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    lib_dirs:
-        Vec<PathBuf>,
-
+    lib_dirs: Vec<PathBuf>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     libs: Vec<String>,
-
-    test_dirs:
-        Vec<PathBuf>,
-
-    bench_dirs:
-        Vec<PathBuf>,
-
+    test_dirs: Vec<PathBuf>,
+    bench_dirs: Vec<PathBuf>,
     parallelism: bool,
 }
 
 #[derive(Serialize)]
 struct PathsInfo {
     target_dir: PathBuf,
-}
-
-fn package_type<T>(
-    ty: &T,
-) -> String
-where
-    T: std::fmt::Debug,
-{
-    format!("{:?}", ty)
-        .split('(')
-        .next()
-        .unwrap_or("unknown")
-        .to_lowercase()
-}
-
-fn enum_lower<T>(
-    value: T,
-) -> String
-where
-    T: std::fmt::Debug,
-{
-    format!("{:?}", value)
-        .to_lowercase()
-}
-
-fn normalize_string_path(
-    path: String,
-) -> String {
-    path.replace('\\', "/")
-}
-
-fn normalize_pathbuf(
-    path: PathBuf,
-) -> PathBuf {
-    PathBuf::from(
-        path.to_string_lossy()
-            .replace('\\', "/"),
-    )
 }
