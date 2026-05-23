@@ -81,7 +81,7 @@ impl GitDependencyFetcher {
         use crow_utils::status;
         use git2::build::CheckoutBuilder;
 
-        status!("Downloading", "{}", dep_name);
+        status!("   Downloading", "{}", dep_name);
 
         let repo = Repository::open(dep_dir)
             .with_context(|| format!("failed to open git repository at {}", dep_dir.display()))?;
@@ -121,7 +121,7 @@ impl GitDependencyFetcher {
         use crow_utils::status;
         use git2::build::CheckoutBuilder;
 
-        status!("Downloading", "{}", dep_name);
+        status!("   Downloading", "{}", dep_name);
 
         let repo = Repository::init(dep_dir)
             .with_context(|| format!("failed to initialize repository at {}", dep_dir.display()))?;
@@ -167,7 +167,7 @@ impl GitDependencyFetcher {
         use crow_utils::status;
         use git2::build::CheckoutBuilder;
 
-        status!("Downloading", "{}", dep_name);
+        status!("   Downloading", "{}", dep_name);
 
         let repo = Repository::init(dep_dir)
             .with_context(|| format!("failed to init repo at {}", dep_dir.display()))?;
