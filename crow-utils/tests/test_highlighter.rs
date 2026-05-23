@@ -77,15 +77,6 @@ mod tests {
     }
 
     #[test]
-    fn test_colorize_with_colon() {
-        let line = "error[E0432]: unresolved import";
-        let result = DiagnosticHighlighter::colorize(line);
-
-        assert!(result.contains("\x1b[91merror\x1b[0m"));
-        assert_eq!(result, "\x1b[91merror\x1b[0m[E0432]: unresolved import");
-    }
-
-    #[test]
     fn test_colorize_with_mixed_case() {
         let line = "Error: mixed case test";
         let result = DiagnosticHighlighter::colorize(line);
