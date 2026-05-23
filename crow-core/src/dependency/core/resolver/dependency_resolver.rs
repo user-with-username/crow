@@ -2,7 +2,7 @@ use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::config::{parse_standard, CrowConfig};
 use crate::dependency::core::constraint::DependencyConstraint;
 use crate::dependency::graph::DependencyGraph;
-use crate::dependency::wheel::{create_wheel, mark_wheel_built, load_wheel_cache, WheelArtifacts};
+use crate::dependency::wheel::{create_wheel, load_wheel_cache, mark_wheel_built, WheelArtifacts};
 use crate::dependency::{ResolvedDependencyBuild, ResolvedPackage};
 use anyhowed::{Context, Result};
 use crow_utils::normalize_path;
@@ -200,9 +200,7 @@ impl DependencyResolver {
                     &payload.build_flags,
                     compiler_kind,
                 );
-                if let Some(artifacts) =
-                    load_wheel_cache(&cache_dir, &payload.root, profile_name)
-                {
+                if let Some(artifacts) = load_wheel_cache(&cache_dir, &payload.root, profile_name) {
                     wheel_artifacts.insert(payload.root.clone(), artifacts);
                 }
             }

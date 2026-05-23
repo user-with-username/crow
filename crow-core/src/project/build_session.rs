@@ -42,17 +42,14 @@ impl<'a> BuildSession<'a> {
         }
     }
 
-    pub fn build_root(
-        mut self,
-        config: CrowConfig,
-        manifest_dir: PathBuf,
-    ) -> Result<Project> {
+    pub fn build_root(mut self, config: CrowConfig, manifest_dir: PathBuf) -> Result<Project> {
         if !config.build.hooks.pre.is_empty() {
             crow_utils::hooks::run_hooks(&manifest_dir, &config.build.hooks.pre)?;
         }
 
         status!("Resolving", "dependencies...");
-        let mut resolved = Project::resolve_dependencies(&config, &manifest_dir, self.profile_name)?;
+        let mut resolved =
+            Project::resolve_dependencies(&config, &manifest_dir, self.profile_name)?;
 
         let toolchain = crate::builder::toolchain::shared_toolchain(&config)?;
         let compiler_path = toolchain.compiler_path().to_string();

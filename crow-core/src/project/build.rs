@@ -27,9 +27,7 @@ impl Project {
         if let Some(path) = self.config.build.linker.path() {
             return path;
         }
-        let toolchain = self
-            .toolchain()
-            .expect("toolchain detection failed");
+        let toolchain = self.toolchain().expect("toolchain detection failed");
         if self.compiler_kind().is_msvc() {
             toolchain.linker_path()
         } else {

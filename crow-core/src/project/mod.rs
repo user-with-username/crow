@@ -77,11 +77,7 @@ impl Project {
             manifest_dir,
             profile_name,
             &target_dir,
-            config
-                .build
-                .compiler
-                .path()
-                .map(|p| p.as_str()),
+            config.build.compiler.path().map(|p| p.as_str()),
             compiler_kind,
         )
     }
