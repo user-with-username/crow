@@ -15,7 +15,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # linux
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact: linux-x86_64
@@ -25,7 +24,6 @@ jobs:
             artifact: linux-arm64
             use-cross: true
 
-          # mac
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact: macos-x86_64
@@ -34,7 +32,6 @@ jobs:
             target: aarch64-apple-darwin
             artifact: macos-arm64
 
-          # win
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact: windows-x64.exe
@@ -133,9 +130,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           git add crow-utils/Cargo.toml crow-core/Cargo.toml crow-cli/Cargo.toml
-          git commit -m "Bump version to ${{ steps.bump.outputs.version }}" || echo "No changes to commit"
-          git push
+          
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Bump version to ${{ steps.bump.outputs.version }}"
+            git pull --rebase origin ${GITHUB_REF#refs/heads/}
+            git push origin HEAD:${GITHUB_REF#refs/heads/}
+          fi
 
       - name: Create release
         uses: softprops/action-gh-release@v2
