@@ -9,6 +9,7 @@ pub mod publish;
 pub mod run;
 pub mod self_update;
 pub mod test;
+pub mod as_json;
 
 use anyhowed::Result;
 use clap::Subcommand;
@@ -47,6 +48,9 @@ pub enum Command {
 
     /// Update crow to the latest release
     SelfUpdate(self_update::SelfUpdateArgs),
+
+    /// Show all info 
+    AsJson(as_json::AsJsonArgs),
 }
 
 impl Command {
@@ -63,6 +67,7 @@ impl Command {
             Self::Publish(args) => publish::PublishCommand::new(args).execute(),
             Self::Delete(args) => delete::DeleteCommand::new(args).execute(),
             Self::SelfUpdate(args) => self_update::SelfUpdateCommand::new(args).execute(),
+            Self::AsJson(args) => as_json::AsJsonCommand::new(args).execute(),
         }
     }
 }
