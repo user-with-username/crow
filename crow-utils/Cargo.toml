@@ -1,6 +1,6 @@
 [package]
 name = "crow-utils"
-version = "0.2.34"
+version = "0.2.35"
 edition = "2021"
 
 [dependencies]
