@@ -32,7 +32,9 @@ pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> 
     let versions_to_delete: Vec<String> = match version {
         Some(ver) => {
             if !versions.contains_key(ver) {
-                anyhowed::bail!("Version '{ver}' of package '{package_name}' not found in registry");
+                anyhowed::bail!(
+                    "Version '{ver}' of package '{package_name}' not found in registry"
+                );
             }
             vec![ver.to_string()]
         }
