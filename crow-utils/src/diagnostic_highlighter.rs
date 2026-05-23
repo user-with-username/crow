@@ -16,7 +16,8 @@ impl DiagnosticHighlighter {
             r"(?<gcc>\b(?:fatal error|error|warning|note):)|",
             r"(?<msvc>\b(?:fatal error|error|warning)\s+[A-Z]+\d+)|",
             r"(?<msvc_note>^\s*note:)"
-        )).unwrap()
+        ))
+        .unwrap()
     }
 
     fn colorize_match(caps: &regex::Captures) -> String {
