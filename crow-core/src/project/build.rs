@@ -6,38 +6,53 @@ use std::path::PathBuf;
 
 impl Project {
     pub fn compiler_kind(&self) -> crate::builder::kinds::compiler_kind::CompilerKind {
-        self.toolchain.compiler_kind()
+        self.toolchain()
+            .map(|t| t.compiler_kind())
+            .unwrap_or_else(|_| self.config.build.compiler.kind())
     }
 
     pub fn linker_kind(&self) -> crate::builder::kinds::linker_kind::LinkerKind {
-        self.toolchain.linker_kind()
+        self.toolchain()
+            .map(|t| t.linker_kind())
+            .unwrap_or_else(|_| self.config.build.linker.kind())
     }
 
     pub fn compiler_path(&self) -> &str {
-        self.toolchain.compiler_path()
+        self.toolchain()
+            .map(|t| t.compiler_path())
+            .expect("toolchain detection failed")
     }
 
     pub fn linker_path(&self) -> &str {
         if let Some(path) = self.config.build.linker.path() {
             return path;
         }
+        let toolchain = self
+            .toolchain()
+            .expect("toolchain detection failed");
         if self.compiler_kind().is_msvc() {
-            self.toolchain.linker_path()
+            toolchain.linker_path()
         } else {
-            self.toolchain.compiler_path()
+            toolchain.compiler_path()
         }
     }
 
     pub fn archiver_path(&self) -> &str {
-        self.toolchain.archiver_path()
+        self.toolchain()
+            .map(|t| t.archiver_path())
+            .expect("toolchain detection failed")
     }
 
     pub fn archiver_kind(&self) -> crate::builder::kinds::archiver_kind::ArchiverKind {
-        self.toolchain.archiver_kind()
+        self.toolchain()
+            .map(|t| t.archiver_kind())
+            .unwrap_or_else(|_| self.config.build.archiver.kind())
     }
 
     pub fn system_include_dirs(&self) -> Vec<PathBuf> {
-        self.toolchain.system_include_dirs()
+        self.toolchain()
+            .map(|t| t.system_include_dirs())
+            .unwrap_or_default()
     }
 
     pub fn configure_parallelism(&self, jobs: Option<usize>) {

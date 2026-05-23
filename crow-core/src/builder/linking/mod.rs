@@ -87,7 +87,12 @@ impl<'a> LinkingBuilder<'a> {
 
     fn apply_library_flags(&self, flags: &mut LinkerFlags) {
         let build = &self.project.config.build;
-        for dir in self.project.toolchain.system_library_dirs() {
+        for dir in self
+            .project
+            .toolchain()
+            .map(|t| t.system_library_dirs())
+            .unwrap_or_default()
+        {
             flags.library_path(dir.to_string_lossy().into_owned());
         }
         for dir in &build.lib_dirs {

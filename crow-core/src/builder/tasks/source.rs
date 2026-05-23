@@ -45,7 +45,7 @@ impl SourceCompilationTask {
             flags.warnings_as_errors();
         }
 
-        for inc in project.toolchain.system_include_dirs() {
+        for inc in project.system_include_dirs() {
             let inc_str = inc.to_string_lossy().to_string();
             flags.include_path(inc_str);
         }

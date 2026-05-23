@@ -41,6 +41,10 @@ impl Project {
     fn build_input_files(&self) -> Vec<PathBuf> {
         let mut files = vec![self.manifest_path()];
         let mut seen = HashSet::new();
+        let project_root = self
+            .root
+            .canonicalize()
+            .unwrap_or_else(|_| self.root.clone());
 
         for dir in self
             .config
@@ -56,6 +60,11 @@ impl Project {
             };
 
             if !root.exists() {
+                continue;
+            }
+
+            let root = root.canonicalize().unwrap_or(root);
+            if !root.starts_with(&project_root) {
                 continue;
             }
 

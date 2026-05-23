@@ -37,6 +37,10 @@ impl ProgressBar {
         self.pb.set_message(label.into());
     }
 
+    pub fn set_message(&self, message: impl Into<String>) {
+        self.pb.set_message(message.into());
+    }
+
     pub fn finish(&self) {
         self.pb.finish_and_clear();
     }

@@ -7,8 +7,12 @@ pub use msvc::MsvcToolchain;
 use crate::builder::kinds::{
     archiver_kind::ArchiverKind, compiler_kind::CompilerKind, linker_kind::LinkerKind,
 };
+use crate::config::CrowConfig;
 use anyhowed::{Context, Result};
+use once_cell::sync::OnceCell;
 use std::path::PathBuf;
+
+static SHARED_TOOLCHAIN: OnceCell<Box<dyn Toolchain>> = OnceCell::new();
 
 pub trait Toolchain: Send + Sync {
     fn compiler_kind(&self) -> CompilerKind;
@@ -85,6 +89,28 @@ const TOOLCHAIN_TYPES: &[ToolchainType] = &[
     }),
     register_toolchain!("GCC-like", GccToolchain, || true),
 ];
+
+pub fn shared_toolchain(config: &CrowConfig) -> Result<&dyn Toolchain> {
+    let tc = SHARED_TOOLCHAIN.get_or_try_init(|| {
+        detect_toolchain(
+            config.build.compiler.path().cloned(),
+            Some(config.build.compiler.kind().clone()),
+            config.build.linker.path().cloned(),
+            Some(config.build.linker.kind().clone()),
+            config.build.archiver.path().cloned(),
+            Some(config.build.archiver.kind().clone()),
+        )
+    })?;
+    Ok(tc.as_ref())
+}
+
+pub fn compiler_kind_for_config(config: &CrowConfig) -> Result<CompilerKind> {
+    let configured = config.build.compiler.kind();
+    if configured != CompilerKind::Unknown {
+        return Ok(configured);
+    }
+    Ok(shared_toolchain(config)?.compiler_kind())
+}
 
 pub fn detect_toolchain(
     preferred_compiler: Option<String>,

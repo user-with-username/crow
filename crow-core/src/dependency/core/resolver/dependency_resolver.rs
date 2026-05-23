@@ -2,7 +2,7 @@ use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::config::{parse_standard, CrowConfig};
 use crate::dependency::core::constraint::DependencyConstraint;
 use crate::dependency::graph::DependencyGraph;
-use crate::dependency::wheel::{create_wheel, WheelArtifacts};
+use crate::dependency::wheel::{create_wheel, mark_wheel_built, load_wheel_cache, WheelArtifacts};
 use crate::dependency::{ResolvedDependencyBuild, ResolvedPackage};
 use anyhowed::{Context, Result};
 use crow_utils::normalize_path;
@@ -31,6 +31,25 @@ impl DependencyResolver {
         }
     }
 
+    pub fn wheel_cache_dir(
+        &self,
+        dep_root: &Path,
+        profile_name: &str,
+        compiler_flags: &[String],
+        build_flags: &[String],
+        compiler_kind: CompilerKind,
+    ) -> PathBuf {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        dep_root.hash(&mut hasher);
+        compiler_kind.hash(&mut hasher);
+        compiler_flags.hash(&mut hasher);
+        build_flags.hash(&mut hasher);
+        let hash = format!("{:016x}", hasher.finish());
+        self.cache_root.join(profile_name).join(hash)
+    }
+
     pub fn build_wheel(
         &self,
         dep_root: &PathBuf,
@@ -40,29 +59,31 @@ impl DependencyResolver {
         compiler_path: Option<&str>,
         compiler_kind: CompilerKind,
     ) -> Result<WheelArtifacts> {
-        let base_build_dir = self.cache_root.join(profile_name);
-        std::fs::create_dir_all(&base_build_dir)?;
+        let unique_build_dir = self.wheel_cache_dir(
+            dep_root,
+            profile_name,
+            compiler_flags,
+            build_flags,
+            compiler_kind,
+        );
+        std::fs::create_dir_all(&unique_build_dir)?;
 
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut hasher = DefaultHasher::new();
-        dep_root.hash(&mut hasher);
-        compiler_kind.hash(&mut hasher);
-        compiler_flags.hash(&mut hasher);
-        build_flags.hash(&mut hasher);
-        let hash = format!("{:016x}", hasher.finish());
-        let unique_build_dir = base_build_dir.join(hash);
+        if let Some(artifacts) = load_wheel_cache(&unique_build_dir, dep_root, profile_name) {
+            return Ok(artifacts);
+        }
 
         let wheel = create_wheel(dep_root)
             .with_context(|| format!("no known build system found at {}", dep_root.display()))?;
-        wheel.build(
+        let artifacts = wheel.build(
             &unique_build_dir,
             profile_name,
             compiler_flags,
             build_flags,
             compiler_path,
             compiler_kind,
-        )
+        )?;
+        mark_wheel_built(&unique_build_dir)?;
+        Ok(artifacts)
     }
 
     pub(crate) fn check_dependency_conflict(
@@ -113,7 +134,7 @@ impl DependencyResolver {
         root_dir: &Path,
         profile_name: &str,
         target_dir: &Path,
-        compiler_path: Option<&str>,
+        _compiler_path: Option<&str>,
         compiler_kind: CompilerKind,
     ) -> Result<ResolvedDependencyBuild> {
         self.dependency_constraints.remove(profile_name);
@@ -172,22 +193,24 @@ impl DependencyResolver {
 
             let payload = graph.get_node(*idx).context("failed to get node")?;
             if payload.is_wheel && !wheel_artifacts.contains_key(&payload.root) {
-                let artifacts = self.build_wheel(
+                let cache_dir = self.wheel_cache_dir(
                     &payload.root,
                     profile_name,
                     &compiler_flags,
                     &payload.build_flags,
-                    compiler_path,
                     compiler_kind,
-                )?;
-                wheel_artifacts.insert(payload.root.clone(), artifacts);
+                );
+                if let Some(artifacts) =
+                    load_wheel_cache(&cache_dir, &payload.root, profile_name)
+                {
+                    wheel_artifacts.insert(payload.root.clone(), artifacts);
+                }
             }
         }
 
         let mut resolved = ResolvedDependencyBuild::default();
         let mut seen_include = HashSet::new();
         let mut seen_libs = HashSet::new();
-        let mut seen_lib_paths = HashSet::new();
         let mut seen_system_libs = HashSet::new();
         let mut max_standard = parse_standard(
             root_config
@@ -228,31 +251,17 @@ impl DependencyResolver {
 
             if payload.is_wheel {
                 if let Some(artifacts) = wheel_artifacts.get(&payload.root) {
-                    for include_dir in &artifacts.include_dirs {
-                        if seen_include.insert(include_dir.clone()) {
-                            resolved.include_dirs.push(include_dir.clone());
-                        }
-                    }
-                    for lib_path in &artifacts.lib_paths {
-                        if seen_lib_paths.insert(lib_path.clone()) {
-                            resolved.lib_paths.push(lib_path.clone());
-                        }
-                    }
-                    for lib_name in &artifacts.lib_names {
-                        if seen_libs.insert(lib_name.clone()) {
-                            resolved.libs.push(lib_name.clone());
-                        }
-                    }
-                    resolved.packages.push(ResolvedPackage {
-                        name: package_name,
-                        root: payload.root.clone(),
-                        config: payload.config.clone(),
-                        source: payload.source.clone(),
-                        checksum: payload.checksum.clone(),
-                        is_wheel: true,
-                        build_flags: payload.build_flags.clone(),
-                    });
+                    resolved.absorb_wheel_artifacts(artifacts);
                 }
+                resolved.packages.push(ResolvedPackage {
+                    name: package_name,
+                    root: payload.root.clone(),
+                    config: payload.config.clone(),
+                    source: payload.source.clone(),
+                    checksum: payload.checksum.clone(),
+                    is_wheel: true,
+                    build_flags: payload.build_flags.clone(),
+                });
                 continue;
             }
 

@@ -14,4 +14,4 @@ pub use lockfile::LockfileBuilder;
 pub use merge::{apply_dependency_standard, format_lock_dependencies, merge_dependency_inputs};
 pub use registry::RegistryFetcher;
 pub use version_req::VersionReq;
-pub use wheel::{create_wheel, WheelArtifacts, WheelType};
+pub use wheel::{create_wheel, load_wheel_cache, WheelArtifacts, WheelType};

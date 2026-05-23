@@ -6,6 +6,7 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::dependency::version_req::VersionReq as CrowVersionReq;
 
@@ -137,8 +138,32 @@ impl RegistryFetcher {
             repo
         };
 
-        self.fetch_origin(&repo, registry_url)?;
+        if Self::registry_fetch_is_stale(&registry_dir) {
+            self.fetch_origin(&repo, registry_url)?;
+            Self::touch_registry_fetch_marker(&registry_dir)?;
+        }
         Ok(repo)
+    }
+
+    const REGISTRY_FETCH_INTERVAL: Duration = Duration::from_secs(300);
+
+    fn registry_fetch_is_stale(registry_dir: &PathBuf) -> bool {
+        let marker = registry_dir.join(".last-fetch");
+        let Ok(meta) = std::fs::metadata(&marker) else {
+            return true;
+        };
+        let Ok(modified) = meta.modified() else {
+            return true;
+        };
+        modified
+            .elapsed()
+            .map(|age| age > Self::REGISTRY_FETCH_INTERVAL)
+            .unwrap_or(true)
+    }
+
+    fn touch_registry_fetch_marker(registry_dir: &PathBuf) -> Result<()> {
+        std::fs::write(registry_dir.join(".last-fetch"), "")?;
+        Ok(())
     }
 
     fn fetch_origin(&self, repo: &Repository, registry_url: &str) -> Result<()> {

@@ -19,7 +19,6 @@ pub struct Project {
     pub workspace_root: PathBuf,
     pub profile: crate::config::Profile,
     pub profile_name: String,
-    pub toolchain: Box<dyn Toolchain>,
     pub resolved_deps: Option<ResolvedDependencyBuild>,
 }
 
@@ -43,15 +42,6 @@ impl Project {
             _ => crate::config::Profile::Dev(loaded_config.profile.dev.clone()),
         };
 
-        let toolchain = toolchain::detect_toolchain(
-            loaded_config.build.compiler.path().cloned(),
-            Some(loaded_config.build.compiler.kind().clone()),
-            loaded_config.build.linker.path().cloned(),
-            Some(loaded_config.build.linker.kind().clone()),
-            loaded_config.build.archiver.path().cloned(),
-            Some(loaded_config.build.archiver.kind().clone()),
-        )?;
-
         Ok(Self {
             config: loaded_config,
             package,
@@ -59,32 +49,27 @@ impl Project {
             root: manifest_dir,
             profile,
             profile_name: profile_name.to_string(),
-            toolchain,
             resolved_deps,
         })
     }
 
-    pub fn build(path: impl AsRef<Path>, profile_name: &str, jobs: Option<usize>) -> Result<Self> {
-        let (config, manifest_dir) = crate::config::CrowConfig::find_in_tree(path.as_ref())?;
-        let resolved = Self::resolve_dependencies(&config, &manifest_dir, profile_name)?;
-        let session = BuildSession::new(profile_name, jobs);
-        session.build_root(config, manifest_dir, resolved)
+    pub(crate) fn toolchain(&self) -> Result<&dyn Toolchain> {
+        toolchain::shared_toolchain(&self.config)
     }
 
-    fn resolve_dependencies(
+    pub fn build(path: impl AsRef<Path>, profile_name: &str, jobs: Option<usize>) -> Result<Self> {
+        let (config, manifest_dir) = crate::config::CrowConfig::find_in_tree(path.as_ref())?;
+        let session = BuildSession::new(profile_name, jobs);
+        session.build_root(config, manifest_dir)
+    }
+
+    pub(crate) fn resolve_dependencies(
         config: &CrowConfig,
         manifest_dir: &Path,
         profile_name: &str,
     ) -> Result<ResolvedDependencyBuild> {
-        let bootstrap_project = Self::new(
-            config.clone(),
-            manifest_dir.to_path_buf(),
-            profile_name,
-            None,
-        )?;
-        let target_dir = bootstrap_project.target_dir();
-        let compiler_path = bootstrap_project.compiler_path().to_string();
-        let compiler_kind = bootstrap_project.compiler_kind();
+        let target_dir = crow_utils::environment::Environment::target_dir();
+        let compiler_kind = toolchain::compiler_kind_for_config(config)?;
 
         let mut resolver = DependencyResolver::new();
         resolver.resolve_for(
@@ -92,7 +77,11 @@ impl Project {
             manifest_dir,
             profile_name,
             &target_dir,
-            Some(&compiler_path),
+            config
+                .build
+                .compiler
+                .path()
+                .map(|p| p.as_str()),
             compiler_kind,
         )
     }

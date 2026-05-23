@@ -1,5 +1,6 @@
 use crate::builder::incremental::hash_files;
 use crate::config::CrowConfig;
+use crate::dependency::load_wheel_cache;
 use crate::dependency::DependencyResolver;
 use crate::dependency::ResolvedDependencyBuild;
 use crate::dependency::WheelArtifacts;
@@ -45,28 +46,20 @@ impl<'a> BuildSession<'a> {
         mut self,
         config: CrowConfig,
         manifest_dir: PathBuf,
-        resolved: ResolvedDependencyBuild,
     ) -> Result<Project> {
         if !config.build.hooks.pre.is_empty() {
             crow_utils::hooks::run_hooks(&manifest_dir, &config.build.hooks.pre)?;
         }
 
-        let toolchain = crate::builder::toolchain::detect_toolchain(
-            config.build.compiler.path().cloned(),
-            Some(config.build.compiler.kind().clone()),
-            config.build.linker.path().cloned(),
-            Some(config.build.linker.kind().clone()),
-            config.build.archiver.path().cloned(),
-            Some(config.build.archiver.kind().clone()),
-        )?;
+        status!("Resolving", "dependencies...");
+        let mut resolved = Project::resolve_dependencies(&config, &manifest_dir, self.profile_name)?;
 
+        let toolchain = crate::builder::toolchain::shared_toolchain(&config)?;
         let compiler_path = toolchain.compiler_path().to_string();
         let compiler_kind = toolchain.compiler_kind();
 
         let mut resolver = DependencyResolver::new();
-
         let compiler_flags = config.build.compiler.flags().to_vec();
-
         let mut buildable: Vec<(Buildable, String)> = Vec::new();
         let mut visited: HashSet<PathBuf> = HashSet::new();
 
@@ -77,7 +70,15 @@ impl<'a> BuildSession<'a> {
             &lockfile_path,
         )?;
 
-        self.collect_buildable(&manifest_dir, &resolved, &mut buildable, &mut visited)?;
+        self.collect_buildable(
+            &resolver,
+            &manifest_dir,
+            &resolved,
+            &compiler_flags,
+            compiler_kind,
+            &mut buildable,
+            &mut visited,
+        )?;
 
         let lock_hash = if lockfile_changed {
             None
@@ -85,11 +86,9 @@ impl<'a> BuildSession<'a> {
             Some(hash_files(std::slice::from_ref(&lockfile_path))?)
         };
 
-        let mut root_config_for_count = config.clone();
-        Project::merge_dependency_inputs(&mut root_config_for_count, &resolved);
         let root_needs_build = match &lock_hash {
             Some(hash) => Project::new(
-                root_config_for_count,
+                config.clone(),
                 manifest_dir.clone(),
                 self.profile_name,
                 Some(resolved.clone()),
@@ -134,10 +133,20 @@ impl<'a> BuildSession<'a> {
                         Some(&compiler_path),
                         compiler_kind,
                     )?;
+                    resolved.absorb_wheel_artifacts(&artifacts);
                     wheel_artifacts.insert(root, artifacts);
                 }
                 Buildable::Project(project) => {
-                    self.compile_project(&project, true)?;
+                    let mut dep_config = project.config.clone();
+                    Project::merge_dependency_inputs(&mut dep_config, &resolved);
+                    let dep_project = Project::new(
+                        dep_config,
+                        project.root.clone(),
+                        self.profile_name,
+                        Some(resolved.clone()),
+                    )?;
+                    dep_project.configure_parallelism(self.jobs);
+                    self.compile_project(&dep_project, true)?;
                 }
             }
 
@@ -216,8 +225,11 @@ impl<'a> BuildSession<'a> {
 
     fn collect_buildable(
         &mut self,
+        resolver: &DependencyResolver,
         manifest_dir: &Path,
         resolved: &ResolvedDependencyBuild,
+        compiler_flags: &[String],
+        compiler_kind: crate::builder::kinds::compiler_kind::CompilerKind,
         out: &mut Vec<(Buildable, String)>,
         visited: &mut HashSet<PathBuf>,
     ) -> Result<()> {
@@ -229,15 +241,24 @@ impl<'a> BuildSession<'a> {
 
         for dep in &resolved.packages {
             if dep.is_wheel {
-                let label = format!("{}(wheel)", dep.name);
-                out.push((
-                    Buildable::Wheel {
-                        name: dep.name.clone(),
-                        root: dep.root.clone(),
-                        build_flags: dep.build_flags.clone(),
-                    },
-                    label,
-                ));
+                let cache_dir = resolver.wheel_cache_dir(
+                    &dep.root,
+                    self.profile_name,
+                    compiler_flags,
+                    &dep.build_flags,
+                    compiler_kind,
+                );
+                if load_wheel_cache(&cache_dir, &dep.root, self.profile_name).is_none() {
+                    let label = format!("{} (wheel)", dep.name);
+                    out.push((
+                        Buildable::Wheel {
+                            name: dep.name.clone(),
+                            root: dep.root.clone(),
+                            build_flags: dep.build_flags.clone(),
+                        },
+                        label,
+                    ));
+                }
                 continue;
             }
 
@@ -248,20 +269,23 @@ impl<'a> BuildSession<'a> {
                 continue;
             }
 
-            let mut dep_config = dep.config.clone();
-            Project::merge_dependency_inputs(&mut dep_config, resolved);
-            let project = Project::new(
-                dep_config,
+            let lockfile_path = dep.root.join("crow.lock");
+            let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+
+            let check_project = Project::new(
+                dep.config.clone(),
                 dep.root.clone(),
                 self.profile_name,
                 Some(resolved.clone()),
             )?;
-            project.configure_parallelism(self.jobs);
 
-            let lockfile_path = dep.root.join("crow.lock");
-            let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
-
-            if project.should_build(&lock_hash)? {
+            if check_project.should_build(&lock_hash)? {
+                let project = Project::new(
+                    dep.config.clone(),
+                    dep.root.clone(),
+                    self.profile_name,
+                    Some(resolved.clone()),
+                )?;
                 let label = format!("{} v{}", project.package.name, project.package.version);
                 out.push((Buildable::Project(project), label));
             }

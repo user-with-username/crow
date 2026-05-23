@@ -116,6 +116,53 @@ pub fn create_wheel(root: &Path) -> Option<WheelType> {
     WheelType::new(root)
 }
 
+/// Load artifacts from a previous wheel build in the cache directory, if present.
+pub fn load_wheel_cache(
+    cache_build_dir: &Path,
+    dep_root: &Path,
+    profile: &str,
+) -> Option<WheelArtifacts> {
+    let build_type = if profile == "release" {
+        "Release"
+    } else {
+        "Debug"
+    };
+
+    for subdir in ["cmake_wheel", "meson_wheel", "bazel_wheel"] {
+        let out = cache_build_dir.join(subdir);
+        if !out.is_dir() {
+            continue;
+        }
+
+        let install = out.join("install");
+        let artifacts = get_artifacts(
+            dep_root,
+            &out,
+            vec![out.join("generated"), install.join("include")],
+            vec![
+                install.join("lib"),
+                out.clone(),
+                out.join(build_type),
+                out.join(build_type.to_lowercase()),
+                out.join("lib"),
+            ],
+            4,
+        )
+        .ok()?;
+
+        if !artifacts.include_dirs.is_empty() || !artifacts.lib_names.is_empty() {
+            return Some(artifacts);
+        }
+    }
+
+    None
+}
+
+pub fn mark_wheel_built(cache_build_dir: &Path) -> Result<()> {
+    std::fs::write(cache_build_dir.join(".wheel-built"), "")?;
+    Ok(())
+}
+
 /// Helper function to collect artifacts from build output
 pub fn get_artifacts(
     root: &Path,
