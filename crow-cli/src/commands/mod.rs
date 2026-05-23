@@ -1,4 +1,5 @@
 pub mod add;
+pub mod as_json;
 pub mod bench;
 pub mod build;
 pub mod clean;
@@ -9,7 +10,6 @@ pub mod publish;
 pub mod run;
 pub mod self_update;
 pub mod test;
-pub mod as_json;
 
 use anyhowed::Result;
 use clap::Subcommand;
@@ -49,7 +49,7 @@ pub enum Command {
     /// Update crow to the latest release
     SelfUpdate(self_update::SelfUpdateArgs),
 
-    /// Show all info 
+    /// Show all info
     AsJson(as_json::AsJsonArgs),
 }
 
