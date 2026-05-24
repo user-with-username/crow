@@ -49,11 +49,13 @@ impl Project {
         let all_files = self.find_all();
         let formatter = find_executable(&self.config.build.formatter)?;
         for file in all_files {
-            Command::new(formatter.clone()).arg("-i").arg(file.clone()).status()?;
+            Command::new(formatter.clone())
+                .arg("-i")
+                .arg(file.clone())
+                .status()?;
         }
 
         Ok(())
-
     }
 
     fn run_tests_or_benches(&self, kind: RunKind, trailing: &[String]) -> Result<()> {

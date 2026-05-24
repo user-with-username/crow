@@ -3,6 +3,7 @@ pub mod bench;
 pub mod build;
 pub mod clean;
 pub mod delete;
+pub mod fmt;
 pub mod init;
 pub mod metadata;
 pub mod new;
@@ -10,7 +11,6 @@ pub mod publish;
 pub mod run;
 pub mod self_update;
 pub mod test;
-pub mod fmt;
 
 use anyhowed::Result;
 use clap::Subcommand;
