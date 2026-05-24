@@ -13,6 +13,9 @@ pub struct BuildConfig {
     pub linker: LinkerConfig,
     pub archiver: ArchiverConfig,
 
+    #[default("clang-format")]
+    pub formatter: String,
+
     #[default(vec![PathBuf::from("include")])]
     pub include_dirs: Vec<PathBuf>,
 

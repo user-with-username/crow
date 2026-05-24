@@ -38,6 +38,7 @@ warnings_as_errors = false
 parallelism = true
 hooks.pre = ["echo building..."]
 hooks.post = ["echo done"]
+formatter = "clang-format"
 
 [build.compiler]
 kind = "gcc"
@@ -123,6 +124,7 @@ members = ["libs/*", "apps/*"]
 | `parallelism` | `true` | Use multiple CPU cores |
 | `hooks.pre` | `[]` | Commands to run before build |
 | `hooks.post` | `[]` | Commands to run after build |
+| `formatter` | `clang-format` | Binary of code formatter |
 
 ## [build.compiler] — Pick your compiler
 

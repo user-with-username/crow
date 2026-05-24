@@ -4,7 +4,7 @@ use crate::builder::paths::ObjectFilePath;
 use crate::builder::CompilationBuilder;
 use crate::project::Project;
 use anyhowed::{Context, Result};
-use crow_utils::status;
+use crow_utils::{find_executable, status};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -43,6 +43,17 @@ impl Project {
 
     pub fn bench(&self, trailing: &[String]) -> Result<()> {
         self.run_tests_or_benches(RunKind::Bench, trailing)
+    }
+
+    pub fn fmt(&self) -> Result<()> {
+        let all_files = self.find_all();
+        let formatter = find_executable(&self.config.build.formatter)?;
+        for file in all_files {
+            Command::new(formatter.clone()).arg("-i").arg(file.clone()).status()?;
+        }
+
+        Ok(())
+
     }
 
     fn run_tests_or_benches(&self, kind: RunKind, trailing: &[String]) -> Result<()> {

@@ -44,6 +44,10 @@ impl Project {
         self.find_sources_in(&self.config.build.bench_dirs)
     }
 
+    pub fn find_all(&self) -> Vec<PathBuf> {
+        self.find_sources_in(&vec![std::env::current_dir().expect("Failed to get current dir")])
+    }
+
     pub fn target_dir(&self) -> PathBuf {
         crow_utils::environment::Environment::target_dir()
     }
