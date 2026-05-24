@@ -45,27 +45,31 @@ impl Project {
         self.run_tests_or_benches(RunKind::Bench, trailing)
     }
 
-pub fn fmt(&self) -> Result<()> {
-    let all_files = self.find_all();
-    let formatter_path = self.config.build.formatter.path()
-        .ok_or_else(|| anyhowed::anyhow!("formatter path not configured"))?;
-    
-    let formatter = find_executable(formatter_path)?;
-    
-    for file in all_files {
-        let status = Command::new(&formatter)
-            .arg("-i")
-            .arg(&file)
-            .arg(format!("-style={}", self.config.build.formatter.style()))
-            .args(self.config.build.formatter.flags())
-            .status()?;
-        
-        if !status.success() {
-            anyhowed::anyhow!("Formatter failed (status code {})", status);
+    pub fn fmt(&self) -> Result<()> {
+        let all_files = self.find_all();
+        let formatter_path = self
+            .config
+            .build
+            .formatter
+            .path()
+            .ok_or_else(|| anyhowed::anyhow!("formatter path not configured"))?;
+
+        let formatter = find_executable(formatter_path)?;
+
+        for file in all_files {
+            let status = Command::new(&formatter)
+                .arg("-i")
+                .arg(&file)
+                .arg(format!("-style={}", self.config.build.formatter.style()))
+                .args(self.config.build.formatter.flags())
+                .status()?;
+
+            if !status.success() {
+                anyhowed::anyhow!("Formatter failed (status code {})", status);
+            }
         }
+        Ok(())
     }
-    Ok(())
-}
 
     fn run_tests_or_benches(&self, kind: RunKind, trailing: &[String]) -> Result<()> {
         let start_time = Instant::now();

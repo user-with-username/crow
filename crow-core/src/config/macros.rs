@@ -118,8 +118,8 @@ macro_rules! formatter_enum {
                     where
                         M: ::serde::de::MapAccess<'de>,
                     {
-                        let detailed: $crate::config::macros::DetailedFormatterConfig = 
-    ::serde::Deserialize::deserialize(
+                        let detailed: $crate::config::macros::DetailedFormatterConfig =
+                            ::serde::Deserialize::deserialize(
                                 ::serde::de::value::MapAccessDeserializer::new(map),
                             )?;
                         Ok($name::Detailed {
@@ -278,6 +278,6 @@ macro_rules! hooks {
 }
 
 pub(crate) use config_enum;
+pub(crate) use formatter_enum;
 pub(crate) use hooks;
 pub(crate) use type_enum;
-pub(crate) use formatter_enum;

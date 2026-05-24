@@ -1,7 +1,7 @@
-use crate::config::FormatterConfig;
 use crate::config::macros::hooks;
 use crate::config::ArchiverConfig;
 use crate::config::CompilerConfig;
+use crate::config::FormatterConfig;
 use crate::config::LinkerConfig;
 use serde::Deserialize;
 use smart_default::SmartDefault;
