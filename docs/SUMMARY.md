@@ -22,6 +22,7 @@
 - [clean](./commands/clean.md)
 - [publish](./commands/publish.md)
 - [delete](./commands/delete.md)
+- [metadata](./commands/metadata.md)
 
 [Publishing](./publishing.md)
 

@@ -9,14 +9,14 @@ use serde::Serialize;
 use std::path::PathBuf;
 
 #[derive(Args)]
-pub struct AsJsonArgs {}
+pub struct MetadataArgs {}
 
-pub struct AsJsonCommand {
-    _args: AsJsonArgs,
+pub struct MetadataCommand {
+    _args: MetadataArgs,
 }
 
-impl AsJsonCommand {
-    pub fn new(_args: AsJsonArgs) -> Self {
+impl MetadataCommand {
+    pub fn new(_args: MetadataArgs) -> Self {
         Self { _args }
     }
 

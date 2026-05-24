@@ -1,5 +1,5 @@
 pub mod add;
-pub mod as_json;
+pub mod metadata;
 pub mod bench;
 pub mod build;
 pub mod clean;
@@ -50,7 +50,7 @@ pub enum Command {
     SelfUpdate(self_update::SelfUpdateArgs),
 
     /// Show all info
-    AsJson(as_json::AsJsonArgs),
+    Metadata(metadata::MetadataArgs),
 }
 
 impl Command {
@@ -67,7 +67,7 @@ impl Command {
             Self::Publish(args) => publish::PublishCommand::new(args).execute(),
             Self::Delete(args) => delete::DeleteCommand::new(args).execute(),
             Self::SelfUpdate(args) => self_update::SelfUpdateCommand::new(args).execute(),
-            Self::AsJson(args) => as_json::AsJsonCommand::new(args).execute(),
+            Self::Metadata(args) => metadata::MetadataCommand::new(args).execute(),
         }
     }
 }
