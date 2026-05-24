@@ -74,6 +74,68 @@ macro_rules! config_enum {
     };
 }
 
+#[derive(Deserialize)]
+pub(crate) struct DetailedFormatterConfig {
+    pub(crate) path: Option<String>,
+    #[serde(default)]
+    pub(crate) flags: Vec<String>,
+    pub(crate) style: String,
+}
+
+#[macro_export]
+macro_rules! formatter_enum {
+    ($name:ident) => {
+        impl<'de> ::serde::Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: ::serde::Deserializer<'de>,
+            {
+                struct ConfigVisitor;
+
+                impl<'de> ::serde::de::Visitor<'de> for ConfigVisitor {
+                    type Value = $name;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut ::std::fmt::Formatter,
+                    ) -> ::std::fmt::Result {
+                        formatter
+                            .write_str("a string (path) or a struct with path, flags, and style")
+                    }
+
+                    fn visit_str<E>(self, value: &str) -> Result<$name, E>
+                    where
+                        E: ::serde::de::Error,
+                    {
+                        Ok($name::Detailed {
+                            path: Some(value.to_string()),
+                            flags: Vec::new(),
+                            style: Some(value.to_string()),
+                        })
+                    }
+
+                    fn visit_map<M>(self, map: M) -> Result<$name, M::Error>
+                    where
+                        M: ::serde::de::MapAccess<'de>,
+                    {
+                        let detailed: $crate::config::macros::DetailedFormatterConfig = 
+    ::serde::Deserialize::deserialize(
+                                ::serde::de::value::MapAccessDeserializer::new(map),
+                            )?;
+                        Ok($name::Detailed {
+                            path: detailed.path,
+                            flags: detailed.flags,
+                            style: Some(detailed.style),
+                        })
+                    }
+                }
+
+                deserializer.deserialize_any(ConfigVisitor)
+            }
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! type_enum {
     () => {
@@ -218,3 +280,4 @@ macro_rules! hooks {
 pub(crate) use config_enum;
 pub(crate) use hooks;
 pub(crate) use type_enum;
+pub(crate) use formatter_enum;

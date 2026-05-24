@@ -1,3 +1,4 @@
+use crate::config::FormatterConfig;
 use crate::config::macros::hooks;
 use crate::config::ArchiverConfig;
 use crate::config::CompilerConfig;
@@ -12,9 +13,7 @@ pub struct BuildConfig {
     pub compiler: CompilerConfig,
     pub linker: LinkerConfig,
     pub archiver: ArchiverConfig,
-
-    #[default("clang-format")]
-    pub formatter: String,
+    pub formatter: FormatterConfig,
 
     #[default(vec![PathBuf::from("include")])]
     pub include_dirs: Vec<PathBuf>,
