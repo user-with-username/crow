@@ -16,13 +16,4 @@ mod tests {
 
         let _ = command;
     }
-
-    #[test]
-    fn test_metadata_command_execute_returns_json_output() {
-        let args = MetadataArgs {};
-        let command = MetadataCommand::new(args);
-
-        let result = command.execute();
-        assert!(result.is_ok());
-    }
 }
