@@ -1,10 +1,10 @@
 pub mod add;
-pub mod metadata;
 pub mod bench;
 pub mod build;
 pub mod clean;
 pub mod delete;
 pub mod init;
+pub mod metadata;
 pub mod new;
 pub mod publish;
 pub mod run;

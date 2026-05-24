@@ -5,7 +5,7 @@ mod tests {
     #[test]
     fn test_metadata_args_default() {
         let args = MetadataArgs {};
-        
+
         let _ = args;
     }
 
@@ -13,7 +13,7 @@ mod tests {
     fn test_metadata_command_new_returns_metadata_command() {
         let args = MetadataArgs {};
         let command = MetadataCommand::new(args);
-        
+
         let _ = command;
     }
 
@@ -21,7 +21,7 @@ mod tests {
     fn test_metadata_command_execute_returns_json_output() {
         let args = MetadataArgs {};
         let command = MetadataCommand::new(args);
-        
+
         let result = command.execute();
         assert!(result.is_ok());
     }
