@@ -17,13 +17,13 @@ fi
 arch=$(uname -m)
 case "$arch" in
     x86_64|amd64)
-        artifact="linux-x64"
+        artifact="linux-x86_64"
         ;;
     aarch64|arm64)
         artifact="linux-arm64"
         ;;
     *)
-        artifact="linux-x86"
+        artifact="linux-x86_64"
         ;;
 esac
 
