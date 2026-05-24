@@ -30,13 +30,13 @@ esac
 if [[ "$OSTYPE" == "darwin"* ]]; then
     case "$arch" in
         x86_64|amd64)
-            artifact="macos-x64"
+            artifact="macos-x86_64"
             ;;
         aarch64|arm64)
             artifact="macos-arm64"
             ;;
         *)
-            artifact="macos-x86"
+            artifact="macos-x86_64"
             ;;
     esac
 fi
