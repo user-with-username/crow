@@ -45,7 +45,9 @@ impl Project {
     }
 
     pub fn find_all(&self) -> Vec<PathBuf> {
-        self.find_sources_in(&vec![std::env::current_dir().expect("Failed to get current dir")])
+        self.find_sources_in(&vec![
+            std::env::current_dir().expect("Failed to get current dir")
+        ])
     }
 
     pub fn target_dir(&self) -> PathBuf {
