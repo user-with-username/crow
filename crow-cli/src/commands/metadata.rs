@@ -27,24 +27,39 @@ impl MetadataCommand {
         let toolchain = toolchain::shared_toolchain(&config)?;
 
         let compiler_path = toolchain.compiler_path().to_string();
-        let linker_path = config.build.linker
+        let linker_path = config
+            .build
+            .linker
             .path()
             .map(|p| p.to_string())
-            .or_else(|| toolchain.compiler_kind().is_msvc().then(|| toolchain.linker_path().to_string()))
+            .or_else(|| {
+                toolchain
+                    .compiler_kind()
+                    .is_msvc()
+                    .then(|| toolchain.linker_path().to_string())
+            })
             .unwrap_or_else(|| compiler_path.clone());
-        let archiver_path = config.build.archiver
+        let archiver_path = config
+            .build
+            .archiver
             .path()
             .map(|p| p.to_string())
             .unwrap_or_else(|| toolchain.archiver_path().to_string());
 
         let workspace_root = workspace.root.clone();
-        let is_workspace_member = workspace.members().any(|(_, path)| path == &current_dir || current_dir.starts_with(path));
+        let is_workspace_member = workspace
+            .members()
+            .any(|(_, path)| path == &current_dir || current_dir.starts_with(path));
 
         let info = ShowInfo {
             package: config.package.as_ref().map(|p| PackageInfo {
                 name: p.name.clone(),
                 version: p.version.clone(),
-                package_type: format!("{:?}", p.r#type).split('(').next().unwrap_or("unknown").to_lowercase(),
+                package_type: format!("{:?}", p.r#type)
+                    .split('(')
+                    .next()
+                    .unwrap_or("unknown")
+                    .to_lowercase(),
                 description: p.description.clone(),
                 authors: p.authors.clone().unwrap_or_default(),
                 license: p.license.clone(),
