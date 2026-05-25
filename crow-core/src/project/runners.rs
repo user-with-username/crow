@@ -45,31 +45,48 @@ impl Project {
         self.run_tests_or_benches(RunKind::Bench, trailing)
     }
 
-    pub fn fmt(&self) -> Result<()> {
-        let all_files = self.find_all();
-        let formatter_path = self
-            .config
-            .build
-            .formatter
-            .path()
-            .ok_or_else(|| anyhowed::anyhow!("formatter path not configured"))?;
+pub fn fmt(&self, needs_write: bool) -> Result<()> {
+    let all_files = self.find_all();
+    let formatter_path = self
+        .config
+        .build
+        .formatter
+        .path()
+        .ok_or_else(|| anyhowed::anyhow!("formatter path not configured"))?;
 
-        let formatter = find_executable(formatter_path)?;
+    let formatter = find_executable(formatter_path)?;
 
-        for file in all_files {
-            let status = Command::new(&formatter)
-                .arg("-i")
-                .arg(&file)
-                .arg(format!("-style={}", self.config.build.formatter.style()))
-                .args(self.config.build.formatter.flags())
-                .status()?;
-
+    for file in all_files {
+        let mut cmd = Command::new(&formatter);
+        
+        if needs_write {
+            cmd.arg("-i");
+        }
+        
+        cmd.arg(&file)
+           .arg(format!("-style={}", self.config.build.formatter.style()))
+           .args(self.config.build.formatter.flags());
+        
+        if needs_write {
+            let status = cmd.status()?;
             if !status.success() {
                 anyhowed::anyhow!("Formatter failed (status code {})", status);
             }
+        } else {
+            let output = cmd.output()?;
+            if !output.status.success() {
+                anyhowed::anyhow!("Formatter failed (status code {})", output.status);
+            }
+            if !output.stdout.is_empty() {
+                println!("{}", String::from_utf8_lossy(&output.stdout));
+            }
+            if !output.stderr.is_empty() {
+                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+            }
         }
-        Ok(())
     }
+    Ok(())
+}
 
     fn run_tests_or_benches(&self, kind: RunKind, trailing: &[String]) -> Result<()> {
         let start_time = Instant::now();
