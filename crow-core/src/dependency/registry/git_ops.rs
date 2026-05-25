@@ -91,6 +91,19 @@ pub fn commit_and_push(
 
     let mut push_opts = git2::PushOptions::new();
     push_opts.remote_callbacks(auth_callbacks(token));
+
+    let mut callbacks = auth_callbacks(token);
+    callbacks.push_update_reference(|refname, status| {
+        if let Some(status) = status {
+            eprintln!("Push rejected for {}: {}", refname, status);
+            if status.contains("permission") || status.contains("403") {
+                panic!("Permission denied. Try using a Personal Access Token with 'repo' scope");
+            }
+        }
+        Ok(())
+    });
+    push_opts.remote_callbacks(callbacks);
+
     let mut remote = repo.find_remote("origin")?;
 
     let refspec = format!("refs/heads/{branch_name}:refs/heads/{branch_name}");
