@@ -239,7 +239,8 @@ impl Project {
     }
 
     fn compile_source(&self, source: &Path) -> Result<Vec<ObjectFilePath>> {
-        CompilationBuilder::new(self.compiler_path(), self).compile_paths(&[source.to_path_buf()], None)
+        CompilationBuilder::new(self.compiler_path(), self)
+            .compile_paths(&[source.to_path_buf()], None)
     }
 
     fn is_entry_source(source: &Path, entry_points: &[String]) -> bool {
