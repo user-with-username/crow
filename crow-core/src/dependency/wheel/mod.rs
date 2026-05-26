@@ -122,6 +122,10 @@ pub fn load_wheel_cache(
     dep_root: &Path,
     profile: &str,
 ) -> Option<WheelArtifacts> {
+    if !cache_build_dir.join(".wheel-built").exists() {
+        return None;
+    }
+
     let build_type = if profile == "release" {
         "Release"
     } else {
@@ -238,7 +242,7 @@ pub fn get_artifacts(
 }
 
 pub(crate) fn should_skip_library_path(path: &Path) -> bool {
-    path.components().any(|component| {
+    path.components().rev().take(3).any(|component| {
         component.as_os_str().eq_ignore_ascii_case("test")
             || component.as_os_str().eq_ignore_ascii_case("tests")
     })

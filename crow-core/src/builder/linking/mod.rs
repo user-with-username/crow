@@ -50,6 +50,10 @@ impl<'a> LinkingBuilder<'a> {
         }
     }
 
+    pub fn link_executable(&self, output: &std::path::Path, extra_inputs: &[String]) -> Result<()> {
+        DynamicLinkBuilder::new(self).build_executable(output, self.objects, extra_inputs, false)
+    }
+
     fn run_command(&self, mut cmd: Command, action: &str) -> Result<()> {
         let output = cmd
             .output()

@@ -1,5 +1,5 @@
 use crate::builder::incremental::hash_files;
-use crate::builder::linking::{DynamicLinkBuilder, LinkingBuilder};
+use crate::builder::linking::LinkingBuilder;
 use crate::builder::paths::ObjectFilePath;
 use crate::builder::CompilationBuilder;
 use crate::project::Project;
@@ -235,22 +235,11 @@ impl Project {
             return Ok(Vec::new());
         }
 
-        let compiler_exe = self.compiler_exe_string();
-        CompilationBuilder::new(&compiler_exe, self).compile_paths(&sources, None)
+        CompilationBuilder::new(self.compiler_path(), self).compile_paths(&sources, None)
     }
 
     fn compile_source(&self, source: &Path) -> Result<Vec<ObjectFilePath>> {
-        let compiler_exe = self.compiler_exe_string();
-        CompilationBuilder::new(&compiler_exe, self).compile_paths(&[source.to_path_buf()], None)
-    }
-
-    fn compiler_exe_string(&self) -> String {
-        self.config
-            .build
-            .compiler
-            .path()
-            .cloned()
-            .unwrap_or_else(|| self.compiler_path().to_string())
+        CompilationBuilder::new(self.compiler_path(), self).compile_paths(&[source.to_path_buf()], None)
     }
 
     fn is_entry_source(source: &Path, entry_points: &[String]) -> bool {
@@ -267,25 +256,16 @@ impl Project {
         source_objects: &[ObjectFilePath],
         kind: &RunKind,
     ) -> Result<()> {
-        let linker_exe = self
-            .config
-            .build
-            .linker
-            .path()
-            .map(|p| p.as_str())
-            .unwrap_or_else(|| self.linker_path());
-        let archiver_exe = self
-            .config
-            .build
-            .archiver
-            .path()
-            .map(|p| p.as_str())
-            .unwrap_or_else(|| self.archiver_path());
-
-        let linker = LinkingBuilder::new(linker_exe, archiver_exe, self, &[], None);
-
         let mut link_objects: Vec<ObjectFilePath> = project_objects.to_vec();
         link_objects.extend_from_slice(source_objects);
+
+        let linker = LinkingBuilder::new(
+            self.linker_path(),
+            self.archiver_path(),
+            self,
+            &link_objects,
+            None,
+        );
 
         let mut extra_inputs = Vec::new();
         if self.package.r#type.is_static() {
@@ -300,11 +280,6 @@ impl Project {
             extra_inputs.push(lib_path.to_string_lossy().into_owned());
         }
 
-        DynamicLinkBuilder::new(&linker).build_executable(
-            output,
-            &link_objects,
-            &extra_inputs,
-            false,
-        )
+        linker.link_executable(output, &extra_inputs)
     }
 }
