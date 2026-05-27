@@ -28,8 +28,9 @@ pub const GITIGNORE: &str = r#"target/
 *.dylib
 *.dll
 .DS_Store
+.cache
 "#;
-
+ 
 struct FileSpec<'a> {
     path: PathBuf,
     content: Cow<'a, str>,
