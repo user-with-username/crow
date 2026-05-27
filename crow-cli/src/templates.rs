@@ -30,7 +30,7 @@ pub const GITIGNORE: &str = r#"target/
 .DS_Store
 .cache
 "#;
- 
+
 struct FileSpec<'a> {
     path: PathBuf,
     content: Cow<'a, str>,
