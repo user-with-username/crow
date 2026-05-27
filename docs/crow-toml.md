@@ -38,7 +38,10 @@ warnings_as_errors = false
 parallelism = true
 hooks.pre = ["echo building..."]
 hooks.post = ["echo done"]
-formatter = "clang-format"
+
+[build.formatter]
+path = "clang-format"
+style = "llvm"
 
 [build.compiler]
 kind = "gcc"
