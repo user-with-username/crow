@@ -1,6 +1,7 @@
 pub mod add;
 pub mod bench;
 pub mod build;
+pub mod check;
 pub mod clean;
 pub mod delete;
 pub mod fmt;
@@ -25,6 +26,9 @@ pub enum Command {
 
     /// Add a dependency from the registry
     Add(add::AddArgs),
+
+    /// Check the current project for errors without linking
+    Check(check::CheckArgs),
 
     /// Compile the current project
     Build(build::BuildArgs),
@@ -63,6 +67,7 @@ impl Command {
             Self::New(args) => new::NewCommand::new(args).execute(),
             Self::Init(args) => init::InitCommand::new(args).execute(),
             Self::Add(args) => add::AddCommand::new(args).execute(),
+            Self::Check(args) => check::CheckCommand::new(args).execute(),
             Self::Build(args) => build::BuildCommand::new(args).execute(),
             Self::Run(args) => run::RunCommand::new(args).execute(),
             Self::Test(args) => test::TestCommand::new(args).execute(),

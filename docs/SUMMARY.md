@@ -16,6 +16,7 @@
 - [new](./commands/new.md)
 - [init](./commands/init.md)
 - [build](./commands/build.md)
+- [check](./commands/check.md)
 - [run](./commands/run.md)
 - [test](./commands/test.md)
 - [bench](./commands/bench.md)

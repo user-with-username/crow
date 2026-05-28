@@ -1,14 +1,11 @@
 use anyhowed::Result;
 use clap::Args;
 use crow_core::{config::Workspace, Project};
-use std::path::PathBuf;
 
 #[derive(Args)]
-pub struct BuildArgs {
+pub struct CheckArgs {
     #[arg(short, long)]
     pub release: bool,
-    #[arg(long)]
-    pub target: Option<String>,
     #[arg(short = 'j', long)]
     pub jobs: Option<usize>,
     #[arg(long)]
@@ -17,12 +14,12 @@ pub struct BuildArgs {
     pub profile: String,
 }
 
-pub struct BuildCommand {
-    args: BuildArgs,
+pub struct CheckCommand {
+    args: CheckArgs,
 }
 
-impl BuildCommand {
-    pub fn new(args: BuildArgs) -> Self {
+impl CheckCommand {
+    pub fn new(args: CheckArgs) -> Self {
         Self { args }
     }
 
@@ -35,7 +32,7 @@ impl BuildCommand {
             &self.args.profile
         };
 
-        let members_to_build: Vec<_> = if let Some(bin_name) = &self.args.bin {
+        let members_to_check: Vec<_> = if let Some(bin_name) = &self.args.bin {
             workspace
                 .binary_members()
                 .into_iter()
@@ -49,31 +46,21 @@ impl BuildCommand {
                 .collect()
         };
 
-        if members_to_build.is_empty() {
+        if members_to_check.is_empty() {
             if self.args.bin.is_some() {
                 anyhowed::bail!(
                     "No binary package named `{}` found",
                     self.args.bin.as_ref().unwrap()
                 );
             } else {
-                anyhowed::bail!("No packages found to build");
+                anyhowed::bail!("No packages found to check");
             }
         }
 
-        for (member_config, member_root) in members_to_build {
-            self.build_package(member_config, member_root, profile_name)?;
+        for (_config, root) in members_to_check {
+            Project::build(&root, profile_name, self.args.jobs, true)?;
         }
 
-        Ok(())
-    }
-
-    fn build_package(
-        &self,
-        _config: crow_core::CrowConfig,
-        root: PathBuf,
-        profile_name: &str,
-    ) -> Result<()> {
-        let _project = Project::build(&root, profile_name, self.args.jobs, false)?;
         Ok(())
     }
 }

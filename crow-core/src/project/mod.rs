@@ -57,9 +57,9 @@ impl Project {
         toolchain::shared_toolchain(&self.config)
     }
 
-    pub fn build(path: impl AsRef<Path>, profile_name: &str, jobs: Option<usize>) -> Result<Self> {
+    pub fn build(path: impl AsRef<Path>, profile_name: &str, jobs: Option<usize>, check_only: bool) -> Result<Self> {
         let (config, manifest_dir) = crate::config::CrowConfig::find_in_tree(path.as_ref())?;
-        let session = BuildSession::new(profile_name, jobs);
+        let session = BuildSession::new(profile_name, jobs, check_only);
         session.build_root(config, manifest_dir)
     }
 

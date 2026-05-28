@@ -28,10 +28,11 @@ pub struct BuildSession<'a> {
     pub built_count: usize,
     pub total_count: usize,
     pub total_duration: std::time::Duration,
+    pub check_only: bool,
 }
 
 impl<'a> BuildSession<'a> {
-    pub fn new(profile_name: &'a str, jobs: Option<usize>) -> Self {
+    pub fn new(profile_name: &'a str, jobs: Option<usize>, check_only: bool) -> Self {
         Self {
             profile_name,
             jobs,
@@ -39,6 +40,7 @@ impl<'a> BuildSession<'a> {
             built_count: 0,
             total_count: 0,
             total_duration: std::time::Duration::from_secs(0),
+            check_only,
         }
     }
 
@@ -319,9 +321,6 @@ impl<'a> BuildSession<'a> {
     }
 
     fn compile_project(&self, project: &Project, is_dependency: bool) -> Result<()> {
-        let lockfile_path = project.root.join("crow.lock");
-        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
-
         let display_path = if is_dependency {
             format!("{} v{}", project.package.name, project.package.version)
         } else {
@@ -338,12 +337,20 @@ impl<'a> BuildSession<'a> {
                 "{} v{}",
                 project.package.name, project.package.version
             ));
-            pb.status("Compiling", &display_path);
+            if self.check_only {
+                pb.status("Checking", &display_path);
+            } else {
+                pb.status("Compiling", &display_path);
+            }
+        } else if self.check_only {
+            status!("Checking", "`{display_path}`");
         } else {
-            status!("Compiling", "{}", display_path);
+            status!("Compiling", "`{display_path}`");
         }
 
-        project.compile_and_link(&lock_hash, self.progress.as_ref())?;
+            let lockfile_path = project.root.join("crow.lock");
+            let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+            project.compile_and_link(&lock_hash, self.progress.as_ref(), self.check_only)?;
         Ok(())
     }
 

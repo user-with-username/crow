@@ -63,7 +63,7 @@ impl Project {
         }
     }
 
-    pub fn compile_and_link(&self, lock_hash: &str, progress: Option<&ProgressBar>) -> Result<()> {
+    pub fn compile_and_link(&self, lock_hash: &str, progress: Option<&ProgressBar>, compile_only: bool) -> Result<()> {
         let compiler_exe = self
             .config
             .build
@@ -92,9 +92,10 @@ impl Project {
 
         let objects = CompilationBuilder::new(compiler_exe, self).compile(progress)?;
 
-        LinkingBuilder::new(linker_exe, archiver_exe, self, &objects, progress).link()?;
-
-        self.save_project_state(lock_hash)?;
+        if !compile_only {
+            LinkingBuilder::new(linker_exe, archiver_exe, self, &objects, progress).link()?;
+            self.save_project_state(lock_hash)?;
+        }
 
         Ok(())
     }

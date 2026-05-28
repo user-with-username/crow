@@ -24,7 +24,7 @@ mod tests {
 
     #[test]
     fn build_session_new() {
-        let s = BuildSession::new("dev", Some(4));
+        let s = BuildSession::new("dev", Some(4), false);
         assert_eq!(s.profile_name, "dev");
         assert_eq!(s.jobs, Some(4));
         assert_eq!(s.built_count, 0);

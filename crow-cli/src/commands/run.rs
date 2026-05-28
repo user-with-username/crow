@@ -82,7 +82,7 @@ pub(crate) fn build_project(
         }
     };
 
-    Project::build(&selected_root, profile_name, jobs)
+    Project::build(&selected_root, profile_name, jobs, false)
 }
 
 fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {
