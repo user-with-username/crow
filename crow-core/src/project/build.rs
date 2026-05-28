@@ -63,7 +63,12 @@ impl Project {
         }
     }
 
-    pub fn compile_and_link(&self, lock_hash: &str, progress: Option<&ProgressBar>, compile_only: bool) -> Result<()> {
+    pub fn compile_and_link(
+        &self,
+        lock_hash: &str,
+        progress: Option<&ProgressBar>,
+        compile_only: bool,
+    ) -> Result<()> {
         let compiler_exe = self
             .config
             .build

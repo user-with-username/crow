@@ -348,9 +348,9 @@ impl<'a> BuildSession<'a> {
             status!("Compiling", "`{display_path}`");
         }
 
-            let lockfile_path = project.root.join("crow.lock");
-            let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
-            project.compile_and_link(&lock_hash, self.progress.as_ref(), self.check_only)?;
+        let lockfile_path = project.root.join("crow.lock");
+        let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;
+        project.compile_and_link(&lock_hash, self.progress.as_ref(), self.check_only)?;
         Ok(())
     }
 
