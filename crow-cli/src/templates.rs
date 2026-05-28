@@ -29,6 +29,7 @@ pub const GITIGNORE: &str = r#"target/
 *.dll
 .DS_Store
 .cache
+compile_commands.json
 "#;
 
 struct FileSpec<'a> {
