@@ -30,7 +30,11 @@ impl BenchCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let profile = if self.args.release { "release" } else { "bench" };
+        let profile = if self.args.release {
+            "release"
+        } else {
+            "bench"
+        };
         let project = crate::commands::run::build_project(profile, self.args.jobs, self.args.bin)?;
         project.bench(&self.args.args)
     }
