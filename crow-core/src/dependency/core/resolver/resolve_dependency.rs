@@ -140,6 +140,24 @@ impl DependencyResolver {
                         profile: Profiles::default(),
                     };
                     (dummy_config, true)
+                } else if Self::has_include_dir(&dep_root) {
+                    let dummy_config = CrowConfig {
+                        package: Some(crate::config::Package {
+                            name: dep_name.to_string(),
+                            version: "0.0.0".to_string(),
+                            r#type: ProjectType::HeaderOnly,
+                            standard: None,
+                            authors: None,
+                            description: None,
+                            license: None,
+                            repository: None,
+                        }),
+                        workspace: None,
+                        build: BuildConfig::default(),
+                        dependencies: crate::config::Dependencies::default(),
+                        profile: Profiles::default(),
+                    };
+                    (dummy_config, false)
                 } else {
                     anyhowed::bail!(
                         "failed to load config for dependency `{dep_name}` at {} \
@@ -178,6 +196,14 @@ impl DependencyResolver {
         profile_cache.insert(cache_key, resolved_pkg.clone());
 
         Ok(resolved_pkg)
+    }
+
+    /// Check whether the directory has a conventional header-only layout
+    /// (include/, single_include/, src/, inc/ or headers/ subdirectory exists).
+    fn has_include_dir(root: &Path) -> bool {
+        ["include", "single_include", "src", "inc", "headers"]
+            .iter()
+            .any(|dir| root.join(dir).is_dir())
     }
 
     fn resolve_from_registry(
