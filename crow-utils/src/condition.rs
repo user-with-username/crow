@@ -55,12 +55,14 @@ impl CfgEvaluator {
         // target_endian
         values.insert(
             "target_endian".into(),
-            Value::Str(if cfg!(target_endian = "little") {
-                "little"
-            } else {
-                "big"
-            }
-            .to_string()),
+            Value::Str(
+                if cfg!(target_endian = "little") {
+                    "little"
+                } else {
+                    "big"
+                }
+                .to_string(),
+            ),
         );
 
         Self { values }

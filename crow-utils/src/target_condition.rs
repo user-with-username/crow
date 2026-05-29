@@ -36,10 +36,7 @@ fn collect_target_entries(
 
 fn is_condition_key(key: &str) -> bool {
     let k = key.trim();
-    k.starts_with("cfg(")
-        || k.starts_with("all(")
-        || k.starts_with("any(")
-        || k.starts_with("not(")
+    k.starts_with("cfg(") || k.starts_with("all(") || k.starts_with("any(") || k.starts_with("not(")
 }
 
 fn collect_leaves(table: Table, prefix: &mut Vec<String>, out: &mut Vec<(Vec<String>, Value)>) {
