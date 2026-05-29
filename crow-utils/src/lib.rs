@@ -1,4 +1,6 @@
+pub mod condition;
 pub mod diagnostic_highlighter;
+pub mod target_condition;
 pub mod environment;
 pub mod files;
 pub mod helpers;
@@ -7,6 +9,7 @@ pub mod logger;
 pub mod msvc;
 pub mod progress;
 
+pub use condition::{CfgEvaluator, Value as CfgValue};
 pub use diagnostic_highlighter::DiagnosticHighlighter;
 pub use files::write_to;
 pub use helpers::*;

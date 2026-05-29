@@ -108,6 +108,206 @@ version = "1.0.0"
     }
 
     #[test]
+    fn target_cfg_section_applied() -> anyhowed::Result<()> {
+        let dir = tempdir()?;
+        let is_windows = cfg!(target_os = "windows");
+
+        let toml_content = r#"
+[package]
+name = "test-target"
+version = "0.1.0"
+
+[build]
+src_dirs = ["src"]
+
+[target."cfg(windows)".build]
+libs = ["advapi32"]
+"#;
+
+        if is_windows {
+            fs::write(dir.path().join("crow.toml"), toml_content)?;
+            let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
+            let libs: Vec<&str> = cfg.build.libs.iter().map(|s| s.as_str()).collect();
+            assert!(
+                libs.contains(&"advapi32"),
+                "windows target section should add advapi32, got: {:?}",
+                libs
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn target_cfg_section_unix() -> anyhowed::Result<()> {
+        let dir = tempdir()?;
+        let is_unix = cfg!(unix);
+
+        let toml_content = r#"
+[package]
+name = "test-target"
+version = "0.1.0"
+
+[build]
+src_dirs = ["src"]
+
+[target."cfg(unix)".build]
+preprocessor_defines = ["_GNU_SOURCE"]
+"#;
+
+        if is_unix {
+            fs::write(dir.path().join("crow.toml"), toml_content)?;
+            let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
+            let defines: Vec<&str> = cfg
+                .build
+                .preprocessor_defines
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            assert!(
+                defines.contains(&"_GNU_SOURCE"),
+                "unix target section should add _GNU_SOURCE, got: {:?}",
+                defines
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn target_cfg_section_unmatched_removed() -> anyhowed::Result<()> {
+        let dir = tempdir()?;
+        let is_windows = cfg!(target_os = "windows");
+
+        // Write a section that does NOT match this platform
+        let toml_content = if is_windows {
+            r#"
+[package]
+name = "test-target"
+version = "0.1.0"
+
+[build]
+src_dirs = ["src"]
+
+[target."cfg(unix)".build]
+libs = ["pthread"]
+"#
+        } else {
+            r#"
+[package]
+name = "test-target"
+version = "0.1.0"
+
+[build]
+src_dirs = ["src"]
+
+[target."cfg(windows)".build]
+libs = ["advapi32"]
+"#
+        };
+
+        fs::write(dir.path().join("crow.toml"), toml_content)?;
+        let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
+        // The unmatched target section should NOT have been applied
+        let libs: Vec<&str> = cfg.build.libs.iter().map(|s| s.as_str()).collect();
+        assert!(
+            !libs.contains(&"advapi32") && !libs.contains(&"pthread"),
+            "unmatched target section should not be applied, got: {:?}",
+            libs
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn conditional_hooks_with_target() -> anyhowed::Result<()> {
+        let dir = tempdir()?;
+        let is_windows = cfg!(target_os = "windows");
+
+        let toml_content = r#"
+[package]
+name = "test-hooks"
+version = "0.1.0"
+
+[build]
+src_dirs = ["src"]
+hooks.pre = [
+    { cmd = "echo always", target = "all()" },
+    { cmd = "echo windows", target = "cfg(windows)" },
+    { cmd = "echo unix", target = "cfg(unix)" },
+]
+"#;
+
+        fs::write(dir.path().join("crow.toml"), toml_content)?;
+        let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
+
+        let pre_hooks: Vec<&str> = cfg.build.hooks.pre.iter().map(|s| s.as_str()).collect();
+
+        // "always" is always present
+        assert!(pre_hooks.iter().any(|h| h.contains("always")));
+
+        if is_windows {
+            assert!(pre_hooks.iter().any(|h| h.contains("windows")));
+            assert!(!pre_hooks.iter().any(|h| h.contains("echo unix")));
+        } else {
+            assert!(pre_hooks.iter().any(|h| h.contains("echo unix")));
+            assert!(!pre_hooks.iter().any(|h| h.contains("echo windows")));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn conditional_dependency_with_target() -> anyhowed::Result<()> {
+        let dir = tempdir()?;
+        let is_windows = cfg!(target_os = "windows");
+
+        let toml_content = r#"
+[package]
+name = "test-deps"
+version = "0.1.0"
+
+[dependencies]
+always-dep = "1.0"
+"#;
+
+        fs::write(dir.path().join("crow.toml"), toml_content)?;
+
+        // Also write a conditional dep via target section
+        let toml_with_target = if is_windows {
+            r#"
+[package]
+name = "test-deps"
+version = "0.1.0"
+
+[build]
+src_dirs = ["src"]
+
+[target."cfg(windows)".dependencies]
+winhttp = "0.1"
+"#
+        } else {
+            r#"
+[package]
+name = "test-deps"
+version = "0.1.0"
+
+[build]
+src_dirs = ["src"]
+
+[target."cfg(unix)".dependencies]
+pthread = "0.1"
+"#
+        };
+
+        fs::write(dir.path().join("crow.toml"), toml_with_target)?;
+        let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
+
+        if is_windows {
+            assert!(cfg.dependencies.contains_key("winhttp"));
+        } else {
+            assert!(cfg.dependencies.contains_key("pthread"));
+        }
+        Ok(())
+    }
+
+    #[test]
     fn profiles_default_and_profile_enum() {
         let profiles = Profiles::default();
         let _ = Profile::Dev(profiles.dev.clone());

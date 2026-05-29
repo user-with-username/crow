@@ -342,8 +342,9 @@ impl<'a> BuildSession<'a> {
             } else {
                 pb.status("Compiling", &display_path);
             }
+        } else {
+            status!("Compiling", "`{display_path}`");
         }
-        status!("Compiling", "`{display_path}`");
 
         let lockfile_path = project.root.join("crow.lock");
         let lock_hash = hash_files(std::slice::from_ref(&lockfile_path))?;

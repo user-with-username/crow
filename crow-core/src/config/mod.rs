@@ -1,4 +1,5 @@
 use anyhowed::{Context, Result};
+use crow_utils::target_condition::apply_target_conditions;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -51,16 +52,26 @@ impl CrowConfig {
         let content = std::fs::read_to_string(&config_path)
             .with_context(|| format!("failed to read config at {}", config_path.display()))?;
 
-        let mut config: Self = toml::from_str(&content)
+        let mut config = Self::parse_toml(&content)
             .with_context(|| format!("failed to parse {}", config_path.display()))?;
 
-        if !has_explicit_package_type(&content)? && is_dep {
+        let had_explicit_type = has_explicit_package_type(&content)?;
+        if !had_explicit_type && is_dep {
             if let Some(package) = config.package.as_mut() {
                 package.r#type = ProjectType::StaticLib(Default::default());
             }
         }
 
         Ok((config, dir.to_path_buf()))
+    }
+
+    fn parse_toml(content: &str) -> Result<Self> {
+        let mut table: toml::Table = toml::from_str(content)?;
+        apply_target_conditions(&mut table);
+        let processed = toml::to_string(&table)?;
+        let mut config: Self = toml::from_str(&processed)?;
+        config.dependencies.filter_target_conditions();
+        Ok(config)
     }
 
     /// Recursively searches upwards for `crow.toml`.
