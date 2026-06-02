@@ -287,9 +287,9 @@ impl DependencyResolver {
 
             if Self::is_linkable_type(&package.r#type) {
                 let lib_path = package.output_path_in(&target_dir.join(profile_name));
-                    let link_item = lib_path.to_string_lossy().to_string();
-                    if seen_libs.insert(link_item.clone()) {
-                        resolved.libs.push(link_item);
+                let link_item = lib_path.to_string_lossy().to_string();
+                if seen_libs.insert(link_item.clone()) {
+                    resolved.libs.push(link_item);
                 }
             }
         }

@@ -111,7 +111,7 @@ impl Profile {
                         "fat" | "full" => {
                             flags.fat_lto();
                             flags.fat_lto_objects()
-                        },
+                        }
                         _ => flags.link_time_optimization(),
                     };
                 }

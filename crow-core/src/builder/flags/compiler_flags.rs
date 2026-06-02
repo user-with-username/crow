@@ -223,7 +223,6 @@ impl CompilerFlags {
         self
     }
 
-
     pub fn program_database(&mut self, pdb_path: impl Into<String>) -> &mut Self {
         self.flags.push(Flag::ProgramDatabase(pdb_path.into()));
         self
