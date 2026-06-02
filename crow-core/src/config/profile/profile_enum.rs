@@ -108,12 +108,16 @@ impl Profile {
                 CompilerKind::Clang | CompilerKind::ClangPP | CompilerKind::ClangCl => {
                     match self.lto_type() {
                         "thin" => flags.thin_lto(),
-                        "fat" | "full" => flags.fat_lto(),
+                        "fat" | "full" => {
+                            flags.fat_lto();
+                            flags.fat_lto_objects()
+                        },
                         _ => flags.link_time_optimization(),
                     };
                 }
                 CompilerKind::Gcc | CompilerKind::Gpp => {
                     flags.link_time_optimization();
+                    flags.fat_lto_objects();
                 }
                 CompilerKind::Unknown => {}
             }

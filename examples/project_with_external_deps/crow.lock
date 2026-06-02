@@ -6,7 +6,7 @@ version = 1
 [[package]]
 name = "project_with_external_deps"
 version = "0.1.0"
-dependencies = ["formatter 1.0.0", "winapi"]
+dependencies = ["formatter 1.0.0"]
 
 [[package]]
 name = "fmt"

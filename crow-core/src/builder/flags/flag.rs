@@ -4,6 +4,7 @@ pub enum Flag {
     OptimizeSize,
     OptimizeSpeed,
     NoOptimization,
+    FatLTOObjects,
     DependencyInfo(String),
 
     DebugInfo,

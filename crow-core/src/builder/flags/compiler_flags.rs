@@ -218,6 +218,12 @@ impl CompilerFlags {
         self
     }
 
+    pub fn fat_lto_objects(&mut self) -> &mut Self {
+        self.flags.push(Flag::FatLTOObjects);
+        self
+    }
+
+
     pub fn program_database(&mut self, pdb_path: impl Into<String>) -> &mut Self {
         self.flags.push(Flag::ProgramDatabase(pdb_path.into()));
         self
@@ -292,6 +298,7 @@ impl CompilerFlags {
             Flag::OptimizeSize => vec!["-Os".to_string()],
             Flag::OptimizeSpeed => vec!["-O3".to_string()],
             Flag::NoOptimization => vec!["-O0".to_string()],
+            Flag::FatLTOObjects => vec!["-ffat-lto-objects".to_string()],
             Flag::DependencyInfo(path) => vec!["-MD".to_string(), "-MF".to_string(), path.clone()],
 
             Flag::DebugInfo => vec!["-g".to_string()],
@@ -384,6 +391,7 @@ impl CompilerFlags {
                 _ => vec!["/O2".to_string()],
             },
             Flag::OptimizeSize => vec!["/O1".to_string()],
+            Flag::FatLTOObjects => vec![], // i dont have windows for now,
             Flag::OptimizeSpeed => vec!["/O2".to_string()],
             Flag::NoOptimization => vec!["/Od".to_string()],
 

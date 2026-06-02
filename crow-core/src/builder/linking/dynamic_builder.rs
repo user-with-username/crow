@@ -14,7 +14,9 @@ fn is_library_link_arg(arg: &str) -> bool {
         || arg.ends_with(".dylib")
 }
 
-/// GCC/Clang require object files before `-l` flags when linking static libraries.
+/// Ok, gcc and clang require object files before `-l` flags when linking static libraries
+/// So i had to write this wheelchair function to order raw flags
+/// But ye, i just needed a fast way to fix https://github.com/user-with-username/crow/issues/4#issue-4468736358
 pub(crate) fn order_gcc_like_link_args(
     mut flags: Vec<String>,
     objects: &[ObjectFilePath],
@@ -34,7 +36,16 @@ pub(crate) fn order_gcc_like_link_args(
     for obj in objects {
         args.push(obj.as_path().to_string_lossy().into_owned());
     }
-    args.extend(libraries);
+
+    // some cringe goes here
+    // just because this will run only with gcc linkers i can push flags as strings. not via LinkerFlags
+    // soooooo, why not
+    if !libraries.is_empty() {
+        args.push("-Wl,--start-group".to_string());
+        args.extend(libraries);
+        args.push("-Wl,--end-group".to_string());
+    }
+
     args
 }
 
