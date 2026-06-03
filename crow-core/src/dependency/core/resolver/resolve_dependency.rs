@@ -1,7 +1,7 @@
 use crate::config::{
     BuildConfig, CrowConfig, DependencySpec, LibraryConfig, Profiles, ProjectType,
 };
-use crate::dependency::git::GitDependencyFetcher;
+use crate::dependency::gitty::git::GitDependencyFetcher;
 use crate::dependency::registry::RegistryFetcher;
 use crate::dependency::version_req::VersionReq;
 use crate::dependency::wheel::create_wheel;

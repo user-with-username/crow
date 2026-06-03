@@ -6,8 +6,8 @@ use crow_utils::environment::Environment;
 use crow_utils::status;
 
 use super::fetcher::{RegistryEntry, RegistryIndex};
-use super::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
-use super::github::GithubRepo;
+use crate::dependency::gitty::git_ops::{checkout_default_branch, clone_registry, commit_and_push};
+use crate::dependency::gitty::github::GithubRepo;
 
 pub fn delete(package_name: &str, version: Option<&str>, registry_url: &str) -> Result<()> {
     let token = Environment::github_token()?;

@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use crate::dependency::version_req::VersionReq as CrowVersionReq;
 
-use super::git_ops::find_default_branch;
+use crate::dependency::gitty::git_ops::find_default_branch;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RegistryEntry {
