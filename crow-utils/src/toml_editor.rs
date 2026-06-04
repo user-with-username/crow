@@ -30,10 +30,12 @@ pub fn add_dep(config_path: PathBuf, dep: &str, version: &str) -> Result<()> {
 
     deps_table.insert(
         dep,
-        Item::Value(Value::String(toml_edit::Formatted::new(version.to_string()))),
+        Item::Value(Value::String(toml_edit::Formatted::new(
+            version.to_string(),
+        ))),
     );
 
     fs::write(&config_path, doc.to_string())?;
-    
+
     Ok(())
 }
