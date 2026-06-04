@@ -33,11 +33,27 @@ impl TargetInfo {
             | OperatingSystem::Dragonfly => Some("unix".to_string()),
             _ => None,
         };
-        Self { triple, os, arch, vendor, env, pointer_width, family }
+        Self {
+            triple,
+            os,
+            arch,
+            vendor,
+            env,
+            pointer_width,
+            family,
+        }
     }
 
-    pub fn is_windows(&self) -> bool { self.os == "windows" }
-    pub fn is_unix(&self) -> bool { self.family.as_deref() == Some("unix") }
-    pub fn is_macos(&self) -> bool { self.os == "macos" }
-    pub fn is_linux(&self) -> bool { self.os == "linux" }
+    pub fn is_windows(&self) -> bool {
+        self.os == "windows"
+    }
+    pub fn is_unix(&self) -> bool {
+        self.family.as_deref() == Some("unix")
+    }
+    pub fn is_macos(&self) -> bool {
+        self.os == "macos"
+    }
+    pub fn is_linux(&self) -> bool {
+        self.os == "linux"
+    }
 }

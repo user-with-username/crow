@@ -1,3 +1,4 @@
+pub mod condition;
 pub mod diagnostic_highlighter;
 pub mod environment;
 pub mod files;
@@ -6,7 +7,6 @@ pub mod hooks;
 pub mod logger;
 pub mod msvc;
 pub mod progress;
-pub mod condition;
 
 pub use diagnostic_highlighter::DiagnosticHighlighter;
 pub use files::write_to;

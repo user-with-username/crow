@@ -1,7 +1,7 @@
-use toml_edit::{Document, Item, Table};
-use super::target_info::TargetInfo;
-use super::parser::parse_condition;
 use super::evaluator::eval_condition;
+use super::parser::parse_condition;
+use super::target_info::TargetInfo;
+use toml_edit::{Document, Item, Table};
 
 fn merge_item(base: &mut Item, overlay: &Item) {
     match (base, overlay) {
@@ -9,7 +9,9 @@ fn merge_item(base: &mut Item, overlay: &Item) {
             for (k, v) in overlay_tab.iter() {
                 match base_tab.get_mut(k) {
                     Some(existing) => merge_item(existing, v),
-                    None => { base_tab.insert(k, v.clone()); }
+                    None => {
+                        base_tab.insert(k, v.clone());
+                    }
                 }
             }
         }
@@ -18,12 +20,16 @@ fn merge_item(base: &mut Item, overlay: &Item) {
 }
 
 fn merge_table_into_root(root: &mut Document, section_name: &str, overlay: &Table) {
-    let root_item = root.entry(section_name).or_insert(Item::Table(Table::new()));
+    let root_item = root
+        .entry(section_name)
+        .or_insert(Item::Table(Table::new()));
     if let Some(root_tab) = root_item.as_table_mut() {
         for (k, v) in overlay.iter() {
             match root_tab.get_mut(k) {
                 Some(existing) => merge_item(existing, v),
-                None => { root_tab.insert(k, v.clone()); }
+                None => {
+                    root_tab.insert(k, v.clone());
+                }
             }
         }
     }
@@ -58,10 +64,7 @@ fn collect_matching_sections(
     Ok(result)
 }
 
-fn apply_matching_sections(
-    doc: &mut Document,
-    sections: Vec<(String, Table)>,
-) {
+fn apply_matching_sections(doc: &mut Document, sections: Vec<(String, Table)>) {
     for (_cond_str, cond_table) in sections {
         for (section_name, section_value) in cond_table.iter() {
             match section_value.as_table() {
