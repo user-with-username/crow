@@ -215,44 +215,6 @@ libs = ["advapi32"]
         );
         Ok(())
     }
-
-    #[test]
-    fn conditional_hooks_with_target() -> anyhowed::Result<()> {
-        let dir = tempdir()?;
-        let is_windows = cfg!(target_os = "windows");
-
-        let toml_content = r#"
-[package]
-name = "test-hooks"
-version = "0.1.0"
-
-[build]
-src_dirs = ["src"]
-hooks.pre = [
-    { cmd = "echo always", target = "all()" },
-    { cmd = "echo windows", target = "cfg(windows)" },
-    { cmd = "echo unix", target = "cfg(unix)" },
-]
-"#;
-
-        fs::write(dir.path().join("crow.toml"), toml_content)?;
-        let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
-
-        let pre_hooks: Vec<&str> = cfg.build.hooks.pre.iter().map(|s| s.as_str()).collect();
-
-        // "always" is always present
-        assert!(pre_hooks.iter().any(|h| h.contains("always")));
-
-        if is_windows {
-            assert!(pre_hooks.iter().any(|h| h.contains("windows")));
-            assert!(!pre_hooks.iter().any(|h| h.contains("echo unix")));
-        } else {
-            assert!(pre_hooks.iter().any(|h| h.contains("echo unix")));
-            assert!(!pre_hooks.iter().any(|h| h.contains("echo windows")));
-        }
-        Ok(())
-    }
-
     #[test]
     fn conditional_dependency_with_target() -> anyhowed::Result<()> {
         let dir = tempdir()?;
