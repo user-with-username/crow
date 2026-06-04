@@ -63,9 +63,9 @@ dependencies = [
 
 [[package]]
 name = "anyhowed"
-version = "0.1.6"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0ad7b4a2e2e3a4756f6b98a0bde2a05c0bedd09fd748c951122d92ad058a1b8"
+checksum = "edd7939b0fb9c6aba35c058fced552327277b3dec91e907e08fdd1b46e3f5fe1"
 
 [[package]]
 name = "arrayref"
@@ -338,8 +338,10 @@ dependencies = [
  "serde",
  "serde_json",
  "smart-default",
+ "target-lexicon",
  "tempfile",
  "toml",
+ "toml_edit",
  "url",
  "walkdir",
 ]
@@ -354,7 +356,6 @@ dependencies = [
  "shlex",
  "temp-env",
  "tempfile",
- "toml",
  "which",
 ]
 
@@ -1304,9 +1305,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.44"
+version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4"
+checksum = "41f2619966050689382d2b44f664f4bc593e129785a36d6ee376ddf37259b924"
 dependencies = [
  "proc-macro2",
 ]
@@ -1758,9 +1759,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "syn"
-version = "2.0.114"
+version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4d107df263a3013ef9b1879b0df87d706ff80f65a86ea879bd9c31f9b307c2a"
+checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1834,6 +1835,12 @@ dependencies = [
  "core-foundation-sys",
  "libc",
 ]
+
+[[package]]
+name = "target-lexicon"
+version = "0.12.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "temp-env"

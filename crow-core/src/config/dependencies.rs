@@ -1,4 +1,3 @@
-use crow_utils::condition::CfgEvaluator;
 use serde::Deserialize;
 use serde::Deserializer;
 use std::collections::BTreeMap;
@@ -29,22 +28,6 @@ impl Dependencies {
 
     pub fn len(&self) -> usize {
         self.0.len()
-    }
-
-    /// Remove all dependencies whose inline `target` condition does not match.
-    pub fn filter_target_conditions(&mut self) {
-        let evaluator = CfgEvaluator::new();
-        self.0.retain(|_, spec| {
-            let target = match spec {
-                DependencySpec::Detailed(source) => source.target.as_ref(),
-                DependencySpec::System(sys) => sys.target.as_ref(),
-                _ => None,
-            };
-            match target {
-                Some(cond) => evaluator.eval(cond),
-                None => true,
-            }
-        });
     }
 }
 
@@ -83,9 +66,8 @@ impl<'de> Deserialize<'de> for DependencySpec {
 
             if let Some(true) = source.system {
                 Ok(DependencySpec::System(SystemDependency {
+                    system: true,
                     libs: source.libs.clone(),
-                    target: source.target.clone(),
-                    ..Default::default()
                 }))
             } else {
                 Ok(DependencySpec::Detailed(source))
@@ -165,11 +147,21 @@ impl DependencySpec {
         match self {
             Self::ShorthandGit(url) => Some(DependencySource {
                 git: Some(url.clone()),
-                ..Default::default()
+                path: None,
+                registry: None,
+                version: None,
+                build_flags: Vec::new(),
+                system: None,
+                libs: Vec::new(),
             }),
             Self::ShorthandVersion(version) => Some(DependencySource {
+                git: None,
+                path: None,
+                registry: None,
                 version: Some(version.clone()),
-                ..Default::default()
+                build_flags: Vec::new(),
+                system: None,
+                libs: Vec::new(),
             }),
             Self::Detailed(source) => Some(source.clone()),
             Self::System(_) => None,
@@ -222,18 +214,16 @@ impl DependencySpec {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SystemDependency {
     #[serde(default)]
     pub system: bool,
     #[serde(default)]
     pub libs: Vec<String>,
-    #[serde(default)]
-    pub target: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default)]
+#[serde(deny_unknown_fields, default)]
 pub struct DependencySource {
     pub git: Option<String>,
 
@@ -251,9 +241,6 @@ pub struct DependencySource {
 
     #[serde(default)]
     pub libs: Vec<String>,
-
-    #[serde(default)]
-    pub target: Option<String>,
 }
 
 impl DependencySource {

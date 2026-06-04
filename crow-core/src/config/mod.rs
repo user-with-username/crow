@@ -1,5 +1,4 @@
 use anyhowed::{Context, Result};
-use crow_utils::target_condition::apply_target_conditions;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -13,9 +12,10 @@ mod macros;
 mod package;
 pub mod profile;
 pub mod r#type;
+pub mod target_cfg;
 mod workspace;
-pub use archiver::ArchiverConfig;
 
+pub use archiver::ArchiverConfig;
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;
 pub use dependencies::{Dependencies, DependencySource, DependencySpec};
@@ -28,7 +28,7 @@ pub use workspace::Workspace;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct CrowConfig {
-    /// Package definition. Optional for virtual manifests (workspaces)
+    /// Package definition. Optional for virtual manifests (workspaces).
     pub package: Option<Package>,
 
     #[serde(default)]
@@ -45,33 +45,33 @@ pub struct CrowConfig {
 }
 
 impl CrowConfig {
-    /// Loads configuration from a specific file path.
+    /// Loads configuration from a directory containing `crow.toml`.
     pub fn load_from(dir: &Path, is_dep: bool) -> Result<(Self, PathBuf)> {
         let config_path = dir.join("crow.toml");
 
         let content = std::fs::read_to_string(&config_path)
             .with_context(|| format!("failed to read config at {}", config_path.display()))?;
 
-        let mut config = Self::parse_toml(&content)
+        let target_info = target_cfg::TargetInfo::current();
+        let processed = target_cfg::apply_target_filter(&content, &target_info)
+        .map_err(|e| anyhowed::Error::msg(e))
+            .with_context(|| {
+                format!(
+                    "failed to process target-specific config in {}",
+                    config_path.display()
+                )
+            })?;
+
+        let mut config: Self = toml::from_str(&processed)
             .with_context(|| format!("failed to parse {}", config_path.display()))?;
 
-        let had_explicit_type = has_explicit_package_type(&content)?;
-        if !had_explicit_type && is_dep {
+        if !has_explicit_package_type(&processed)? && is_dep {
             if let Some(package) = config.package.as_mut() {
                 package.r#type = ProjectType::StaticLib(Default::default());
             }
         }
 
         Ok((config, dir.to_path_buf()))
-    }
-
-    fn parse_toml(content: &str) -> Result<Self> {
-        let mut table: toml::Table = toml::from_str(content)?;
-        apply_target_conditions(&mut table);
-        let processed = toml::to_string(&table)?;
-        let mut config: Self = toml::from_str(&processed)?;
-        config.dependencies.filter_target_conditions();
-        Ok(config)
     }
 
     /// Recursively searches upwards for `crow.toml`.
@@ -85,10 +85,9 @@ impl CrowConfig {
                 return Self::load_from(&check_path, false);
             }
 
-            if let Some(parent) = check_path.parent() {
-                check_path = parent.to_path_buf();
-            } else {
-                break;
+            match check_path.parent() {
+                Some(parent) => check_path = parent.to_path_buf(),
+                None => break,
             }
         }
 
@@ -98,7 +97,7 @@ impl CrowConfig {
         );
     }
 
-    /// Checks if this is a virtual manifest (workspace without a root package).
+    /// Returns `true` if this is a virtual manifest (workspace root without a package).
     pub fn is_virtual(&self) -> bool {
         self.package.is_none() && self.workspace.is_some()
     }
