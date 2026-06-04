@@ -12,7 +12,6 @@ mod macros;
 mod package;
 pub mod profile;
 pub mod r#type;
-pub mod target_cfg;
 mod workspace;
 
 pub use archiver::ArchiverConfig;
@@ -25,6 +24,7 @@ pub use package::Package;
 pub use profile::{BenchProfile, DevProfile, Profile, Profiles, ReleaseProfile, TestProfile};
 pub use r#type::{BinaryConfig, LibraryConfig, ProjectType, TargetType};
 pub use workspace::Workspace;
+use crow_utils::condition::{apply_target_filter, TargetInfo};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct CrowConfig {
@@ -52,8 +52,8 @@ impl CrowConfig {
         let content = std::fs::read_to_string(&config_path)
             .with_context(|| format!("failed to read config at {}", config_path.display()))?;
 
-        let target_info = target_cfg::TargetInfo::current();
-        let processed = target_cfg::apply_target_filter(&content, &target_info)
+        let target_info = TargetInfo::current();
+        let processed = apply_target_filter(&content, &target_info)
         .map_err(|e| anyhowed::Error::msg(e))
             .with_context(|| {
                 format!(
