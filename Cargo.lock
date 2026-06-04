@@ -313,7 +313,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
- "toml_edit 0.22.27",
 ]
 
 [[package]]

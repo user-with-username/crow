@@ -7,6 +7,7 @@ pub mod hooks;
 pub mod logger;
 pub mod msvc;
 pub mod progress;
+pub mod toml_editor;
 
 pub use diagnostic_highlighter::DiagnosticHighlighter;
 pub use files::write_to;
