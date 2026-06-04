@@ -1,5 +1,5 @@
-use std::collections::VecDeque;
 use crate::condition::Condition;
+use std::collections::VecDeque;
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -19,16 +19,32 @@ fn tokenize(input: &str) -> Vec<Token> {
 
     while i < chars.len() {
         match chars[i] {
-            ' ' | '\t' | '\n' | '\r' => { i += 1; }
-            '(' => { tokens.push(Token::LParen); i += 1; }
-            ')' => { tokens.push(Token::RParen); i += 1; }
-            ',' => { tokens.push(Token::Comma); i += 1; }
-            '=' => { tokens.push(Token::Eq); i += 1; }
+            ' ' | '\t' | '\n' | '\r' => {
+                i += 1;
+            }
+            '(' => {
+                tokens.push(Token::LParen);
+                i += 1;
+            }
+            ')' => {
+                tokens.push(Token::RParen);
+                i += 1;
+            }
+            ',' => {
+                tokens.push(Token::Comma);
+                i += 1;
+            }
+            '=' => {
+                tokens.push(Token::Eq);
+                i += 1;
+            }
             '"' => {
                 let start = i + 1;
                 let mut end = start;
                 while end < chars.len() && chars[end] != '"' {
-                    if chars[end] == '\\' && end + 1 < chars.len() { end += 1; }
+                    if chars[end] == '\\' && end + 1 < chars.len() {
+                        end += 1;
+                    }
                     end += 1;
                 }
                 tokens.push(Token::Str(chars[start..end].iter().collect()));
@@ -56,7 +72,9 @@ struct Parser {
 
 impl Parser {
     fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens: tokens.into() }
+        Self {
+            tokens: tokens.into(),
+        }
     }
 
     fn peek(&self) -> &Token {
@@ -119,7 +137,10 @@ impl Parser {
                         Token::Str(v) | Token::Ident(v) => v,
                         tok => return Err(format!("expected value after '=', got {:?}", tok)),
                     };
-                    Ok(Condition::Cfg { key, value: Some(value) })
+                    Ok(Condition::Cfg {
+                        key,
+                        value: Some(value),
+                    })
                 } else {
                     Ok(Condition::Cfg { key, value: None })
                 }
@@ -204,6 +225,9 @@ pub fn parse_condition(input: &str) -> Result<Condition, String> {
     if parser.tokens.iter().all(|t| matches!(t, Token::Eof)) {
         Ok(cond)
     } else {
-        Err(format!("trailing tokens after condition: {:?}", parser.tokens))
+        Err(format!(
+            "trailing tokens after condition: {:?}",
+            parser.tokens
+        ))
     }
 }

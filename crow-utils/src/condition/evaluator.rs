@@ -1,5 +1,5 @@
-use crate::condition::Condition;
 use super::target_info::TargetInfo;
+use crate::condition::Condition;
 
 fn eval_cfg(key: &str, value: Option<&str>, target: &TargetInfo) -> bool {
     match (key, value) {
@@ -13,7 +13,11 @@ fn eval_cfg(key: &str, value: Option<&str>, target: &TargetInfo) -> bool {
         ("target_env", Some(v)) => v == target.env,
         ("target_pointer_width", Some(v)) => v == target.pointer_width.to_string(),
         ("target_endian", Some(v)) => {
-            if cfg!(target_endian = "little") { v == "little" } else { v == "big" }
+            if cfg!(target_endian = "little") {
+                v == "little"
+            } else {
+                v == "big"
+            }
         }
         ("target_family", Some(v)) => target.family.as_deref() == Some(v),
         _ => false,
