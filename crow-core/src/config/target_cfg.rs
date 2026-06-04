@@ -35,13 +35,29 @@ impl TargetInfo {
             | OperatingSystem::Dragonfly => Some("unix".to_string()),
             _ => None,
         };
-        Self { triple, os, arch, vendor, env, pointer_width, family }
+        Self {
+            triple,
+            os,
+            arch,
+            vendor,
+            env,
+            pointer_width,
+            family,
+        }
     }
 
-    pub fn is_windows(&self) -> bool { self.os == "windows" }
-    pub fn is_unix(&self) -> bool { self.family.as_deref() == Some("unix") }
-    pub fn is_macos(&self) -> bool { self.os == "macos" }
-    pub fn is_linux(&self) -> bool { self.os == "linux" }
+    pub fn is_windows(&self) -> bool {
+        self.os == "windows"
+    }
+    pub fn is_unix(&self) -> bool {
+        self.family.as_deref() == Some("unix")
+    }
+    pub fn is_macos(&self) -> bool {
+        self.os == "macos"
+    }
+    pub fn is_linux(&self) -> bool {
+        self.os == "linux"
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,16 +87,32 @@ fn tokenize(input: &str) -> Vec<Token> {
 
     while i < chars.len() {
         match chars[i] {
-            ' ' | '\t' | '\n' | '\r' => { i += 1; }
-            '(' => { tokens.push(Token::LParen); i += 1; }
-            ')' => { tokens.push(Token::RParen); i += 1; }
-            ',' => { tokens.push(Token::Comma); i += 1; }
-            '=' => { tokens.push(Token::Eq); i += 1; }
+            ' ' | '\t' | '\n' | '\r' => {
+                i += 1;
+            }
+            '(' => {
+                tokens.push(Token::LParen);
+                i += 1;
+            }
+            ')' => {
+                tokens.push(Token::RParen);
+                i += 1;
+            }
+            ',' => {
+                tokens.push(Token::Comma);
+                i += 1;
+            }
+            '=' => {
+                tokens.push(Token::Eq);
+                i += 1;
+            }
             '"' => {
                 let start = i + 1;
                 let mut end = start;
                 while end < chars.len() && chars[end] != '"' {
-                    if chars[end] == '\\' && end + 1 < chars.len() { end += 1; }
+                    if chars[end] == '\\' && end + 1 < chars.len() {
+                        end += 1;
+                    }
                     end += 1;
                 }
                 tokens.push(Token::Str(chars[start..end].iter().collect()));
@@ -109,7 +141,9 @@ struct Parser {
 
 impl Parser {
     fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens: tokens.into() }
+        Self {
+            tokens: tokens.into(),
+        }
     }
 
     fn peek(&self) -> &Token {
@@ -172,7 +206,10 @@ impl Parser {
                         Token::Str(v) | Token::Ident(v) => v,
                         tok => return Err(format!("expected value after '=', got {:?}", tok)),
                     };
-                    Ok(Condition::Cfg { key, value: Some(value) })
+                    Ok(Condition::Cfg {
+                        key,
+                        value: Some(value),
+                    })
                 } else {
                     Ok(Condition::Cfg { key, value: None })
                 }
@@ -257,7 +294,10 @@ pub fn parse_condition(input: &str) -> Result<Condition, String> {
     if parser.tokens.iter().all(|t| matches!(t, Token::Eof)) {
         Ok(cond)
     } else {
-        Err(format!("trailing tokens after condition: {:?}", parser.tokens))
+        Err(format!(
+            "trailing tokens after condition: {:?}",
+            parser.tokens
+        ))
     }
 }
 
@@ -273,7 +313,11 @@ fn eval_cfg(key: &str, value: Option<&str>, target: &TargetInfo) -> bool {
         ("target_env", Some(v)) => v == target.env,
         ("target_pointer_width", Some(v)) => v == target.pointer_width.to_string(),
         ("target_endian", Some(v)) => {
-            if cfg!(target_endian = "little") { v == "little" } else { v == "big" }
+            if cfg!(target_endian = "little") {
+                v == "little"
+            } else {
+                v == "big"
+            }
         }
         ("target_family", Some(v)) => target.family.as_deref() == Some(v),
         _ => false,
@@ -296,7 +340,9 @@ fn merge_item(base: &mut Item, overlay: &Item) {
             for (k, v) in overlay_tab.iter() {
                 match base_tab.get_mut(k) {
                     Some(existing) => merge_item(existing, v),
-                    None => { base_tab.insert(k, v.clone()); }
+                    None => {
+                        base_tab.insert(k, v.clone());
+                    }
                 }
             }
         }
@@ -305,12 +351,16 @@ fn merge_item(base: &mut Item, overlay: &Item) {
 }
 
 fn merge_table_into_root(root: &mut DocumentMut, section_name: &str, overlay: &Table) {
-    let root_item = root.entry(section_name).or_insert(Item::Table(Table::new()));
+    let root_item = root
+        .entry(section_name)
+        .or_insert(Item::Table(Table::new()));
     if let Some(root_tab) = root_item.as_table_mut() {
         for (k, v) in overlay.iter() {
             match root_tab.get_mut(k) {
                 Some(existing) => merge_item(existing, v),
-                None => { root_tab.insert(k, v.clone()); }
+                None => {
+                    root_tab.insert(k, v.clone());
+                }
             }
         }
     }
@@ -345,10 +395,7 @@ fn collect_matching_sections(
     Ok(result)
 }
 
-fn apply_matching_sections(
-    doc: &mut DocumentMut,
-    sections: Vec<(String, Table)>,
-) {
+fn apply_matching_sections(doc: &mut DocumentMut, sections: Vec<(String, Table)>) {
     for (_cond_str, cond_table) in sections {
         for (section_name, section_value) in cond_table.iter() {
             match section_value.as_table() {

@@ -11,8 +11,8 @@ mod linker;
 mod macros;
 mod package;
 pub mod profile;
-pub mod r#type;
 pub mod target_cfg;
+pub mod r#type;
 mod workspace;
 
 pub use archiver::ArchiverConfig;
@@ -54,7 +54,7 @@ impl CrowConfig {
 
         let target_info = target_cfg::TargetInfo::current();
         let processed = target_cfg::apply_target_filter(&content, &target_info)
-        .map_err(|e| anyhowed::Error::msg(e))
+            .map_err(|e| anyhowed::Error::msg(e))
             .with_context(|| {
                 format!(
                     "failed to process target-specific config in {}",
