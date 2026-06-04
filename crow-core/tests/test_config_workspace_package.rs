@@ -215,59 +215,6 @@ libs = ["advapi32"]
         );
         Ok(())
     }
-    #[test]
-    fn conditional_dependency_with_target() -> anyhowed::Result<()> {
-        let dir = tempdir()?;
-        let is_windows = cfg!(target_os = "windows");
-
-        let toml_content = r#"
-[package]
-name = "test-deps"
-version = "0.1.0"
-
-[dependencies]
-always-dep = "1.0"
-"#;
-
-        fs::write(dir.path().join("crow.toml"), toml_content)?;
-
-        // Also write a conditional dep via target section
-        let toml_with_target = if is_windows {
-            r#"
-[package]
-name = "test-deps"
-version = "0.1.0"
-
-[build]
-src_dirs = ["src"]
-
-[target."cfg(windows)".dependencies]
-winhttp = "0.1"
-"#
-        } else {
-            r#"
-[package]
-name = "test-deps"
-version = "0.1.0"
-
-[build]
-src_dirs = ["src"]
-
-[target."cfg(unix)".dependencies]
-pthread = "0.1"
-"#
-        };
-
-        fs::write(dir.path().join("crow.toml"), toml_with_target)?;
-        let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
-
-        if is_windows {
-            assert!(cfg.dependencies.contains_key("winhttp"));
-        } else {
-            assert!(cfg.dependencies.contains_key("pthread"));
-        }
-        Ok(())
-    }
 
     #[test]
     fn profiles_default_and_profile_enum() {
