@@ -1,9 +1,8 @@
+pub use semver::{Version, VersionReq};
 use serde::Deserialize;
 use serde::Deserializer;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-
-use crate::dependency::version_req::VersionReq;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(transparent)]
@@ -199,14 +198,17 @@ impl DependencySpec {
         }
     }
 
-    pub fn matches_version(&self, version: &str) -> bool {
-        if let Some(req_str) = self.version_req() {
-            if let Ok(req) = VersionReq::parse(&req_str) {
-                return req.matches(version);
+pub fn matches_version(&self, version: &str) -> bool {
+    if let Some(req_str) = self.version_req() {
+        if let Ok(req) = VersionReq::parse(&req_str) {
+            // Handle the Result properly without ?
+            if let Ok(parsed_version) = Version::parse(version) {
+                return req.matches(&parsed_version);  // Note the & reference
             }
         }
-        false
     }
+    false
+}
 
     pub fn parse_version_req(&self) -> Option<VersionReq> {
         self.version_req()

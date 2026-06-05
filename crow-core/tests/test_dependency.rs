@@ -4,7 +4,7 @@ mod tests {
     use crow_core::dependency::{
         apply_dependency_standard, create_wheel, format_lock_dependencies, merge_dependency_inputs,
         DependencyGraph, DependencyResolver, GitDependencyFetcher, LockfileBuilder,
-        ResolvedDependencyBuild, ResolvedPackage, VersionReq, WheelArtifacts, WheelType,
+        ResolvedDependencyBuild, ResolvedPackage, WheelArtifacts, WheelType,
     };
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -21,19 +21,22 @@ mod tests {
     }
 
     #[test]
-    fn version_req_parse_star_and_matches() -> anyhowed::Result<()> {
-        let any = VersionReq::parse("*")?;
-        assert!(any.matches("1.2.3"));
+fn version_req_parse_star_and_matches() -> anyhowed::Result<()> {
+    pub use semver::VersionReq;
 
-        let pinned = VersionReq::parse("=2.1.0")?;
-        assert!(pinned.matches("2.1.0"));
-        assert!(!pinned.matches("2.1.1"));
-
-        let from_str: VersionReq = "1.0.0".parse()?;
-        assert!(from_str.matches("1.0.0"));
-        assert_eq!(from_str.as_str(), "^1.0.0");
-        Ok(())
-    }
+    let any = VersionReq::parse("*")?;
+    assert!(any.matches(&"1.2.3".parse()?));
+    
+    let pinned = VersionReq::parse("=2.1.0")?;
+    assert!(pinned.matches(&"2.1.0".parse()?));
+    assert!(!pinned.matches(&"2.1.1".parse()?));
+    
+    let from_str: VersionReq = "1.0.0".parse()?;
+    assert!(from_str.matches(&"1.0.0".parse()?));
+    assert_eq!(from_str.to_string(), "^1.0.0");
+    
+    Ok(())
+}
 
     #[test]
     fn dependency_graph_topological_order() -> anyhowed::Result<()> {

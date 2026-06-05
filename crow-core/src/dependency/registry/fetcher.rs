@@ -2,13 +2,11 @@ use anyhowed::{bail, Context, Result};
 use dirs::home_dir;
 use git2::{FetchOptions, Repository};
 use once_cell::sync::Lazy;
-use semver::Version;
+use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
-
-use crate::dependency::version_req::VersionReq as CrowVersionReq;
 
 use crate::dependency::gitty::git_ops::find_default_branch;
 
@@ -54,14 +52,14 @@ impl RegistryFetcher {
         version_req_str: &str,
         registry_url: &str,
     ) -> Result<RegistryCoordinates> {
-        let req = CrowVersionReq::parse(version_req_str)?;
+        let req = VersionReq::parse(version_req_str)?;
         self.resolve(dep_name, &req, registry_url)
     }
 
     pub fn resolve(
         &self,
         dep_name: &str,
-        version_req: &CrowVersionReq,
+        version_req: &VersionReq,
         registry_url: &str,
     ) -> Result<RegistryCoordinates> {
         let repo = self.ensure_registry_repo(registry_url)?;
@@ -80,14 +78,14 @@ impl RegistryFetcher {
 
         let (_chosen_version, version_str, entry) = available
             .iter()
-            .find(|(v, _, _)| version_req.matches(&v.to_string()))
+            .find(|(v, _, _)| version_req.matches(&v))
             .with_context(|| {
                 let versions: Vec<String> =
                     available.iter().map(|(_, v, _)| v.to_string()).collect();
                 format!(
                     "no version of `{dep_name}` satisfies `{}` in registry `{registry_url}`\n\
                      available versions: {}",
-                    version_req.as_str(),
+                    version_req.to_string(),
                     versions.join(", ")
                 )
             })?;

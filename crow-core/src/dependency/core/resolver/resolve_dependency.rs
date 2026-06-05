@@ -3,7 +3,7 @@ use crate::config::{
 };
 use crate::dependency::gitty::git::GitDependencyFetcher;
 use crate::dependency::registry::RegistryFetcher;
-use crate::dependency::version_req::VersionReq;
+pub use semver::VersionReq;
 use crate::dependency::wheel::create_wheel;
 use crate::dependency::DependencyResolver;
 use crate::dependency::ResolvedPackage;

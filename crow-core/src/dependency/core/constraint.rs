@@ -1,5 +1,5 @@
 use crate::config::{DependencySource, DependencySpec};
-use crate::dependency::VersionReq;
+pub use semver::{Version, VersionReq};
 use anyhowed::{bail, Result};
 use std::path::Path;
 
@@ -95,7 +95,7 @@ impl DependencyConstraint {
         }
 
         match (&self.version, &other.version) {
-            (Some(v1), Some(v2)) => v1.as_str() != v2.as_str(),
+            (Some(v1), Some(v2)) => v1.to_string() != v2.to_string(),
             _ => false,
         }
     }
@@ -108,7 +108,7 @@ impl DependencyConstraint {
                 "registry: {}",
                 self.version
                     .as_ref()
-                    .map(|v| v.as_str())
+                    .map(|v| v.to_string())
                     .unwrap_or_else(|| "?".to_string())
             ),
             "system" => "system".to_string(),
