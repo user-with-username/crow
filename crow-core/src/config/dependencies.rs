@@ -198,17 +198,17 @@ impl DependencySpec {
         }
     }
 
-pub fn matches_version(&self, version: &str) -> bool {
-    if let Some(req_str) = self.version_req() {
-        if let Ok(req) = VersionReq::parse(&req_str) {
-            // Handle the Result properly without ?
-            if let Ok(parsed_version) = Version::parse(version) {
-                return req.matches(&parsed_version);  // Note the & reference
+    pub fn matches_version(&self, version: &str) -> bool {
+        if let Some(req_str) = self.version_req() {
+            if let Ok(req) = VersionReq::parse(&req_str) {
+                // Handle the Result properly without ?
+                if let Ok(parsed_version) = Version::parse(version) {
+                    return req.matches(&parsed_version); // Note the & reference
+                }
             }
         }
+        false
     }
-    false
-}
 
     pub fn parse_version_req(&self) -> Option<VersionReq> {
         self.version_req()

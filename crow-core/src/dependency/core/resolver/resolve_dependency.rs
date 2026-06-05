@@ -3,13 +3,13 @@ use crate::config::{
 };
 use crate::dependency::gitty::git::GitDependencyFetcher;
 use crate::dependency::registry::RegistryFetcher;
-pub use semver::VersionReq;
 use crate::dependency::wheel::create_wheel;
 use crate::dependency::DependencyResolver;
 use crate::dependency::ResolvedPackage;
 use anyhowed::{bail, Context, Result};
 use crow_utils::environment::{Environment, DEFAULT_REGISTRY_URL};
 use crow_utils::normalize_path;
+pub use semver::VersionReq;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 

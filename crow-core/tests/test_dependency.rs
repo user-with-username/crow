@@ -21,22 +21,22 @@ mod tests {
     }
 
     #[test]
-fn version_req_parse_star_and_matches() -> anyhowed::Result<()> {
-    pub use semver::VersionReq;
+    fn version_req_parse_star_and_matches() -> anyhowed::Result<()> {
+        pub use semver::VersionReq;
 
-    let any = VersionReq::parse("*")?;
-    assert!(any.matches(&"1.2.3".parse()?));
-    
-    let pinned = VersionReq::parse("=2.1.0")?;
-    assert!(pinned.matches(&"2.1.0".parse()?));
-    assert!(!pinned.matches(&"2.1.1".parse()?));
-    
-    let from_str: VersionReq = "1.0.0".parse()?;
-    assert!(from_str.matches(&"1.0.0".parse()?));
-    assert_eq!(from_str.to_string(), "^1.0.0");
-    
-    Ok(())
-}
+        let any = VersionReq::parse("*")?;
+        assert!(any.matches(&"1.2.3".parse()?));
+
+        let pinned = VersionReq::parse("=2.1.0")?;
+        assert!(pinned.matches(&"2.1.0".parse()?));
+        assert!(!pinned.matches(&"2.1.1".parse()?));
+
+        let from_str: VersionReq = "1.0.0".parse()?;
+        assert!(from_str.matches(&"1.0.0".parse()?));
+        assert_eq!(from_str.to_string(), "^1.0.0");
+
+        Ok(())
+    }
 
     #[test]
     fn dependency_graph_topological_order() -> anyhowed::Result<()> {
