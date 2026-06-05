@@ -56,6 +56,13 @@ flags = ["-L/custom/lib"]
 [build.archiver]
 kind = "gcc"
 
+# Platform‑specific overrides (see conditions.md)
+[target.'cfg(windows)'.build]
+libs = ["winmm"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+alsa = "0.2"
+
 [profile.dev]
 opt_level = "0"
 debug = true
@@ -151,6 +158,35 @@ Options for `kind`: `gcc`, `clang`, `msvc`, `unknown` (auto-detect).
 
 Same format as compiler. Usually you don't need to touch these — Crow figures it out from your compiler choice.
 
+## [target] — Platform‑specific overrides
+
+Sometimes different platforms need different settings (dependencies, compiler flags, etc.).  
+Crow lets you write conditional overrides using the `[target]` table.
+
+```toml
+[target.'cfg(windows)'.build]
+libs = ["winmm", "ws2_32"]
+
+[target.'cfg(target_arch = "aarch64")'.profile.release]
+opt_level = "2"
+```
+
+**Full syntax of `cfg(...)` conditions** is described in [`conditions.md`](./conditions.md).
+
+> You can override any section: `[build]`, `[dependencies]`, `profile.*`, even `[build.compiler]`.
+
+### Quick example
+
+```toml
+[target.'cfg(unix)'.dependencies]
+pthread = { system = true, libs = ["pthread"] }
+
+[target.'cfg(windows)'.build.compiler]
+flags = ["/EHsc", "/std:c++20"]
+```
+
+For all available keys (`target_os`, `target_arch`, `windows`, `unix`, `all(...)`, `not(...)`, etc.) and merging rules, see **[`conditions.md`](./conditions.md)**.
+
 ## [profile.*] — Build profiles
 
 See the [profiles](./profiles.md) page for the full rundown.
@@ -167,3 +203,4 @@ members = ["libs/*", "apps/cli"]
 ```
 
 See the [workspaces](./workspaces.md) page.
+```
