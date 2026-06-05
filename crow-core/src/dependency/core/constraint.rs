@@ -1,6 +1,6 @@
 use crate::config::{DependencySource, DependencySpec};
-pub use semver::{Version, VersionReq};
 use anyhowed::{bail, Result};
+pub use semver::{Version, VersionReq};
 use std::path::Path;
 
 #[derive(Debug, Clone)]
