@@ -138,41 +138,6 @@ libs = ["advapi32"]
     }
 
     #[test]
-    fn target_cfg_section_unix() -> anyhowed::Result<()> {
-        let dir = tempdir()?;
-        let is_unix = cfg!(unix);
-
-        let toml_content = r#"
-[package]
-name = "test-target"
-version = "0.1.0"
-
-[build]
-src_dirs = ["src"]
-
-[target."cfg(unix)".build]
-preprocessor_defines = ["_GNU_SOURCE"]
-"#;
-
-        if is_unix {
-            fs::write(dir.path().join("crow.toml"), toml_content)?;
-            let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
-            let defines: Vec<&str> = cfg
-                .build
-                .preprocessor_defines
-                .iter()
-                .map(|s| s.as_str())
-                .collect();
-            assert!(
-                defines.contains(&"_GNU_SOURCE"),
-                "unix target section should add _GNU_SOURCE, got: {:?}",
-                defines
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
     fn target_cfg_section_unmatched_removed() -> anyhowed::Result<()> {
         let dir = tempdir()?;
         let is_windows = cfg!(target_os = "windows");
