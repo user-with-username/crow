@@ -24,26 +24,17 @@ pub struct ResolvedDependencyBuild {
 
 impl ResolvedDependencyBuild {
     pub fn absorb_wheel_artifacts(&mut self, artifacts: &crate::dependency::WheelArtifacts) {
-        use std::collections::HashSet;
+        self.include_dirs.extend(artifacts.include_dirs.iter().cloned());
+        self.lib_paths.extend(artifacts.lib_paths.iter().cloned());
+        self.libs.extend(artifacts.lib_names.iter().cloned());
 
-        let mut seen_include: HashSet<PathBuf> = self.include_dirs.iter().cloned().collect();
-        let mut seen_libs: HashSet<String> = self.libs.iter().cloned().collect();
-        let mut seen_lib_paths: HashSet<PathBuf> = self.lib_paths.iter().cloned().collect();
+        self.include_dirs.sort_unstable();
+        self.include_dirs.dedup();
 
-        for include_dir in &artifacts.include_dirs {
-            if seen_include.insert(include_dir.clone()) {
-                self.include_dirs.push(include_dir.clone());
-            }
-        }
-        for lib_path in &artifacts.lib_paths {
-            if seen_lib_paths.insert(lib_path.clone()) {
-                self.lib_paths.push(lib_path.clone());
-            }
-        }
-        for lib_name in &artifacts.lib_names {
-            if seen_libs.insert(lib_name.clone()) {
-                self.libs.push(lib_name.clone());
-            }
-        }
+        self.lib_paths.sort_unstable();
+        self.lib_paths.dedup();
+
+        self.libs.sort();
+        self.libs.dedup();
     }
 }
