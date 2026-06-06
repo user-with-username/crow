@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crow_core::lockfile::{CrowLockfile, LockedPackage};
+    use crow_core::dependency::lockfile::{CrowLockfile, LockedPackage};
     use std::fs;
     use tempfile::tempdir;
 

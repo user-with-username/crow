@@ -1,7 +1,7 @@
 pub mod core;
 pub mod gitty;
+pub mod lockfile;
 mod graph;
-mod lockfile;
 mod merge;
 mod registry;
 mod wheel;

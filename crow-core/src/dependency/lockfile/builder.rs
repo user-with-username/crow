@@ -1,7 +1,7 @@
 use crate::config::CrowConfig;
 use crate::dependency::merge::format_lock_dependencies;
 use crate::dependency::{ResolvedDependencyBuild, ResolvedPackage};
-use crate::lockfile::{CrowLockfile, LockedPackage};
+use super::lockfile::{CrowLockfile, LockedPackage};
 use anyhowed::{Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
