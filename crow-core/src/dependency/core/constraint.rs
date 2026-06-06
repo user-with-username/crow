@@ -1,5 +1,4 @@
 use crate::config::DependencySpec;
-use anyhowed::Result;
 pub use semver::{Version, VersionReq};
 use std::fmt;
 use std::path::Path;
@@ -55,26 +54,24 @@ impl DependencyConstraint {
         }
     }
 
-    pub fn from_dependency_spec(spec: &DependencySpec, owner_root: &Path) -> Result<Self> {
+    pub fn from_dependency_spec(spec: &DependencySpec, owner_root: &Path) -> Self {
         match spec {
             DependencySpec::Git { git, .. } => {
-                Ok(Self::new(Some(git.clone()), None, SourceType::Git))
+                Self::new(Some(git.clone()), None, SourceType::Git)
             }
             DependencySpec::Version(version) => {
-                Ok(Self::new(None, Some(version.clone()), SourceType::Registry))
+                Self::new(None, Some(version.clone()), SourceType::Registry)
             }
-            DependencySpec::Registry {
-                version, registry, ..
-            } => {
+            DependencySpec::Registry { version, registry, .. } => {
                 let registry_url = registry
                     .clone()
                     .unwrap_or_else(|| crow_utils::environment::DEFAULT_REGISTRY_URL.to_string());
-
-                Ok(Self::new(
+                
+                Self::new(
                     Some(registry_url),
                     Some(version.clone()),
                     SourceType::Registry,
-                ))
+                )
             }
             DependencySpec::Path { path, .. } => {
                 let abs_path = if path.is_relative() {
@@ -82,16 +79,18 @@ impl DependencyConstraint {
                 } else {
                     path.clone()
                 };
-
+                
                 let canonical = abs_path.canonicalize().unwrap_or(abs_path);
-
-                Ok(Self::new(
+                
+                Self::new(
                     Some(canonical.to_string_lossy().into_owned()),
                     None,
                     SourceType::Path,
-                ))
+                )
             }
-            DependencySpec::System { .. } => Ok(Self::new(None, None, SourceType::System)),
+            DependencySpec::System { .. } => {
+                Self::new(None, None, SourceType::System)
+            }
         }
     }
 

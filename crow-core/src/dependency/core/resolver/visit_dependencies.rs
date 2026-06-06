@@ -20,40 +20,53 @@ impl DependencyResolver {
                 continue;
             }
 
-            let constraint = DependencyConstraint::from_dependency_spec(spec, owner_root)?;
+            let constraint = DependencyConstraint::from_dependency_spec(spec, owner_root);
             self.check_dependency_conflict(profile_name, dep_name, constraint, owner_name)?;
 
             let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
-            let canonical_root = resolved_dep.root.clone();
+            
+            let crate::dependency::ResolvedPackage {
+                root: canonical_root,
+                config,
+                source,
+                checksum,
+                is_wheel,
+                build_flags,
+                name: _, 
+            } = resolved_dep;
+
+            let sub_dependencies = config.dependencies.clone();
+
+            let dep_package_name = config
+                .package
+                .as_ref()
+                .map(|pkg| pkg.name.as_str())
+                .unwrap_or(dep_name)
+                .to_string();
 
             let dep_idx = graph.add_node(
-                canonical_root.clone(),
-                resolved_dep.config.clone(),
-                resolved_dep.source.clone(),
-                resolved_dep.checksum.clone(),
-                resolved_dep.is_wheel,
-                resolved_dep.build_flags.clone(),
+                canonical_root.clone(), 
+                config,
+                source,
+                checksum,
+                is_wheel,
+                build_flags,
             )?;
 
             graph.add_edge(owner_idx, dep_idx)?;
 
             if !graph.is_visiting(&canonical_root) {
-                let dep_package_name = resolved_dep
-                    .config
-                    .package
-                    .as_ref()
-                    .map(|pkg| pkg.name.as_str())
-                    .unwrap_or(dep_name);
-
                 graph.mark_visiting(canonical_root.clone());
+                
                 self.visit_dependencies(
                     dep_idx,
-                    &resolved_dep.config.dependencies,
+                    &sub_dependencies,
                     &canonical_root,
                     graph,
                     profile_name,
-                    dep_package_name,
+                    &dep_package_name,
                 )?;
+                
                 graph.unmark_visiting(&canonical_root);
             }
         }
