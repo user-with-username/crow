@@ -24,7 +24,8 @@ pub struct ResolvedDependencyBuild {
 
 impl ResolvedDependencyBuild {
     pub fn absorb_wheel_artifacts(&mut self, artifacts: &crate::dependency::WheelArtifacts) {
-        self.include_dirs.extend(artifacts.include_dirs.iter().cloned());
+        self.include_dirs
+            .extend(artifacts.include_dirs.iter().cloned());
         self.lib_paths.extend(artifacts.lib_paths.iter().cloned());
         self.libs.extend(artifacts.lib_names.iter().cloned());
 
