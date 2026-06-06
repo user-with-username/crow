@@ -232,7 +232,7 @@ impl<'a> BuildSession<'a> {
         out: &mut Vec<(Buildable, String)>,
         visited: &mut HashSet<PathBuf>,
     ) -> Result<()> {
-        let canonical = Project::canonicalize_path(manifest_dir)?;
+        let canonical = crow_utils::canonicalize_path(manifest_dir)?;
         if visited.contains(&canonical) {
             return Ok(());
         }

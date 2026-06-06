@@ -1,6 +1,6 @@
 use crate::project::Project;
-use anyhowed::{Context, Result};
-use std::path::{Path, PathBuf};
+use anyhowed::Result;
+use std::path::PathBuf;
 use walkdir::WalkDir;
 
 impl Project {
@@ -92,14 +92,5 @@ impl Project {
             std::fs::remove_dir_all(&target_dir)?;
         }
         Ok(())
-    }
-
-    pub(crate) fn canonicalize_path(path: &Path) -> Result<PathBuf> {
-        let canonical = path
-            .canonicalize()
-            .with_context(|| format!("failed to resolve {}", path.display()))?;
-        Ok(PathBuf::from(crow_utils::normalize_path(
-            &canonical.display().to_string(),
-        )))
     }
 }
