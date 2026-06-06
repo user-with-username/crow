@@ -20,8 +20,7 @@ impl DependencyResolver {
                 continue;
             }
 
-            let constraint =
-                DependencyConstraint::from_dependency_spec(spec, owner_root)?;
+            let constraint = DependencyConstraint::from_dependency_spec(spec, owner_root)?;
             self.check_dependency_conflict(profile_name, dep_name, constraint, owner_name)?;
 
             let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root, profile_name)?;

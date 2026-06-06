@@ -28,18 +28,20 @@ impl DependencyConstraint {
         })
     }
 
-    pub fn from_dependency_spec(
-        spec: &DependencySpec,
-        owner_root: &Path,
-    ) -> Result<Self> {
+    pub fn from_dependency_spec(spec: &DependencySpec, owner_root: &Path) -> Result<Self> {
         match spec {
-            DependencySpec::Git { git, build_flags: _ } => {
-                Self::new(Some(git.clone()), None, "git".to_string())
-            }
+            DependencySpec::Git {
+                git,
+                build_flags: _,
+            } => Self::new(Some(git.clone()), None, "git".to_string()),
             DependencySpec::Version(version) => {
                 Self::new(None, Some(version.to_string()), "registry".to_string())
             }
-            DependencySpec::Registry { version, registry, build_flags: _ } => {
+            DependencySpec::Registry {
+                version,
+                registry,
+                build_flags: _,
+            } => {
                 let registry_url = registry
                     .clone()
                     .unwrap_or_else(|| crow_utils::environment::DEFAULT_REGISTRY_URL.to_string());
@@ -49,7 +51,10 @@ impl DependencyConstraint {
                     "registry".to_string(),
                 )
             }
-            DependencySpec::Path { path, build_flags: _ } => {
+            DependencySpec::Path {
+                path,
+                build_flags: _,
+            } => {
                 let abs_path = if path.is_relative() {
                     owner_root.join(path)
                 } else {

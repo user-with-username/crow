@@ -64,9 +64,7 @@ impl DependencySpec {
         match self {
             Self::Version(req) => req.matches(version),
 
-            Self::Registry { version: req, .. } => {
-                req.matches(version)
-            }
+            Self::Registry { version: req, .. } => req.matches(version),
 
             _ => false,
         }

@@ -39,19 +39,16 @@ impl DependencyResolver {
                     abs_path.canonicalize().unwrap_or(abs_path).display()
                 )
             }
-            DependencySpec::Registry { version, registry, .. } => {
+            DependencySpec::Registry {
+                version, registry, ..
+            } => {
                 let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
                 format!("registry:{}:{}:{}", registry_url, dep_name, version)
             }
             DependencySpec::Version(version) => {
-                format!(
-                    "registry:{}:{}:{}",
-                    DEFAULT_REGISTRY_URL, dep_name, version
-                )
+                format!("registry:{}:{}:{}", DEFAULT_REGISTRY_URL, dep_name, version)
             }
-            DependencySpec::System { .. } => {
-                dep_name.to_string()
-            }
+            DependencySpec::System { .. } => dep_name.to_string(),
         };
 
         if let Some(profile_cache) = self.resolved_cache.get(profile_name) {
@@ -62,8 +59,7 @@ impl DependencyResolver {
 
         let (dep_root, source_repr, checksum) = match spec {
             DependencySpec::Git { git, .. } => {
-                let (dep_root, rev) =
-                    GitDependencyFetcher::global().fetch(dep_name, git)?;
+                let (dep_root, rev) = GitDependencyFetcher::global().fetch(dep_name, git)?;
                 (dep_root, Some(format!("git+{}#{}", git, rev)), None)
             }
             DependencySpec::Path { path, .. } => {
@@ -84,7 +80,9 @@ impl DependencyResolver {
                     None,
                 )
             }
-            DependencySpec::Registry { version, registry, .. } => {
+            DependencySpec::Registry {
+                version, registry, ..
+            } => {
                 let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
                 self.resolve_from_registry(
                     dep_name,
