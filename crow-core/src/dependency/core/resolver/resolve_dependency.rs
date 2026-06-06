@@ -21,18 +21,14 @@ impl DependencyResolver {
         owner_root: &Path,
         profile_name: &str,
     ) -> Result<ResolvedPackage> {
-        let source = spec.source();
-        let source_build_flags = source
-            .as_ref()
-            .map(|s| s.build_flags.clone())
-            .unwrap_or_default();
+        let _version_req_str = spec.version_req().map(|v| v.to_string());
+        let build_flags = spec.build_flags().to_vec();
 
-        let version_req_str = spec.version_req();
-
-        let cache_key = if let Some(source) = &source {
-            if let Some(git_url) = &source.git {
-                format!("git:{}", git_url)
-            } else if let Some(path) = &source.path {
+        let cache_key = match spec {
+            DependencySpec::Git { git, .. } => {
+                format!("git:{}", git)
+            }
+            DependencySpec::Path { path, .. } => {
                 let abs_path = if path.is_relative() {
                     owner_root.join(path)
                 } else {
@@ -42,20 +38,20 @@ impl DependencyResolver {
                     "path:{}",
                     abs_path.canonicalize().unwrap_or(abs_path).display()
                 )
-            } else if let Some(registry_url) = &source.registry {
-                let version_req = version_req_str.as_deref().unwrap_or("*");
-                format!("registry:{}:{}:{}", registry_url, dep_name, version_req)
-            } else if source.version.is_some() {
-                let version_req = version_req_str.as_deref().unwrap_or("*");
+            }
+            DependencySpec::Registry { version, registry, .. } => {
+                let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
+                format!("registry:{}:{}:{}", registry_url, dep_name, version)
+            }
+            DependencySpec::Version(version) => {
                 format!(
                     "registry:{}:{}:{}",
-                    DEFAULT_REGISTRY_URL, dep_name, version_req
+                    DEFAULT_REGISTRY_URL, dep_name, version
                 )
-            } else {
+            }
+            DependencySpec::System { .. } => {
                 dep_name.to_string()
             }
-        } else {
-            dep_name.to_string()
         };
 
         if let Some(profile_cache) = self.resolved_cache.get(profile_name) {
@@ -64,58 +60,51 @@ impl DependencyResolver {
             }
         }
 
-        let (dep_root, source_repr, checksum) = if let Some(source) = &source {
-            match (
-                source.git.clone(),
-                source.path.clone(),
-                source.registry.clone(),
-                source.version.clone(),
-            ) {
-                (Some(git_url), None, None, _) => {
-                    let (dep_root, rev) =
-                        GitDependencyFetcher::global().fetch(dep_name, &git_url)?;
-                    (dep_root, Some(format!("git+{}#{}", git_url, rev)), None)
-                }
-                (None, Some(path), None, _) => {
-                    let candidate = if path.is_relative() {
-                        owner_root.join(path)
-                    } else {
-                        path
-                    };
-                    let canonical = candidate.canonicalize().with_context(|| {
-                        format!(
-                            "failed to resolve path dependency `{dep_name}` from {}",
-                            owner_root.display()
-                        )
-                    })?;
-                    (
-                        PathBuf::from(normalize_path(&canonical.display().to_string())),
-                        None,
-                        None,
-                    )
-                }
-                (None, None, Some(registry_url), Some(version_req)) => self.resolve_from_registry(
-                    dep_name,
-                    &version_req,
-                    &registry_url,
-                    &source_build_flags,
-                )?,
-                (None, None, None, Some(version_req)) => {
-                    let registry_url = Environment::registry_url();
-                    self.resolve_from_registry(
-                        dep_name,
-                        &version_req,
-                        &registry_url,
-                        &source_build_flags,
-                    )?
-                }
-                _ => bail!(
-                    "dependency `{dep_name}` has unsupported source; expected exactly one of \
-                     git / path / version (with optional registry)"
-                ),
+        let (dep_root, source_repr, checksum) = match spec {
+            DependencySpec::Git { git, .. } => {
+                let (dep_root, rev) =
+                    GitDependencyFetcher::global().fetch(dep_name, git)?;
+                (dep_root, Some(format!("git+{}#{}", git, rev)), None)
             }
-        } else {
-            bail!("system dependency should not reach resolve_dependency");
+            DependencySpec::Path { path, .. } => {
+                let candidate = if path.is_relative() {
+                    owner_root.join(path)
+                } else {
+                    path.clone()
+                };
+                let canonical = candidate.canonicalize().with_context(|| {
+                    format!(
+                        "failed to resolve path dependency `{dep_name}` from {}",
+                        owner_root.display()
+                    )
+                })?;
+                (
+                    PathBuf::from(normalize_path(&canonical.display().to_string())),
+                    None,
+                    None,
+                )
+            }
+            DependencySpec::Registry { version, registry, .. } => {
+                let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
+                self.resolve_from_registry(
+                    dep_name,
+                    &version.to_string(),
+                    registry_url,
+                    &build_flags,
+                )?
+            }
+            DependencySpec::Version(version) => {
+                let registry_url = Environment::registry_url();
+                self.resolve_from_registry(
+                    dep_name,
+                    &version.to_string(),
+                    &registry_url,
+                    &build_flags,
+                )?
+            }
+            DependencySpec::System { .. } => {
+                bail!("system dependency should not reach resolve_dependency");
+            }
         };
 
         let load_result = CrowConfig::load_from(&dep_root, true);
@@ -186,7 +175,7 @@ impl DependencyResolver {
             source: source_repr,
             checksum,
             is_wheel,
-            build_flags: source_build_flags,
+            build_flags,
         };
 
         let profile_cache = self

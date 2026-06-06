@@ -298,7 +298,7 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "crow-cli"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "anyhowed",
  "clap",
@@ -317,7 +317,7 @@ dependencies = [
 
 [[package]]
 name = "crow-core"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "anyhowed",
  "blake3",
@@ -345,7 +345,7 @@ dependencies = [
 
 [[package]]
 name = "crow-utils"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "anyhowed",
  "indicatif",
@@ -1607,6 +1607,10 @@ name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
+dependencies = [
+ "serde",
+ "serde_core",
+]
 
 [[package]]
 name = "serde"

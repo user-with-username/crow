@@ -1,5 +1,5 @@
-use crate::config::{DependencySource, DependencySpec};
-use anyhowed::{bail, Result};
+use crate::config::DependencySpec;
+use anyhowed::Result;
 pub use semver::{Version, VersionReq};
 use std::path::Path;
 
@@ -29,59 +29,42 @@ impl DependencyConstraint {
     }
 
     pub fn from_dependency_spec(
-        dep_name: &str,
         spec: &DependencySpec,
         owner_root: &Path,
     ) -> Result<Self> {
         match spec {
-            DependencySpec::ShorthandGit(url) => {
-                Self::new(Some(url.clone()), None, "git".to_string())
+            DependencySpec::Git { git, build_flags: _ } => {
+                Self::new(Some(git.clone()), None, "git".to_string())
             }
-            DependencySpec::ShorthandVersion(version) => {
-                Self::new(None, Some(version.clone()), "registry".to_string())
+            DependencySpec::Version(version) => {
+                Self::new(None, Some(version.to_string()), "registry".to_string())
             }
-            DependencySpec::Detailed(source) => {
-                Self::from_dependency_source(dep_name, source, owner_root)
+            DependencySpec::Registry { version, registry, build_flags: _ } => {
+                let registry_url = registry
+                    .clone()
+                    .unwrap_or_else(|| crow_utils::environment::DEFAULT_REGISTRY_URL.to_string());
+                Self::new(
+                    Some(registry_url),
+                    Some(version.to_string()),
+                    "registry".to_string(),
+                )
             }
-            DependencySpec::System(_) => Self::new(None, None, "system".to_string()),
-        }
-    }
-
-    fn from_dependency_source(
-        dep_name: &str,
-        source: &DependencySource,
-        owner_root: &Path,
-    ) -> Result<Self> {
-        if let Some(git_url) = &source.git {
-            Self::new(
-                Some(git_url.clone()),
-                source.version.clone(),
-                "git".to_string(),
-            )
-        } else if let Some(path) = &source.path {
-            let abs_path = if path.is_relative() {
-                owner_root.join(path)
-            } else {
-                path.clone()
-            };
-            let canonical = abs_path.canonicalize().unwrap_or(abs_path);
-            Self::new(
-                Some(canonical.display().to_string()),
-                None,
-                "path".to_string(),
-            )
-        } else if source.version.is_some() || source.registry.is_some() {
-            let registry_url = source
-                .registry
-                .clone()
-                .unwrap_or_else(|| crow_utils::environment::DEFAULT_REGISTRY_URL.to_string());
-            Self::new(
-                Some(registry_url),
-                source.version.clone(),
-                "registry".to_string(),
-            )
-        } else {
-            bail!("dependency `{dep_name}` has no valid source specification")
+            DependencySpec::Path { path, build_flags: _ } => {
+                let abs_path = if path.is_relative() {
+                    owner_root.join(path)
+                } else {
+                    path.clone()
+                };
+                let canonical = abs_path.canonicalize().unwrap_or(abs_path);
+                Self::new(
+                    Some(canonical.display().to_string()),
+                    None,
+                    "path".to_string(),
+                )
+            }
+            DependencySpec::System { system: _, libs: _ } => {
+                Self::new(None, None, "system".to_string())
+            }
         }
     }
 

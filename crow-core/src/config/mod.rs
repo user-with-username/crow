@@ -18,7 +18,7 @@ pub use archiver::ArchiverConfig;
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;
 use crow_utils::condition::{apply_target_filter, TargetInfo};
-pub use dependencies::{Dependencies, DependencySource, DependencySpec};
+pub use dependencies::{Dependencies, DependencySpec};
 pub use formatter::FormatterConfig;
 pub use linker::LinkerConfig;
 pub use package::Package;

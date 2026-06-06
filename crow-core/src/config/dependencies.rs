@@ -1,278 +1,105 @@
 pub use semver::{Version, VersionReq};
+
 use serde::Deserialize;
-use serde::Deserializer;
 use std::collections::BTreeMap;
+use std::ops::Deref;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(transparent)]
 pub struct Dependencies(pub BTreeMap<String, DependencySpec>);
 
-impl Dependencies {
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl Deref for Dependencies {
+    type Target = BTreeMap<String, DependencySpec>;
 
-    pub fn iter(&self) -> impl Iterator<Item = (&String, &DependencySpec)> {
-        self.0.iter()
-    }
-
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.0.contains_key(key)
-    }
-
-    pub fn get(&self, key: &str) -> Option<&DependencySpec> {
-        self.0.get(key)
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum DependencySpec {
-    /// Shorthand: just a git URL string, `dep = "https://github.com/foo/bar"`
-    ShorthandGit(String),
-    /// Shorthand: version string, `dep = "1.0.0"`
-    ShorthandVersion(String),
-    /// Detailed table, `[dependencies.dep]  git = "..."` or `version = "1.0.0"`
-    Detailed(DependencySource),
-    /// System dependency, `[dependencies.openssl]  system = true`
-    System(SystemDependency),
-}
-
-impl<'de> Deserialize<'de> for DependencySpec {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error;
-
-        let value = serde_json::Value::deserialize(deserializer)?;
-
-        if let Some(s) = value.as_str() {
-            if looks_like_version(s) {
-                return Ok(DependencySpec::ShorthandVersion(s.to_string()));
-            }
-            if is_git_url(s) {
-                return Ok(DependencySpec::ShorthandGit(s.to_string()));
-            }
-            Ok(DependencySpec::ShorthandGit(s.to_string()))
-        } else if value.is_object() {
-            let source: DependencySource =
-                serde::Deserialize::deserialize(value).map_err(Error::custom)?;
-
-            if let Some(true) = source.system {
-                Ok(DependencySpec::System(SystemDependency {
-                    system: true,
-                    libs: source.libs.clone(),
-                }))
-            } else {
-                Ok(DependencySpec::Detailed(source))
-            }
-        } else {
-            Err(Error::custom("expected string or table for dependency"))
-        }
-    }
-}
-
-fn is_git_url(s: &str) -> bool {
-    let trimmed = s.trim();
-
-    if trimmed == "*" || trimmed.contains("*.*") {
-        return false;
-    }
-
-    let first_char = trimmed.chars().next().unwrap_or('\0');
-    if first_char.is_ascii_digit() || matches!(first_char, '^' | '~' | '>' | '<' | '=') {
-        return false;
-    }
-
-    trimmed.starts_with("http://")
-        || trimmed.starts_with("https://")
-        || trimmed.starts_with("git@")
-        || trimmed.starts_with("git://")
-        || trimmed.contains(".git")
-        || (trimmed.contains('/') && !trimmed.contains('*'))
-}
-
-fn looks_like_version(s: &str) -> bool {
-    let trimmed = s.trim();
-
-    if trimmed.is_empty() {
-        return false;
-    }
-
-    if trimmed == "*" {
-        return true;
-    }
-
-    if trimmed.contains('*') {
-        let parts: Vec<&str> = trimmed.split('.').collect();
-        let mut found_wildcard = false;
-        for part in parts {
-            if part == "*" {
-                found_wildcard = true;
-            } else if found_wildcard {
-                return false;
-            } else if part.parse::<u32>().is_err() {
-                return false;
-            }
-        }
-        return found_wildcard;
-    }
-
-    let first_char = trimmed.chars().next().unwrap_or('\0');
-
-    if first_char.is_ascii_digit() {
-        return trimmed.chars().all(|c| c.is_ascii_digit() || c == '.');
-    }
-
-    if matches!(first_char, '^' | '~' | '>' | '<' | '=') {
-        let rest = &trimmed[1..].trim();
-        if rest.is_empty() {
-            return false;
-        }
-        let first_rest = rest.chars().next().unwrap_or('\0');
-        return first_rest.is_ascii_digit() || rest.contains('.');
-    }
-
-    false
-}
-
-impl DependencySpec {
-    pub fn source(&self) -> Option<DependencySource> {
-        match self {
-            Self::ShorthandGit(url) => Some(DependencySource {
-                git: Some(url.clone()),
-                path: None,
-                registry: None,
-                version: None,
-                build_flags: Vec::new(),
-                system: None,
-                libs: Vec::new(),
-            }),
-            Self::ShorthandVersion(version) => Some(DependencySource {
-                git: None,
-                path: None,
-                registry: None,
-                version: Some(version.clone()),
-                build_flags: Vec::new(),
-                system: None,
-                libs: Vec::new(),
-            }),
-            Self::Detailed(source) => Some(source.clone()),
-            Self::System(_) => None,
-        }
-    }
-
-    pub fn is_system(&self) -> bool {
-        matches!(self, Self::System(_))
-    }
-
-    pub fn system_libs(&self) -> Vec<String> {
-        match self {
-            Self::System(sys) => sys.libs.clone(),
-            _ => Vec::new(),
-        }
-    }
-
-    pub fn is_shorthand_git(&self) -> bool {
-        matches!(self, Self::ShorthandGit(_))
-    }
-
-    pub fn is_detailed(&self) -> bool {
-        matches!(self, Self::Detailed(_))
-    }
-
-    pub fn is_shorthand_version(&self) -> bool {
-        matches!(self, Self::ShorthandVersion(_))
-    }
-
-    pub fn version_req(&self) -> Option<String> {
-        match self {
-            Self::ShorthandVersion(v) => Some(v.clone()),
-            Self::Detailed(source) => source.version.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn matches_version(&self, version: &str) -> bool {
-        if let Some(req_str) = self.version_req() {
-            if let Ok(req) = VersionReq::parse(&req_str) {
-                // Handle the Result properly without ?
-                if let Ok(parsed_version) = Version::parse(version) {
-                    return req.matches(&parsed_version); // Note the & reference
-                }
-            }
-        }
-        false
-    }
-
-    pub fn parse_version_req(&self) -> Option<VersionReq> {
-        self.version_req()
-            .and_then(|req| VersionReq::parse(&req).ok())
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct SystemDependency {
-    #[serde(default)]
-    pub system: bool,
-    #[serde(default)]
-    pub libs: Vec<String>,
+#[serde(untagged)]
+pub enum DependencySpec {
+    /// foo = "1.2.3"
+    Version(VersionReq),
+
+    /// foo = { git = "...", build_flags = [...] }
+    Git {
+        git: String,
+
+        #[serde(default)]
+        build_flags: Vec<String>,
+    },
+
+    /// foo = { path = "../foo", build_flags = [...] }
+    Path {
+        path: PathBuf,
+
+        #[serde(default)]
+        build_flags: Vec<String>,
+    },
+
+    /// foo = { version = "^1.0", registry = "my-registry" }
+    Registry {
+        version: VersionReq,
+
+        #[serde(default)]
+        registry: Option<String>,
+
+        #[serde(default)]
+        build_flags: Vec<String>,
+    },
+
+    /// foo = { system = true, libs = ["ssl", "crypto"] }
+    System {
+        system: bool,
+
+        #[serde(default)]
+        libs: Vec<String>,
+    },
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, default)]
-pub struct DependencySource {
-    pub git: Option<String>,
+impl DependencySpec {
+    pub fn matches_version(&self, version: &Version) -> bool {
+        match self {
+            Self::Version(req) => req.matches(version),
 
-    pub path: Option<PathBuf>,
+            Self::Registry { version: req, .. } => {
+                req.matches(version)
+            }
 
-    pub registry: Option<String>,
-
-    pub version: Option<String>,
-
-    #[serde(default)]
-    pub build_flags: Vec<String>,
-
-    #[serde(default)]
-    pub system: Option<bool>,
-
-    #[serde(default)]
-    pub libs: Vec<String>,
-}
-
-impl DependencySource {
-    pub fn has_git(&self) -> bool {
-        self.git.is_some()
+            _ => false,
+        }
     }
 
-    pub fn has_path(&self) -> bool {
-        self.path.is_some()
+    pub fn version_req(&self) -> Option<&VersionReq> {
+        match self {
+            Self::Version(req) => Some(req),
+
+            Self::Registry { version, .. } => Some(version),
+
+            _ => None,
+        }
     }
 
-    pub fn has_registry(&self) -> bool {
-        self.registry.is_some()
+    pub fn build_flags(&self) -> &[String] {
+        match self {
+            Self::Git { build_flags, .. }
+            | Self::Path { build_flags, .. }
+            | Self::Registry { build_flags, .. } => build_flags,
+
+            _ => &[],
+        }
     }
 
-    pub fn has_version(&self) -> bool {
-        self.version.is_some()
+    pub fn is_system(&self) -> bool {
+        matches!(self, Self::System { .. })
     }
 
-    pub fn source_type(&self) -> &'static str {
-        if self.git.is_some() {
-            "git"
-        } else if self.path.is_some() {
-            "path"
-        } else if self.version.is_some() {
-            "registry"
-        } else if self.registry.is_some() {
-            "registry"
-        } else {
-            "unknown"
+    pub fn system_libs(&self) -> &[String] {
+        match self {
+            Self::System { libs, .. } => libs,
+            _ => &[],
         }
     }
 }

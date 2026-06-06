@@ -221,7 +221,7 @@ impl DependencyResolver {
             if spec.is_system() {
                 for lib in spec.system_libs() {
                     if seen_system_libs.insert(lib.clone()) {
-                        resolved.system_libs.push(lib);
+                        resolved.system_libs.push(lib.clone());
                     }
                 }
             }

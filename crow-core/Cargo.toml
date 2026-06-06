@@ -22,7 +22,7 @@ smart-default = "0.7.1"
 rayon = { workspace = true }
 petgraph = "0.8.3"
 git2 = { version = "0.18", features = ["vendored-libgit2", "vendored-openssl", "ssh"] }
-semver = "1.0.28"
+semver = { version = "1.0", features = ["serde"] }
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 tempfile = "3.8"
 url = "2.4"
