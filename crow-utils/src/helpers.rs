@@ -6,15 +6,14 @@ pub fn change_directory(path: &Path) -> Result<()> {
         .context(format!("failed to change directory to {}", path.display()))
 }
 
-    pub fn canonicalize_path(path: &Path) -> Result<PathBuf> {
-        let canonical = path
-            .canonicalize()
-            .with_context(|| format!("failed to resolve {}", path.display()))?;
-        Ok(PathBuf::from(crate::normalize_path(
-            &canonical.display().to_string(),
-        )))
-    }
-
+pub fn canonicalize_path(path: &Path) -> Result<PathBuf> {
+    let canonical = path
+        .canonicalize()
+        .with_context(|| format!("failed to resolve {}", path.display()))?;
+    Ok(PathBuf::from(crate::normalize_path(
+        &canonical.display().to_string(),
+    )))
+}
 
 pub fn normalize_path(path: &str) -> String {
     let mut result = path.to_string();
