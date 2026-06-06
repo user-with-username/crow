@@ -1,106 +1,114 @@
 use crate::config::DependencySpec;
 use anyhowed::Result;
 pub use semver::{Version, VersionReq};
+use std::fmt;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceType {
+    Git,
+    Path,
+    Registry,
+    System,
+}
+
+impl SourceType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Git => "git",
+            Self::Path => "path",
+            Self::Registry => "registry",
+            Self::System => "system",
+        }
+    }
+}
+
+impl fmt::Display for SourceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DependencyConstraint {
     pub source: Option<String>,
     pub version: Option<VersionReq>,
-    pub source_type: String,
+    pub source_type: SourceType,
 }
 
 impl DependencyConstraint {
     pub fn new(
         source: Option<String>,
-        version: Option<String>,
-        source_type: String,
-    ) -> Result<Self> {
-        let parsed_version = match version {
-            Some(v) if source_type != "system" => Some(VersionReq::parse(&v)?),
-            None => None,
-            Some(_) => None,
-        };
-        Ok(Self {
+        version: Option<VersionReq>,
+        source_type: SourceType,
+    ) -> Self {
+        let version = if source_type == SourceType::System { None } else { version };
+
+        Self {
             source,
-            version: parsed_version,
+            version,
             source_type,
-        })
+        }
     }
 
     pub fn from_dependency_spec(spec: &DependencySpec, owner_root: &Path) -> Result<Self> {
         match spec {
-            DependencySpec::Git {
-                git,
-                build_flags: _,
-            } => Self::new(Some(git.clone()), None, "git".to_string()),
-            DependencySpec::Version(version) => {
-                Self::new(None, Some(version.to_string()), "registry".to_string())
+            DependencySpec::Git { git, .. } => {
+                Ok(Self::new(Some(git.clone()), None, SourceType::Git))
             }
-            DependencySpec::Registry {
-                version,
-                registry,
-                build_flags: _,
-            } => {
+            DependencySpec::Version(version) => {
+                Ok(Self::new(None, Some(version.clone()), SourceType::Registry))
+            }
+            DependencySpec::Registry { version, registry, .. } => {
                 let registry_url = registry
                     .clone()
                     .unwrap_or_else(|| crow_utils::environment::DEFAULT_REGISTRY_URL.to_string());
-                Self::new(
+                
+                Ok(Self::new(
                     Some(registry_url),
-                    Some(version.to_string()),
-                    "registry".to_string(),
-                )
+                    Some(version.clone()),
+                    SourceType::Registry,
+                ))
             }
-            DependencySpec::Path {
-                path,
-                build_flags: _,
-            } => {
+            DependencySpec::Path { path, .. } => {
                 let abs_path = if path.is_relative() {
                     owner_root.join(path)
                 } else {
                     path.clone()
                 };
+                
                 let canonical = abs_path.canonicalize().unwrap_or(abs_path);
-                Self::new(
-                    Some(canonical.display().to_string()),
+                
+                Ok(Self::new(
+                    Some(canonical.to_string_lossy().into_owned()),
                     None,
-                    "path".to_string(),
-                )
+                    SourceType::Path,
+                ))
             }
-            DependencySpec::System { system: _, libs: _ } => {
-                Self::new(None, None, "system".to_string())
+            DependencySpec::System { .. } => {
+                Ok(Self::new(None, None, SourceType::System))
             }
         }
     }
 
     pub fn conflicts_with(&self, other: &Self) -> bool {
-        if self.source_type != other.source_type {
-            return true;
-        }
-        match (&self.source, &other.source) {
-            (Some(s1), Some(s2)) if s1 != s2 => return true,
-            _ => {}
-        }
-
-        match (&self.version, &other.version) {
-            (Some(v1), Some(v2)) => v1.to_string() != v2.to_string(),
-            _ => false,
-        }
+        self != other
     }
 
     pub fn display_short(&self) -> String {
-        match self.source_type.as_str() {
-            "git" => format!("git: {}", self.source.as_deref().unwrap_or("?")),
-            "path" => format!("path: {}", self.source.as_deref().unwrap_or("?")),
-            "registry" => format!(
-                "registry: {}",
-                self.version
+        let fallback = "?";
+        match self.source_type {
+            SourceType::Git | SourceType::Path => {
+                format!("{}: {}", self.source_type, self.source.as_deref().unwrap_or(fallback))
+            }
+            SourceType::Registry => {
+                let version_str = self.version
                     .as_ref()
                     .map(|v| v.to_string())
-                    .unwrap_or_else(|| "?".to_string())
-            ),
-            "system" => "system".to_string(),
-            _ => "unknown".to_string(),
+                    .unwrap_or_else(|| fallback.to_string());
+                format!("registry: {version_str}")
+            }
+            SourceType::System => "system".to_string(),
         }
     }
 }
