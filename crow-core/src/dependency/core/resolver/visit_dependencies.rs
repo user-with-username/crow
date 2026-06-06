@@ -24,7 +24,7 @@ impl DependencyResolver {
             self.check_dependency_conflict(profile_name, dep_name, constraint, owner_name)?;
 
             let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
-            
+
             let crate::dependency::ResolvedPackage {
                 root: canonical_root,
                 config,
@@ -32,7 +32,7 @@ impl DependencyResolver {
                 checksum,
                 is_wheel,
                 build_flags,
-                name: _, 
+                name: _,
             } = resolved_dep;
 
             let sub_dependencies = config.dependencies.clone();
@@ -45,7 +45,7 @@ impl DependencyResolver {
                 .to_string();
 
             let dep_idx = graph.add_node(
-                canonical_root.clone(), 
+                canonical_root.clone(),
                 config,
                 source,
                 checksum,
@@ -57,7 +57,7 @@ impl DependencyResolver {
 
             if !graph.is_visiting(&canonical_root) {
                 graph.mark_visiting(canonical_root.clone());
-                
+
                 self.visit_dependencies(
                     dep_idx,
                     &sub_dependencies,
@@ -66,7 +66,7 @@ impl DependencyResolver {
                     profile_name,
                     &dep_package_name,
                 )?;
-                
+
                 graph.unmark_visiting(&canonical_root);
             }
         }

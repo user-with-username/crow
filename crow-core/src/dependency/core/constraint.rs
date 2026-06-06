@@ -56,17 +56,17 @@ impl DependencyConstraint {
 
     pub fn from_dependency_spec(spec: &DependencySpec, owner_root: &Path) -> Self {
         match spec {
-            DependencySpec::Git { git, .. } => {
-                Self::new(Some(git.clone()), None, SourceType::Git)
-            }
+            DependencySpec::Git { git, .. } => Self::new(Some(git.clone()), None, SourceType::Git),
             DependencySpec::Version(version) => {
                 Self::new(None, Some(version.clone()), SourceType::Registry)
             }
-            DependencySpec::Registry { version, registry, .. } => {
+            DependencySpec::Registry {
+                version, registry, ..
+            } => {
                 let registry_url = registry
                     .clone()
                     .unwrap_or_else(|| crow_utils::environment::DEFAULT_REGISTRY_URL.to_string());
-                
+
                 Self::new(
                     Some(registry_url),
                     Some(version.clone()),
@@ -79,18 +79,16 @@ impl DependencyConstraint {
                 } else {
                     path.clone()
                 };
-                
+
                 let canonical = abs_path.canonicalize().unwrap_or(abs_path);
-                
+
                 Self::new(
                     Some(canonical.to_string_lossy().into_owned()),
                     None,
                     SourceType::Path,
                 )
             }
-            DependencySpec::System { .. } => {
-                Self::new(None, None, SourceType::System)
-            }
+            DependencySpec::System { .. } => Self::new(None, None, SourceType::System),
         }
     }
 
