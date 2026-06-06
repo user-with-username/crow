@@ -42,7 +42,11 @@ impl DependencyConstraint {
         version: Option<VersionReq>,
         source_type: SourceType,
     ) -> Self {
-        let version = if source_type == SourceType::System { None } else { version };
+        let version = if source_type == SourceType::System {
+            None
+        } else {
+            version
+        };
 
         Self {
             source,
@@ -59,11 +63,13 @@ impl DependencyConstraint {
             DependencySpec::Version(version) => {
                 Ok(Self::new(None, Some(version.clone()), SourceType::Registry))
             }
-            DependencySpec::Registry { version, registry, .. } => {
+            DependencySpec::Registry {
+                version, registry, ..
+            } => {
                 let registry_url = registry
                     .clone()
                     .unwrap_or_else(|| crow_utils::environment::DEFAULT_REGISTRY_URL.to_string());
-                
+
                 Ok(Self::new(
                     Some(registry_url),
                     Some(version.clone()),
@@ -76,18 +82,16 @@ impl DependencyConstraint {
                 } else {
                     path.clone()
                 };
-                
+
                 let canonical = abs_path.canonicalize().unwrap_or(abs_path);
-                
+
                 Ok(Self::new(
                     Some(canonical.to_string_lossy().into_owned()),
                     None,
                     SourceType::Path,
                 ))
             }
-            DependencySpec::System { .. } => {
-                Ok(Self::new(None, None, SourceType::System))
-            }
+            DependencySpec::System { .. } => Ok(Self::new(None, None, SourceType::System)),
         }
     }
 
@@ -99,10 +103,15 @@ impl DependencyConstraint {
         let fallback = "?";
         match self.source_type {
             SourceType::Git | SourceType::Path => {
-                format!("{}: {}", self.source_type, self.source.as_deref().unwrap_or(fallback))
+                format!(
+                    "{}: {}",
+                    self.source_type,
+                    self.source.as_deref().unwrap_or(fallback)
+                )
             }
             SourceType::Registry => {
-                let version_str = self.version
+                let version_str = self
+                    .version
                     .as_ref()
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| fallback.to_string());
