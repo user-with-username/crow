@@ -69,11 +69,11 @@ impl DependencyResolver {
             }
             DependencySpec::Registry { version, registry, .. } => {
                 let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
-                self.resolve_from_registry_optimized(dep_name, version, registry_url, &build_flags)?
+                self.resolve_from_registry(dep_name, version, registry_url, &build_flags)?
             }
             DependencySpec::Version(version) => {
                 let registry_url = Environment::registry_url();
-                self.resolve_from_registry_optimized(dep_name, version, &registry_url, &build_flags)?
+                self.resolve_from_registry(dep_name, version, &registry_url, &build_flags)?
             }
             DependencySpec::System { .. } => {
                 bail!("system dependency should not reach resolve_dependency");
@@ -153,7 +153,7 @@ impl DependencyResolver {
             .any(|dir| root.join(dir).is_dir())
     }
 
-    fn resolve_from_registry_optimized(
+    fn resolve_from_registry(
         &self,
         dep_name: &str,
         version_req: &VersionReq,
