@@ -132,7 +132,10 @@ pub fn apply_build_target_sections(
         .parse::<Document>()
         .map_err(|e| format!("failed to parse TOML: {}", e))?;
 
-    apply_matching_sections(&mut doc, vec![("build-target".to_string(), target_sections.clone())]);
+    apply_matching_sections(
+        &mut doc,
+        vec![("build-target".to_string(), target_sections.clone())],
+    );
 
     Ok(doc.to_string())
 }

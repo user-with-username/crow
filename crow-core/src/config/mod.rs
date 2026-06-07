@@ -11,8 +11,8 @@ mod linker;
 mod macros;
 mod package;
 pub mod profile;
-pub mod r#type;
 mod target;
+pub mod r#type;
 mod workspace;
 
 pub use archiver::ArchiverConfig;
@@ -60,7 +60,10 @@ impl CrowConfig {
         let sections = self.build_targets.get(name).ok_or_else(|| {
             let available: Vec<&str> = self.build_targets.keys().map(String::as_str).collect();
             if available.is_empty() {
-                anyhowed::anyhow!("Unknown build target `{}`. No build targets defined in crow.toml", name)
+                anyhowed::anyhow!(
+                    "Unknown build target `{}`. No build targets defined in crow.toml",
+                    name
+                )
             } else {
                 anyhowed::anyhow!(
                     "Unknown build target `{}`. Available targets: {}",
