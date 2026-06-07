@@ -31,9 +31,14 @@ impl DependencyResolver {
                 } else {
                     path.clone()
                 };
-                format!("path:{}", abs_path.canonicalize().unwrap_or(abs_path).display())
+                format!(
+                    "path:{}",
+                    abs_path.canonicalize().unwrap_or(abs_path).display()
+                )
             }
-            DependencySpec::Registry { version, registry, .. } => {
+            DependencySpec::Registry {
+                version, registry, ..
+            } => {
                 let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
                 format!("registry:{registry_url}:{dep_name}:{version}")
             }
@@ -61,13 +66,18 @@ impl DependencyResolver {
                     path.clone()
                 };
                 let canonical = candidate.canonicalize().with_context(|| {
-                    format!("failed to resolve path dependency `{dep_name}` from {}", owner_root.display())
+                    format!(
+                        "failed to resolve path dependency `{dep_name}` from {}",
+                        owner_root.display()
+                    )
                 })?;
-                
+
                 let path_str = canonical.to_string_lossy();
                 (PathBuf::from(normalize_path(&path_str)), None, None)
             }
-            DependencySpec::Registry { version, registry, .. } => {
+            DependencySpec::Registry {
+                version, registry, ..
+            } => {
                 let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
                 self.resolve_from_registry(dep_name, version, registry_url, &build_flags)?
             }
@@ -142,7 +152,7 @@ impl DependencyResolver {
             .resolved_cache
             .entry(profile_name.to_string())
             .or_insert_with(HashMap::new);
-        
+
         profile_cache.insert(cache_key, resolved_pkg.clone());
 
         Ok(resolved_pkg)
