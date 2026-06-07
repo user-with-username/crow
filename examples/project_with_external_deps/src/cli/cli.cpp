@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <text_formatter.h>
 
 int main() {
