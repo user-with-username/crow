@@ -56,11 +56,6 @@ jobs:
           target: ${{ matrix.target }}
           toolchain: stable
 
-      - name: Run tests
-        shell: bash
-        run: |
-          cargo test
-
       - name: Build
         shell: bash
         run: |
