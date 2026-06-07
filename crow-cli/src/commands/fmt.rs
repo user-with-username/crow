@@ -21,7 +21,7 @@ impl FmtCommand {
     pub fn execute(self) -> Result<()> {
         let current_dir = std::env::current_dir()?;
         let (loaded_config, manifest_dir) = CrowConfig::load_from(&current_dir, false)?;
-        let project = Project::new(loaded_config, manifest_dir, "dev", None)?;
+        let project = Project::new(loaded_config, manifest_dir, "dev", None, None)?;
 
         project.fmt(!self.args.check)?;
 

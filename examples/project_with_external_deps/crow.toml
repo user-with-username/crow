@@ -5,3 +5,9 @@ standard = "20"
 
 [dependencies]
 formatter = { path = "../example_lib" }
+
+[target.main.build]
+src_dirs = ["src/main"]
+
+[target.cli.build]
+src_dirs = ["src/cli"]

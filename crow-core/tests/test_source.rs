@@ -20,7 +20,7 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        let project = Project::new(config, root.path().to_path_buf(), "dev", None)
+        let project = Project::new(config, root.path().to_path_buf(), "dev", None, None)
             .expect("Failed to create project");
         (root, project)
     }

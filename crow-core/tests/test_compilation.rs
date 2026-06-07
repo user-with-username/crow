@@ -19,7 +19,7 @@ mod tests {
             profile: Default::default(),
         };
         let project =
-            Project::new(config, root.path().to_path_buf(), "dev", None).expect("create project");
+            Project::new(config, root.path().to_path_buf(), "dev", None, None).expect("create project");
         (root, project)
     }
 

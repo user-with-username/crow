@@ -111,6 +111,7 @@ impl DependencyResolver {
                     build: BuildConfig::default(),
                     dependencies: crate::config::Dependencies::default(),
                     profile: Profiles::default(),
+                    ..Default::default()
                 };
                 (dummy_config, is_wheel)
             }

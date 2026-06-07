@@ -18,6 +18,10 @@ pub struct RunArgs {
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
 
+    /// Name of a build target defined in `[target.<name>]` sections
+    #[arg(long)]
+    pub target: Option<String>,
+
     /// Name of the specific binary to run
     #[arg(long)]
     pub bin: Option<String>,
@@ -43,7 +47,12 @@ impl RunCommand {
             self.args.profile.clone()
         };
 
-        let project = build_project(&profile_name, self.args.jobs, self.args.bin)?;
+        let project = build_project(
+            &profile_name,
+            self.args.jobs,
+            self.args.bin,
+            self.args.target.as_deref(),
+        )?;
         execute_project_binary(project, &self.args.args)
     }
 }
@@ -52,6 +61,7 @@ pub(crate) fn build_project(
     profile_name: &str,
     jobs: Option<usize>,
     bin: Option<String>,
+    build_target: Option<&str>,
 ) -> Result<Project> {
     let workspace = Workspace::load()?;
     let binary_members = workspace.binary_members();
@@ -82,7 +92,7 @@ pub(crate) fn build_project(
         }
     };
 
-    Project::build(&selected_root, profile_name, jobs, false)
+    Project::build(&selected_root, profile_name, jobs, false, build_target)
 }
 
 fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {

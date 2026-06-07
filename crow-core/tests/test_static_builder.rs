@@ -52,7 +52,7 @@ mod tests {
             profile: Default::default(),
         };
 
-        Project::new(config, dir.path().to_path_buf(), "dev", None)
+        Project::new(config, dir.path().to_path_buf(), "dev", None, None)
     }
 
     #[test]

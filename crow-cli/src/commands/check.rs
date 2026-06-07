@@ -58,7 +58,7 @@ impl CheckCommand {
         }
 
         for (_config, root) in members_to_check {
-            Project::build(&root, profile_name, self.args.jobs, true)?;
+            Project::build(&root, profile_name, self.args.jobs, true, None)?;
         }
 
         Ok(())

@@ -44,27 +44,39 @@ impl<'a> BuildSession<'a> {
         }
     }
 
-    pub fn build_root(mut self, config: CrowConfig, manifest_dir: PathBuf) -> Result<Project> {
-        if !config.build.hooks.pre.is_empty() {
-            crow_utils::hooks::run_hooks(&manifest_dir, &config.build.hooks.pre)?;
+    pub fn build_root(
+        mut self,
+        config: CrowConfig,
+        manifest_dir: PathBuf,
+        build_target: Option<&str>,
+    ) -> Result<Project> {
+        let active_target = build_target.map(str::to_owned);
+        let effective_config = if let Some(name) = build_target {
+            config.with_build_target(name)?
+        } else {
+            config.clone()
+        };
+
+        if !effective_config.build.hooks.pre.is_empty() {
+            crow_utils::hooks::run_hooks(&manifest_dir, &effective_config.build.hooks.pre)?;
         }
 
         status!("Resolving", "dependencies...");
         let mut resolved =
-            Project::resolve_dependencies(&config, &manifest_dir, self.profile_name)?;
+            Project::resolve_dependencies(&effective_config, &manifest_dir, self.profile_name)?;
 
-        let toolchain = crate::builder::toolchain::shared_toolchain(&config)?;
+        let toolchain = crate::builder::toolchain::shared_toolchain(&effective_config)?;
         let compiler_path = toolchain.compiler_path().to_string();
         let compiler_kind = toolchain.compiler_kind();
 
         let mut resolver = DependencyResolver::new();
-        let compiler_flags = config.build.compiler.flags().to_vec();
+        let compiler_flags = effective_config.build.compiler.flags().to_vec();
         let mut buildable: Vec<(Buildable, String)> = Vec::new();
         let mut visited: HashSet<PathBuf> = HashSet::new();
 
         let lockfile_path = manifest_dir.join("crow.lock");
         let lockfile_changed = crate::dependency::LockfileBuilder::build_and_save_if_changed(
-            &config,
+            &effective_config,
             &resolved,
             &lockfile_path,
         )?;
@@ -87,10 +99,11 @@ impl<'a> BuildSession<'a> {
 
         let root_needs_build = match &lock_hash {
             Some(hash) => Project::new(
-                config.clone(),
+                effective_config.clone(),
                 manifest_dir.clone(),
                 self.profile_name,
                 Some(resolved.clone()),
+                active_target.clone(),
             )?
             .should_build(hash)?,
             None => true,
@@ -103,7 +116,7 @@ impl<'a> BuildSession<'a> {
                 .first()
                 .map(|(_, label)| label.clone())
                 .unwrap_or_else(|| {
-                    config
+                    effective_config
                         .package
                         .as_ref()
                         .map(|p| format!("{} v{}", p.name, p.version))
@@ -143,6 +156,7 @@ impl<'a> BuildSession<'a> {
                         project.root.clone(),
                         self.profile_name,
                         Some(resolved.clone()),
+                        None,
                     )?;
                     dep_project.configure_parallelism(self.jobs);
                     self.compile_project(&dep_project, true)?;
@@ -156,7 +170,8 @@ impl<'a> BuildSession<'a> {
             }
         }
 
-        let mut root_config = config.clone();
+        let post_hooks = effective_config.build.hooks.post.clone();
+        let mut root_config = effective_config;
         Project::apply_dependency_standard(&mut root_config, &resolved);
         Project::merge_dependency_inputs(&mut root_config, &resolved);
         Self::apply_wheel_artifacts(&mut root_config, &wheel_artifacts);
@@ -166,6 +181,7 @@ impl<'a> BuildSession<'a> {
             manifest_dir.clone(),
             self.profile_name,
             Some(resolved.clone()),
+            active_target,
         )?;
         root_project.configure_parallelism(self.jobs);
 
@@ -215,8 +231,8 @@ impl<'a> BuildSession<'a> {
             );
         }
 
-        if !config.build.hooks.post.is_empty() {
-            crow_utils::hooks::run_hooks(&manifest_dir, &config.build.hooks.post)?;
+        if !post_hooks.is_empty() {
+            crow_utils::hooks::run_hooks(&manifest_dir, &post_hooks)?;
         }
 
         Ok(root_project)
@@ -276,6 +292,7 @@ impl<'a> BuildSession<'a> {
                 dep.root.clone(),
                 self.profile_name,
                 Some(resolved.clone()),
+                None,
             )?;
 
             if check_project.should_build(&lock_hash)? {
@@ -284,6 +301,7 @@ impl<'a> BuildSession<'a> {
                     dep.root.clone(),
                     self.profile_name,
                     Some(resolved.clone()),
+                    None,
                 )?;
                 let label = format!("{} v{}", project.package.name, project.package.version);
                 out.push((Buildable::Project(project), label));

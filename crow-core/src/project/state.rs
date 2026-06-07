@@ -84,7 +84,7 @@ impl Project {
     fn project_state_path(&self) -> PathBuf {
         self.profile_dir().join(format!(
             ".{}.project-state.json",
-            self.package.output_stem()
+            self.output_stem()
         ))
     }
 

@@ -19,7 +19,7 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        Project::new(config, dir.path().to_path_buf(), "dev", None)
+        Project::new(config, dir.path().to_path_buf(), "dev", None, None)
     }
 
     #[test]
@@ -40,7 +40,7 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        let project = Project::new(config, dir.path().to_path_buf(), "dev", None)?;
+        let project = Project::new(config, dir.path().to_path_buf(), "dev", None, None)?;
         let sources = project.find_sources();
         assert!(sources.is_empty());
         Ok(())
@@ -64,7 +64,7 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        let project = Project::new(config, dir.path().to_path_buf(), "dev", None)?;
+        let project = Project::new(config, dir.path().to_path_buf(), "dev", None, None)?;
 
         assert_eq!(project.find_sources().len(), 1);
         assert_eq!(project.find_tests().len(), 1);
