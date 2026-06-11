@@ -19,7 +19,9 @@ mod workspace;
 pub use archiver::ArchiverConfig;
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;
-use crow_utils::condition::{apply_target_filter, get_named_targets_list, has_named_targets, TargetInfo};
+use crow_utils::condition::{
+    apply_target_filter, get_named_targets_list, has_named_targets, TargetInfo,
+};
 pub use dependencies::{Dependencies, DependencySpec};
 pub use formatter::FormatterConfig;
 pub use linker::LinkerConfig;
@@ -48,7 +50,11 @@ pub struct CrowConfig {
 
 impl CrowConfig {
     /// Loads configuration from a directory containing `crow.toml`.
-    pub fn load_from(dir: &Path, is_dep: bool, target_name: Option<&str>) -> Result<(Self, PathBuf)> {
+    pub fn load_from(
+        dir: &Path,
+        is_dep: bool,
+        target_name: Option<&str>,
+    ) -> Result<(Self, PathBuf)> {
         let config_path = dir.join("crow.toml");
 
         let content = std::fs::read_to_string(&config_path)
@@ -56,12 +62,13 @@ impl CrowConfig {
 
         if !is_dep && target_name.is_none() && has_named_targets(&content) {
             let targets = get_named_targets_list(&content);
-            
+
             if targets.len() == 1 {
                 anyhowed::bail!(
                     "named target `{}` is defined in [target] section\n\
                      Please specify it using `--target {}`",
-                    targets[0], targets[0]
+                    targets[0],
+                    targets[0]
                 );
             } else {
                 let target_list = targets.join(", ");

@@ -4,14 +4,14 @@ mod tests {
 
     #[test]
     fn test_metadata_args_default() {
-        let args = MetadataArgs {target: None};
+        let args = MetadataArgs { target: None };
 
         let _ = args;
     }
 
     #[test]
     fn test_metadata_command_new_returns_metadata_command() {
-        let args = MetadataArgs {target: None};
+        let args = MetadataArgs { target: None };
         let command = MetadataCommand::new(args);
 
         let _ = command;

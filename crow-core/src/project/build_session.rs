@@ -33,7 +33,12 @@ pub struct BuildSession<'a> {
 }
 
 impl<'a> BuildSession<'a> {
-    pub fn new(profile_name: &'a str, jobs: Option<usize>, check_only: bool, named_target: Option<&'a str>) -> Self {
+    pub fn new(
+        profile_name: &'a str,
+        jobs: Option<usize>,
+        check_only: bool,
+        named_target: Option<&'a str>,
+    ) -> Self {
         Self {
             profile_name,
             jobs,

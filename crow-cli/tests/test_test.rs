@@ -9,7 +9,7 @@ mod tests {
             jobs: None,
             bin: None,
             args: vec![],
-            target: None
+            target: None,
         };
 
         assert!(!args.release);
@@ -25,7 +25,7 @@ mod tests {
             jobs: Some(4),
             bin: Some("my_test".to_string()),
             args: vec!["--nocapture".to_string(), "--test-threads=1".to_string()],
-            target: None
+            target: None,
         };
 
         assert!(args.release);
@@ -43,7 +43,7 @@ mod tests {
             jobs: None,
             bin: None,
             args: vec!["--help".to_string()],
-            target: None
+            target: None,
         };
 
         assert!(!args.release);
@@ -57,7 +57,7 @@ mod tests {
             jobs: None,
             bin: None,
             args: vec![],
-            target: None
+            target: None,
         };
 
         let command = TestCommand::new(args);
@@ -71,7 +71,7 @@ mod tests {
             jobs: Some(8),
             bin: Some("integration_test".to_string()),
             args: vec!["--exact".to_string(), "test_name".to_string()],
-            target: None
+            target: None,
         };
 
         let command = TestCommand::new(args);
@@ -85,7 +85,7 @@ mod tests {
             jobs: None,
             bin: None,
             args: vec![],
-            target: None
+            target: None,
         };
 
         let command_release = TestCommand::new(args_release);
@@ -95,7 +95,7 @@ mod tests {
             jobs: None,
             bin: None,
             args: vec![],
-            target: None
+            target: None,
         };
 
         let command_test = TestCommand::new(args_test);
@@ -110,7 +110,7 @@ mod tests {
             jobs: Some(2),
             bin: None,
             args: vec![],
-            target: None
+            target: None,
         };
 
         let command = TestCommand::new(args);
@@ -132,7 +132,7 @@ mod tests {
             jobs: None,
             bin: Some("unit_tests".to_string()),
             args: vec!["--verbose".to_string()],
-            target: None
+            target: None,
         };
 
         let command = TestCommand::new(args);
@@ -148,7 +148,7 @@ mod tests {
             jobs: Some(16),
             bin: None,
             args: vec![],
-            target: None
+            target: None,
         };
 
         let command = TestCommand::new(args);
@@ -166,7 +166,7 @@ mod tests {
                 "--report-time".to_string(),
                 "--quiet".to_string(),
             ],
-            target: None
+            target: None,
         };
 
         let command = TestCommand::new(args);

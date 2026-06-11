@@ -64,7 +64,8 @@ impl Project {
         check_only: bool,
         target_name: Option<&str>,
     ) -> Result<Self> {
-        let (config, manifest_dir) = crate::config::CrowConfig::find_in_tree(path.as_ref(), target_name)?;
+        let (config, manifest_dir) =
+            crate::config::CrowConfig::find_in_tree(path.as_ref(), target_name)?;
         let session = BuildSession::new(profile_name, jobs, check_only, target_name);
         session.build_root(config, manifest_dir)
     }

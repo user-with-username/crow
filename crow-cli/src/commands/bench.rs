@@ -39,7 +39,12 @@ impl BenchCommand {
         } else {
             "bench"
         };
-        let project = crate::commands::run::build_project(profile, self.args.jobs, self.args.bin, self.args.target.as_deref())?;
+        let project = crate::commands::run::build_project(
+            profile,
+            self.args.jobs,
+            self.args.bin,
+            self.args.target.as_deref(),
+        )?;
         project.bench(&self.args.args)
     }
 }

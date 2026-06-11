@@ -67,12 +67,14 @@ impl BuildCommand {
         Ok(())
     }
 
-    fn build_package(
-        &self,
-        root: PathBuf,
-        profile_name: &str,
-    ) -> Result<()> {
-        let _project = Project::build(&root, profile_name, self.args.jobs, false, self.args.target.as_deref())?;
+    fn build_package(&self, root: PathBuf, profile_name: &str) -> Result<()> {
+        let _project = Project::build(
+            &root,
+            profile_name,
+            self.args.jobs,
+            false,
+            self.args.target.as_deref(),
+        )?;
         Ok(())
     }
 }

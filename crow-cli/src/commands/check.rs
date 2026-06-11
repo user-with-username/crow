@@ -61,7 +61,13 @@ impl CheckCommand {
         }
 
         for (_config, root) in members_to_check {
-            Project::build(&root, profile_name, self.args.jobs, true, self.args.target.as_deref())?;
+            Project::build(
+                &root,
+                profile_name,
+                self.args.jobs,
+                true,
+                self.args.target.as_deref(),
+            )?;
         }
 
         Ok(())

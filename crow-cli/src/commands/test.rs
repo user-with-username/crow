@@ -35,7 +35,12 @@ impl TestCommand {
 
     pub fn execute(self) -> Result<()> {
         let profile = if self.args.release { "release" } else { "test" };
-        let project = crate::commands::run::build_project(profile, self.args.jobs, self.args.bin, self.args.target.as_deref())?;
+        let project = crate::commands::run::build_project(
+            profile,
+            self.args.jobs,
+            self.args.bin,
+            self.args.target.as_deref(),
+        )?;
         project.test(&self.args.args)
     }
 }

@@ -14,7 +14,11 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub fn from_config(config: CrowConfig, root: PathBuf, target_name: Option<&str>) -> Result<Self> {
+    pub fn from_config(
+        config: CrowConfig,
+        root: PathBuf,
+        target_name: Option<&str>,
+    ) -> Result<Self> {
         let members = if config.is_virtual() {
             let workspace = config
                 .workspace
@@ -23,7 +27,8 @@ impl Workspace {
             let mut members = Vec::new();
             for member_path in &workspace.members {
                 let member_full_path = root.join(member_path);
-                let (member_config, _) = CrowConfig::load_from(&member_full_path, false, target_name)?;
+                let (member_config, _) =
+                    CrowConfig::load_from(&member_full_path, false, target_name)?;
                 members.push((member_config, member_full_path));
             }
             members

@@ -1,8 +1,8 @@
 use super::evaluator::eval_condition;
 use super::parser::parse_condition;
 use super::target_info::TargetInfo;
-use toml_edit::{Document, Item, Table};
 use std::collections::HashMap;
+use toml_edit::{Document, Item, Table};
 
 fn merge_item(base: &mut Item, overlay: &Item) {
     match (base, overlay) {
@@ -56,7 +56,7 @@ fn collect_conditional_sections(
         if !is_conditional_key(raw_key) {
             continue;
         }
-        
+
         let cond_str = raw_key.trim_matches('"');
 
         let cond = parse_condition(cond_str)
@@ -94,8 +94,7 @@ fn apply_named_target(doc: &mut Document, target_config: &Table) {
         match section_value.as_table() {
             Some(overlay_tab) => merge_table_into_root(doc, section_name, overlay_tab),
             None => {
-                *doc.entry(section_name).or_insert(section_value.clone()) =
-                    section_value.clone();
+                *doc.entry(section_name).or_insert(section_value.clone()) = section_value.clone();
             }
         }
     }
@@ -104,7 +103,7 @@ fn apply_named_target(doc: &mut Document, target_config: &Table) {
 // Извлекает все именованные таргеты
 fn get_named_targets(doc: &Document) -> HashMap<String, Table> {
     let mut named_targets = HashMap::new();
-    
+
     let target_table = match doc.get("target").and_then(|item| item.as_table()) {
         Some(t) => t,
         None => return named_targets,
@@ -129,7 +128,7 @@ pub fn apply_target_filter(content: &str, target_or_name: &str) -> Result<String
 
     // Проверяем, есть ли у нас секция [target]
     let target_table = doc.get("target").and_then(|item| item.as_table());
-    
+
     if let Some(_) = target_table {
         // Если target_or_name начинается и заканчивается на кавычку - это условный таргет
         if target_or_name.starts_with('"') && target_or_name.ends_with('"') {
@@ -138,7 +137,7 @@ pub fn apply_target_filter(content: &str, target_or_name: &str) -> Result<String
             let fake_target_info = TargetInfo::current();
             let cond = parse_condition(condition)
                 .map_err(|e| format!("failed to parse condition '{}': {}", condition, e))?;
-            
+
             if eval_condition(&cond, &fake_target_info) {
                 let conditional_sections = collect_conditional_sections(&doc, &fake_target_info)?;
                 apply_sections(&mut doc, conditional_sections);
@@ -149,11 +148,14 @@ pub fn apply_target_filter(content: &str, target_or_name: &str) -> Result<String
             if let Some(target_config) = named_targets.get(target_or_name) {
                 apply_named_target(&mut doc, target_config);
             } else {
-                return Err(format!("Named target '{}' not found in [target] section", target_or_name));
+                return Err(format!(
+                    "Named target '{}' not found in [target] section",
+                    target_or_name
+                ));
             }
         }
     }
-    
+
     doc.remove("target");
     Ok(doc.to_string())
 }
@@ -184,7 +186,7 @@ pub fn get_named_targets_list(content: &str) -> Vec<String> {
         Some(t) => t,
         None => return Vec::new(),
     };
-    
+
     let mut targets = Vec::new();
     for key in target_table.iter() {
         if !is_conditional_key(key.0) {
