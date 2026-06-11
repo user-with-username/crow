@@ -16,6 +16,10 @@ pub struct PublishArgs {
     /// Version to publish (defaults to package.version from crow.toml)
     #[arg(long)]
     pub version: Option<String>,
+
+    /// Named target or conditional target (e.g., client, "cfg(windows)")
+    #[arg(long)]
+    pub target: Option<String>,
 }
 
 pub struct PublishCommand {
@@ -29,7 +33,7 @@ impl PublishCommand {
 
     pub fn execute(self) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-        let (config, manifest_dir) = CrowConfig::find_in_tree(&current_dir)?;
+        let (config, manifest_dir) = CrowConfig::find_in_tree(&current_dir, self.args.target.as_deref())?;
 
         let package = config
             .package

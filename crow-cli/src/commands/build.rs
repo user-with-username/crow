@@ -27,7 +27,7 @@ impl BuildCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let workspace = Workspace::load()?;
+        let workspace = Workspace::load_with_target(self.args.target.as_deref())?;
 
         let profile_name = if self.args.release {
             "release"
@@ -60,8 +60,8 @@ impl BuildCommand {
             }
         }
 
-        for (member_config, member_root) in members_to_build {
-            self.build_package(member_config, member_root, profile_name)?;
+        for (_member_config, member_root) in members_to_build {
+            self.build_package(member_root, profile_name)?;
         }
 
         Ok(())
@@ -69,17 +69,10 @@ impl BuildCommand {
 
     fn build_package(
         &self,
-        _config: crow_core::CrowConfig,
         root: PathBuf,
         profile_name: &str,
     ) -> Result<()> {
-        let _project = Project::build(
-            &root,
-            profile_name,
-            self.args.jobs,
-            false,
-            self.args.target.as_deref(),
-        )?;
+        let _project = Project::build(&root, profile_name, self.args.jobs, false, self.args.target.as_deref())?;
         Ok(())
     }
 }

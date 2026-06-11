@@ -9,6 +9,7 @@ mod tests {
             registry: None,
             dry_run: false,
             version: None,
+            target: None
         };
 
         assert_eq!(args.registry, None);
@@ -22,6 +23,7 @@ mod tests {
             registry: Some("https://custom-registry.com".to_string()),
             dry_run: true,
             version: Some("1.2.3".to_string()),
+            target: None
         };
 
         assert_eq!(
@@ -38,6 +40,7 @@ mod tests {
             registry: None,
             dry_run: false,
             version: None,
+            target: None
         };
 
         let command = PublishCommand::new(args);
@@ -55,6 +58,7 @@ mod tests {
             registry: None,
             dry_run: false,
             version: None,
+            target: None
         };
 
         let command = PublishCommand::new(args);

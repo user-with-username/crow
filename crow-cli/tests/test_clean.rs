@@ -5,13 +5,13 @@ mod tests {
 
     #[test]
     fn test_clean_args_create() {
-        let args = CleanArgs {};
+        let args = CleanArgs {target: None};
         let _args = args;
     }
 
     #[test]
     fn test_clean_command_new() {
-        let args = CleanArgs {};
+        let args = CleanArgs {target: None};
         let command = CleanCommand::new(args);
         let _ = command;
     }
@@ -23,7 +23,7 @@ mod tests {
 
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
-        let args = CleanArgs {};
+        let args = CleanArgs {target: None};
         let command = CleanCommand::new(args);
         let result = command.execute();
 

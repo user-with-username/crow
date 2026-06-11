@@ -9,21 +9,25 @@ use serde::Serialize;
 use std::path::PathBuf;
 
 #[derive(Args)]
-pub struct MetadataArgs {}
+pub struct MetadataArgs {
+    /// Named target or conditional target (e.g., client, "cfg(windows)")
+    #[arg(long)]
+    pub target: Option<String>,
+}
 
 pub struct MetadataCommand {
-    _args: MetadataArgs,
+    args: MetadataArgs,
 }
 
 impl MetadataCommand {
-    pub fn new(_args: MetadataArgs) -> Self {
-        Self { _args }
+    pub fn new(args: MetadataArgs) -> Self {
+        Self { args }
     }
 
     pub fn execute(self) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-        let workspace = Workspace::load()?;
-        let (config, _) = CrowConfig::find_in_tree(&current_dir)?;
+        let workspace = Workspace::load_with_target(self.args.target.as_deref())?;
+        let (config, _) = CrowConfig::find_in_tree(&current_dir, self.args.target.as_deref())?;
         let toolchain = toolchain::shared_toolchain(&config)?;
 
         let compiler_path = toolchain.compiler_path().to_string();

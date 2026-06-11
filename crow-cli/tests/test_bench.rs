@@ -9,6 +9,7 @@ mod tests {
             bin: None,
             args: vec![],
             release: false,
+            target: None,
         };
 
         assert_eq!(args.jobs, None);
@@ -28,6 +29,7 @@ mod tests {
                 "100".to_string(),
             ],
             release: true,
+            target: None,
         };
 
         assert_eq!(args.jobs, Some(4));
@@ -43,6 +45,7 @@ mod tests {
             bin: None,
             args: vec!["--test".to_string()],
             release: false,
+            target: None,
         };
 
         let command = BenchCommand::new(args);
@@ -57,6 +60,7 @@ mod tests {
             bin: Some("test_bin".to_string()),
             args: vec!["--help".to_string()],
             release: false,
+            target: None,
         };
 
         let command = BenchCommand::new(args);

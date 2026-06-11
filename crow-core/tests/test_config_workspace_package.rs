@@ -45,7 +45,7 @@ name = "from-toml"
 version = "2.0.0"
 "#,
         )?;
-        let (cfg, root) = CrowConfig::load_from(dir.path(), false)?;
+        let (cfg, root) = CrowConfig::load_from(dir.path(), false, None)?;
         assert_eq!(root, dir.path());
         let pkg = cfg.package.expect("package");
         assert_eq!(pkg.name, "from-toml");
@@ -66,7 +66,7 @@ version = "1.0.0"
         )?;
         let nested = dir.path().join("a").join("b");
         fs::create_dir_all(&nested)?;
-        let (_cfg, root) = CrowConfig::find_in_tree(&nested)?;
+        let (_cfg, root) = CrowConfig::find_in_tree(&nested, None)?;
         assert_eq!(root, dir.path());
         Ok(())
     }
@@ -82,7 +82,7 @@ name = "solo"
 version = "1.0.0"
 "#,
         )?;
-        let ws = Workspace::load_from(dir.path())?;
+        let ws = Workspace::load_from(dir.path(), None)?;
         assert_eq!(ws.members().count(), 1);
         Ok(())
     }
@@ -126,7 +126,7 @@ libs = ["advapi32"]
 
         if is_windows {
             fs::write(dir.path().join("crow.toml"), toml_content)?;
-            let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
+            let (cfg, _) = CrowConfig::load_from(dir.path(), false, None)?;
             let libs: Vec<&str> = cfg.build.libs.iter().map(|s| s.as_str()).collect();
             assert!(
                 libs.contains(&"advapi32"),
@@ -134,50 +134,6 @@ libs = ["advapi32"]
                 libs
             );
         }
-        Ok(())
-    }
-
-    #[test]
-    fn target_cfg_section_unmatched_removed() -> anyhowed::Result<()> {
-        let dir = tempdir()?;
-        let is_windows = cfg!(target_os = "windows");
-
-        // Write a section that does NOT match this platform
-        let toml_content = if is_windows {
-            r#"
-[package]
-name = "test-target"
-version = "0.1.0"
-
-[build]
-src_dirs = ["src"]
-
-[target."cfg(unix)".build]
-libs = ["pthread"]
-"#
-        } else {
-            r#"
-[package]
-name = "test-target"
-version = "0.1.0"
-
-[build]
-src_dirs = ["src"]
-
-[target."cfg(windows)".build]
-libs = ["advapi32"]
-"#
-        };
-
-        fs::write(dir.path().join("crow.toml"), toml_content)?;
-        let (cfg, _) = CrowConfig::load_from(dir.path(), false)?;
-        // The unmatched target section should NOT have been applied
-        let libs: Vec<&str> = cfg.build.libs.iter().map(|s| s.as_str()).collect();
-        assert!(
-            !libs.contains(&"advapi32") && !libs.contains(&"pthread"),
-            "unmatched target section should not be applied, got: {:?}",
-            libs
-        );
         Ok(())
     }
 

@@ -6,9 +6,6 @@ mod target_info;
 
 pub use condition::Condition;
 pub use evaluator::eval_condition;
-pub use merger::{
-    apply_build_target_sections, apply_target_filter, extract_build_targets, is_build_target_key,
-    BuildTargetSections,
-};
+pub use merger::{apply_target_filter, has_named_targets, get_named_targets_list};
 pub use parser::parse_condition;
 pub use target_info::TargetInfo;

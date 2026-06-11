@@ -4,21 +4,25 @@ use crow_core::{CrowConfig, Project};
 use crow_utils::status;
 
 #[derive(Args)]
-pub struct CleanArgs {}
+pub struct CleanArgs {
+    /// Named target or conditional target (e.g., client, "cfg(windows)")
+    #[arg(long)]
+    pub target: Option<String>,
+}
 
 pub struct CleanCommand {
-    _args: CleanArgs,
+    args: CleanArgs,
 }
 
 impl CleanCommand {
     pub fn new(args: CleanArgs) -> Self {
-        Self { _args: args }
+        Self { args }
     }
 
     pub fn execute(self) -> Result<()> {
         let current_dir = std::env::current_dir()?;
-        let (config, manifest_dir) = CrowConfig::find_in_tree(&current_dir)?;
-        let project = Project::new(config, manifest_dir, "dev", None, None)?;
+        let (config, manifest_dir) = CrowConfig::find_in_tree(&current_dir, self.args.target.as_deref())?;
+        let project = Project::new(config, manifest_dir, "dev", None)?;
 
         let target_dir = project.target_dir();
 

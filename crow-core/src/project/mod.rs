@@ -20,39 +20,36 @@ pub struct Project {
     pub profile: crate::config::Profile,
     pub profile_name: String,
     pub resolved_deps: Option<ResolvedDependencyBuild>,
-    pub active_target: Option<String>,
 }
 
 impl Project {
     pub fn new(
-        config: CrowConfig,
+        loaded_config: CrowConfig,
         manifest_dir: PathBuf,
         profile_name: &str,
         resolved_deps: Option<ResolvedDependencyBuild>,
-        active_target: Option<String>,
     ) -> Result<Self> {
-        let package = config
+        let package = loaded_config
             .package
             .clone()
             .context("Manifest must have a [package] section")?;
 
         let profile = match profile_name {
-            "dev" => crate::config::Profile::Dev(config.profile.dev.clone()),
-            "release" => crate::config::Profile::Release(config.profile.release.clone()),
-            "test" => crate::config::Profile::Test(config.profile.test.clone()),
-            "bench" => crate::config::Profile::Bench(config.profile.bench.clone()),
-            _ => crate::config::Profile::Dev(config.profile.dev.clone()),
+            "dev" => crate::config::Profile::Dev(loaded_config.profile.dev.clone()),
+            "release" => crate::config::Profile::Release(loaded_config.profile.release.clone()),
+            "test" => crate::config::Profile::Test(loaded_config.profile.test.clone()),
+            "bench" => crate::config::Profile::Bench(loaded_config.profile.bench.clone()),
+            _ => crate::config::Profile::Dev(loaded_config.profile.dev.clone()),
         };
 
         Ok(Self {
-            config,
+            config: loaded_config,
             package,
             workspace_root: manifest_dir.clone(),
             root: manifest_dir,
             profile,
             profile_name: profile_name.to_string(),
             resolved_deps,
-            active_target,
         })
     }
 
@@ -65,11 +62,11 @@ impl Project {
         profile_name: &str,
         jobs: Option<usize>,
         check_only: bool,
-        build_target: Option<&str>,
+        target_name: Option<&str>,
     ) -> Result<Self> {
-        let (config, manifest_dir) = crate::config::CrowConfig::find_in_tree(path.as_ref())?;
-        let session = BuildSession::new(profile_name, jobs, check_only);
-        session.build_root(config, manifest_dir, build_target)
+        let (config, manifest_dir) = crate::config::CrowConfig::find_in_tree(path.as_ref(), target_name)?;
+        let session = BuildSession::new(profile_name, jobs, check_only, target_name);
+        session.build_root(config, manifest_dir)
     }
 
     pub(crate) fn resolve_dependencies(

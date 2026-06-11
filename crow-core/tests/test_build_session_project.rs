@@ -19,12 +19,12 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        Project::new(config, dir.path().to_path_buf(), "dev", None, None)
+        Project::new(config, dir.path().to_path_buf(), "dev", None)
     }
 
     #[test]
     fn build_session_new() {
-        let s = BuildSession::new("dev", Some(4), false);
+        let s = BuildSession::new("dev", Some(4), false, None);
         assert_eq!(s.profile_name, "dev");
         assert_eq!(s.jobs, Some(4));
         assert_eq!(s.built_count, 0);
@@ -40,7 +40,7 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        let project = Project::new(config, dir.path().to_path_buf(), "dev", None, None)?;
+        let project = Project::new(config, dir.path().to_path_buf(), "dev", None)?;
         let sources = project.find_sources();
         assert!(sources.is_empty());
         Ok(())
@@ -64,7 +64,7 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        let project = Project::new(config, dir.path().to_path_buf(), "dev", None, None)?;
+        let project = Project::new(config, dir.path().to_path_buf(), "dev", None)?;
 
         assert_eq!(project.find_sources().len(), 1);
         assert_eq!(project.find_tests().len(), 1);

@@ -62,27 +62,12 @@ impl Project {
         self.profile_dir()
     }
 
-    pub fn output_stem(&self) -> String {
-        if let Some(target) = &self.active_target {
-            return target.clone();
-        }
-        self.package.output_stem()
-    }
-
     pub fn output_path(&self) -> PathBuf {
-        self.profile_dir()
-            .join(self.output_stem())
-            .with_extension(self.package.r#type.extension())
+        self.package.output_path_in(&self.profile_dir())
     }
 
     pub fn output_name(&self) -> String {
-        let stem = self.output_stem();
-        let extension = self.package.r#type.extension();
-        if extension.is_empty() {
-            stem
-        } else {
-            format!("{}.{}", stem, extension)
-        }
+        self.package.output_name()
     }
 
     pub fn create_dirs(&self) -> Result<(), std::io::Error> {

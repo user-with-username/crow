@@ -9,6 +9,7 @@ mod tests {
             jobs: None,
             bin: None,
             profile: "debug".to_string(),
+            target: None,
         };
 
         assert!(!args.release);
@@ -24,6 +25,7 @@ mod tests {
             jobs: Some(4),
             bin: Some("myapp".to_string()),
             profile: "release".to_string(),
+            target: None,
         };
 
         assert!(args.release);
@@ -39,6 +41,7 @@ mod tests {
             jobs: None,
             bin: None,
             profile: "debug".to_string(),
+            target: None,
         };
 
         let command = CheckCommand::new(args);
@@ -52,6 +55,7 @@ mod tests {
             jobs: None,
             bin: None,
             profile: "test".to_string(),
+            target: None,
         };
 
         let command = CheckCommand::new(args);
@@ -65,6 +69,7 @@ mod tests {
             jobs: None,
             bin: None,
             profile: "debug".to_string(),
+            target: None,
         };
 
         let command = CheckCommand::new(args);

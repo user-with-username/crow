@@ -12,6 +12,9 @@ pub struct CheckArgs {
     pub bin: Option<String>,
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
+    /// Named target or conditional target (e.g., client, "cfg(windows)")
+    #[arg(long)]
+    pub target: Option<String>,
 }
 
 pub struct CheckCommand {
@@ -24,7 +27,7 @@ impl CheckCommand {
     }
 
     pub fn execute(self) -> Result<()> {
-        let workspace = Workspace::load()?;
+        let workspace = Workspace::load_with_target(self.args.target.as_deref())?;
 
         let profile_name = if self.args.release {
             "release"
@@ -58,7 +61,7 @@ impl CheckCommand {
         }
 
         for (_config, root) in members_to_check {
-            Project::build(&root, profile_name, self.args.jobs, true, None)?;
+            Project::build(&root, profile_name, self.args.jobs, true, self.args.target.as_deref())?;
         }
 
         Ok(())

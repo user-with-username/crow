@@ -18,7 +18,7 @@ mod tests {
             dependencies: Default::default(),
             profile: Default::default(),
         };
-        Project::new(config, root.to_path_buf(), "dev", None, None)
+        Project::new(config, root.to_path_buf(), "dev", None)
             .expect("Failed to create test project")
     }
 

@@ -82,8 +82,10 @@ impl Project {
     }
 
     fn project_state_path(&self) -> PathBuf {
-        self.profile_dir()
-            .join(format!(".{}.project-state.json", self.output_stem()))
+        self.profile_dir().join(format!(
+            ".{}.project-state.json",
+            self.package.output_stem()
+        ))
     }
 
     fn manifest_path(&self) -> PathBuf {

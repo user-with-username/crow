@@ -15,6 +15,10 @@ pub struct BenchArgs {
     #[arg(long)]
     pub bin: Option<String>,
 
+    /// Named target or conditional target (e.g., client, "cfg(windows)")
+    #[arg(long)]
+    pub target: Option<String>,
+
     /// Arguments to pass to each test executable
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     pub args: Vec<String>,
@@ -35,8 +39,7 @@ impl BenchCommand {
         } else {
             "bench"
         };
-        let project =
-            crate::commands::run::build_project(profile, self.args.jobs, self.args.bin, None)?;
+        let project = crate::commands::run::build_project(profile, self.args.jobs, self.args.bin, self.args.target.as_deref())?;
         project.bench(&self.args.args)
     }
 }

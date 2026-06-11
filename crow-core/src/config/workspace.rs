@@ -14,7 +14,7 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub fn from_config(config: CrowConfig, root: PathBuf) -> Result<Self> {
+    pub fn from_config(config: CrowConfig, root: PathBuf, target_name: Option<&str>) -> Result<Self> {
         let members = if config.is_virtual() {
             let workspace = config
                 .workspace
@@ -23,7 +23,7 @@ impl Workspace {
             let mut members = Vec::new();
             for member_path in &workspace.members {
                 let member_full_path = root.join(member_path);
-                let (member_config, _) = CrowConfig::load_from(&member_full_path, false)?;
+                let (member_config, _) = CrowConfig::load_from(&member_full_path, false, target_name)?;
                 members.push((member_config, member_full_path));
             }
             members
@@ -34,15 +34,19 @@ impl Workspace {
         Ok(Self { root, members })
     }
 
-    pub fn load_from(dir: &Path) -> Result<Self> {
-        let (config, root) = CrowConfig::load_from(dir, false)?;
-        Self::from_config(config, root)
+    pub fn load_from(dir: &Path, target_name: Option<&str>) -> Result<Self> {
+        let (config, root) = CrowConfig::load_from(dir, false, target_name)?;
+        Self::from_config(config, root, target_name)
+    }
+
+    pub fn load_with_target(target_name: Option<&str>) -> Result<Self> {
+        let current_dir = std::env::current_dir().context("failed to get current directory")?;
+        let (config, root) = CrowConfig::find_in_tree(&current_dir, target_name)?;
+        Self::from_config(config, root, target_name)
     }
 
     pub fn load() -> Result<Self> {
-        let current_dir = std::env::current_dir().context("failed to get current directory")?;
-        let (config, root) = CrowConfig::find_in_tree(&current_dir)?;
-        Self::from_config(config, root)
+        Self::load_with_target(None)
     }
 
     pub fn members(&self) -> impl Iterator<Item = &(CrowConfig, PathBuf)> {

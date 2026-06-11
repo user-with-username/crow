@@ -18,13 +18,13 @@ pub struct RunArgs {
     #[arg(short = 'p', long, default_value = "debug")]
     pub profile: String,
 
-    /// Name of a build target defined in `[target.<name>]` sections
-    #[arg(long)]
-    pub target: Option<String>,
-
     /// Name of the specific binary to run
     #[arg(long)]
     pub bin: Option<String>,
+
+    /// Named target or conditional target (e.g., client, "cfg(windows)")
+    #[arg(long)]
+    pub target: Option<String>,
 
     /// Arguments to pass to the executable
     #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -61,9 +61,9 @@ pub(crate) fn build_project(
     profile_name: &str,
     jobs: Option<usize>,
     bin: Option<String>,
-    build_target: Option<&str>,
+    target_name: Option<&str>,
 ) -> Result<Project> {
-    let workspace = Workspace::load()?;
+    let workspace = Workspace::load_with_target(target_name)?;
     let binary_members = workspace.binary_members();
 
     if binary_members.is_empty() {
@@ -92,7 +92,7 @@ pub(crate) fn build_project(
         }
     };
 
-    Project::build(&selected_root, profile_name, jobs, false, build_target)
+    Project::build(&selected_root, profile_name, jobs, false, target_name)
 }
 
 fn execute_project_binary(project: Project, trailing: &[String]) -> Result<()> {
