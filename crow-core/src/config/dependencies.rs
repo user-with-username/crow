@@ -39,7 +39,7 @@ pub enum DependencySpec {
         build_flags: Vec<String>,
     },
 
-    /// foo = { version = "^1.0", registry = "my-registry" }
+    /// foo = { version = "^1.0", registry = "my-registry", features = ["asio"], libs = ["boost_asio"] }
     Registry {
         version: VersionReq,
 
@@ -48,14 +48,23 @@ pub enum DependencySpec {
 
         #[serde(default)]
         build_flags: Vec<String>,
+
+        #[serde(default)]
+        features: Vec<String>,
+
+        #[serde(default)]
+        libs: Vec<String>,
     },
 
-    /// foo = { system = true, libs = ["ssl", "crypto"] }
+    /// foo = { system = true, features = ["system", "filesystem"], libs = ["boost_system", "boost_filesystem"] }
     System {
         system: bool,
 
         #[serde(default)]
         libs: Vec<String>,
+
+        #[serde(default)]
+        features: Vec<String>,
     },
 }
 
@@ -97,6 +106,22 @@ impl DependencySpec {
     pub fn system_libs(&self) -> &[String] {
         match self {
             Self::System { libs, .. } => libs,
+            _ => &[],
+        }
+    }
+
+    /// Explicit libs requested for a registry dep. Empty when not specified — caller
+    /// should fall back to the dependency's own wheel name in that case.
+    pub fn registry_libs(&self) -> &[String] {
+        match self {
+            Self::Registry { libs, .. } => libs,
+            _ => &[],
+        }
+    }
+
+    pub fn features(&self) -> &[String] {
+        match self {
+            Self::System { features, .. } | Self::Registry { features, .. } => features,
             _ => &[],
         }
     }

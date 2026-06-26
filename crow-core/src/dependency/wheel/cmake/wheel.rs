@@ -146,6 +146,7 @@ impl CmakeWheel {
         Ok(artifacts)
     }
 
+
     fn include_dirs_for_interface_targets(
         interface_targets: &[&TargetFile],
         root: &Path,
@@ -193,6 +194,7 @@ impl Wheel for CmakeWheel {
         build_flags: &[String],
         compiler_path: Option<&str>,
         compiler_kind: CompilerKind,
+        dep_features: &std::collections::HashMap<String, Vec<String>>,
     ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("cmake_wheel");
         fs::create_dir_all(&out_dir)?;
@@ -238,6 +240,25 @@ impl Wheel for CmakeWheel {
                 "-D{}",
                 flag.trim_start_matches("-D").trim_start_matches('-')
             ));
+        }
+
+        // Inject dependency features as CMake component flags
+        // e.g. boost with features ["system","filesystem"] → -DBoost_COMPONENTS=system;filesystem
+        for (dep_name, features) in dep_features {
+            if features.is_empty() {
+                continue;
+            }
+            let dep_upper = dep_name.to_ascii_uppercase();
+            let components = features.join(";");
+            // Only inject if not already specified in build_flags
+            let flag_key = format!("{}_COMPONENTS", dep_upper);
+            let already_set = build_flags.iter().any(|f| {
+                let stripped = f.trim_start_matches("-D").trim_start_matches('-');
+                stripped.starts_with(&flag_key)
+            });
+            if !already_set {
+                cmd.arg(format!("-D{}={}", flag_key, components));
+            }
         }
 
         if !cxx_flags.is_empty() {
@@ -333,10 +354,12 @@ impl Wheel for CmakeWheel {
                     vec![out_dir.join("generated"), install_dir.join("include")],
                     vec![
                         install_dir.join("lib"),
+                        install_dir.join("lib64"),
                         out_dir.clone(),
                         out_dir.join(build_type),
                         out_dir.join(build_type.to_lowercase()),
                         out_dir.join("lib"),
+                        out_dir.join("lib64"),
                     ],
                     4,
                 )?;

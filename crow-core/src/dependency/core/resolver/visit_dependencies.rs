@@ -32,7 +32,9 @@ impl DependencyResolver {
                 checksum,
                 is_wheel,
                 build_flags,
+                features,
                 name: _,
+                ..
             } = resolved_dep;
 
             let sub_dependencies = config.dependencies.clone();
@@ -51,6 +53,7 @@ impl DependencyResolver {
                 checksum,
                 is_wheel,
                 build_flags,
+                features,
             )?;
 
             graph.add_edge(owner_idx, dep_idx)?;

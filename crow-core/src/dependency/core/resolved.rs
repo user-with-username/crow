@@ -1,4 +1,5 @@
 use crate::config::CrowConfig;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -10,6 +11,12 @@ pub struct ResolvedPackage {
     pub checksum: Option<String>,
     pub is_wheel: bool,
     pub build_flags: Vec<String>,
+    /// Features requested from a registry dependency (e.g. ["asio"] for boost).
+    /// Empty for system deps and registry deps without features.
+    pub features: Vec<String>,
+    /// Auto-generated link libs from features (e.g. ["boost_asio"]).
+    /// Only populated for registry deps that have features and no explicit libs.
+    pub auto_libs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -20,6 +27,12 @@ pub struct ResolvedDependencyBuild {
     pub lib_paths: Vec<PathBuf>,
     pub max_standard: Option<String>,
     pub system_libs: Vec<String>,
+    /// Maps system dep name → enabled features (e.g. "boost" → ["system", "filesystem"])
+    pub system_features: HashMap<String, Vec<String>>,
+    /// Maps system dep name → libs (e.g. "boost" → ["boost_system", "boost_filesystem"])
+    pub system_libs_map: HashMap<String, Vec<String>>,
+    /// Maps registry dep name → enabled features (e.g. "boost" → ["asio"])
+    pub registry_features: HashMap<String, Vec<String>>,
 }
 
 impl ResolvedDependencyBuild {

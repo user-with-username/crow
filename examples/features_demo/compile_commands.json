@@ -1,0 +1,29 @@
+[
+  {
+    "directory": "/home/anyhody/Documents/GitHub/crow/examples/features_demo",
+    "arguments": [
+      "g++",
+      "-c",
+      "-O0",
+      "-g",
+      "-fno-lto",
+      "-I/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16",
+      "-I/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/x86_64-redhat-linux",
+      "-I/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/backward",
+      "-I/usr/lib/gcc/x86_64-redhat-linux/16/include",
+      "-I/usr/local/include",
+      "-I/usr/include",
+      "-I/home/anyhody/Documents/GitHub/crow/examples/features_demo/include",
+      "-I/home/anyhody/.crow/git_cache/fmt-77984052dc41b78b-407c905e45ad75fc/include",
+      "-I/home/anyhody/.crow/wheel_builds/debug/e6b7bf9e29e65642/cmake_wheel/install/include",
+      "-std=c++20",
+      "-MD",
+      "-MF",
+      "target/debug/deps/main.d",
+      "-o",
+      "target/debug/main.o",
+      "/home/anyhody/Documents/GitHub/crow/examples/features_demo/src/main.cpp"
+    ],
+    "file": "/home/anyhody/Documents/GitHub/crow/examples/features_demo/src/main.cpp"
+  }
+]

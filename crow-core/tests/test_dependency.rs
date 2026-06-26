@@ -54,6 +54,7 @@ mod tests {
             None,
             false,
             vec![],
+            vec![],
         )?;
         let idx_dep = g.add_node(
             root_b.clone(),
@@ -61,6 +62,7 @@ mod tests {
             None,
             None,
             false,
+            vec![],
             vec![],
         )?;
         g.add_edge(idx_root, idx_dep)?;
@@ -85,6 +87,7 @@ mod tests {
             None,
             false,
             vec![],
+            vec![],
         )?;
         let idx_b = g.add_node(
             root_b.clone(),
@@ -92,6 +95,7 @@ mod tests {
             None,
             None,
             false,
+            vec![],
             vec![],
         )?;
         g.add_edge(idx_a, idx_b)?;
@@ -214,5 +218,164 @@ mod tests {
         assert!(a.include_dirs.is_empty());
         assert!(a.lib_paths.is_empty());
         assert!(a.lib_names.is_empty());
+    }
+
+    #[test]
+    fn system_dep_features_parse() {
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+boost = { system = true, features = ["system", "filesystem"], libs = ["boost_system", "boost_filesystem"] }
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let boost = config.dependencies.get("boost").unwrap();
+        assert!(boost.is_system());
+        assert_eq!(boost.features(), ["system", "filesystem"]);
+        assert_eq!(boost.system_libs(), ["boost_system", "boost_filesystem"]);
+    }
+
+    #[test]
+    fn system_dep_features_only_auto_libs() {
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+boost = { system = true, features = ["system", "filesystem"] }
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let boost = config.dependencies.get("boost").unwrap();
+        assert!(boost.is_system());
+        assert_eq!(boost.features(), ["system", "filesystem"]);
+        assert!(boost.system_libs().is_empty()); // no explicit libs
+    }
+
+    #[test]
+    fn system_dep_no_features_backward_compat() {
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+openssl = { system = true, libs = ["ssl", "crypto"] }
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let openssl = config.dependencies.get("openssl").unwrap();
+        assert!(openssl.is_system());
+        assert!(openssl.features().is_empty());
+        assert_eq!(openssl.system_libs(), ["ssl", "crypto"]);
+    }
+
+    #[test]
+    fn resolved_dependency_build_system_features_default() {
+        let resolved = ResolvedDependencyBuild::default();
+        assert!(resolved.system_features.is_empty());
+        assert!(resolved.system_libs_map.is_empty());
+    }
+
+    #[test]
+    fn non_system_dep_features_empty() {
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+foo = "1.0"
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let foo = config.dependencies.get("foo").unwrap();
+        assert!(foo.features().is_empty());
+    }
+
+    #[test]
+    fn registry_dep_features_parse() {
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+boost = { version = "^1.91", features = ["asio"] }
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let boost = config.dependencies.get("boost").unwrap();
+        assert!(!boost.is_system());
+        assert_eq!(boost.features(), ["asio"]);
+    }
+
+    #[test]
+    fn registry_dep_features_explicit_registry_url() {
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+boost = { version = "^1.91", registry = "https://example.com/reg", features = ["asio", "system"] }
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let boost = config.dependencies.get("boost").unwrap();
+        assert!(!boost.is_system());
+        assert_eq!(boost.features(), ["asio", "system"]);
+    }
+
+    #[test]
+    fn registry_dep_no_features_backward_compat() {
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+boost = { version = "^1.91" }
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let boost = config.dependencies.get("boost").unwrap();
+        assert!(!boost.is_system());
+        assert!(boost.features().is_empty());
+    }
+
+    #[test]
+    fn registry_dep_features_collected() {
+        // Registry dep features should be collected into registry_features
+        // so the wheel build can select components.
+        use crow_core::dependency::ResolvedDependencyBuild;
+        let mut resolved = ResolvedDependencyBuild::default();
+        let dep_name = "boost";
+        let features = vec!["asio".to_string()];
+        let dep_name_lower = dep_name.to_ascii_lowercase();
+        resolved
+            .registry_features
+            .entry(dep_name_lower.clone())
+            .or_insert_with(Vec::new)
+            .extend(features.clone());
+
+        assert_eq!(
+            resolved.registry_features.get("boost").unwrap(),
+            &vec!["asio".to_string()]
+        );
+    }
+
+    #[test]
+    fn registry_dep_explicit_libs_from_spec() {
+        // When a registry dep has explicit libs, those are used verbatim.
+        let toml_str = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+boost = { version = "^1.91", features = ["asio"], libs = ["boost_asio"] }
+"#;
+        let config: CrowConfig = toml::from_str(toml_str).unwrap();
+        let boost = config.dependencies.get("boost").unwrap();
+        assert_eq!(boost.features(), ["asio"]);
+        assert_eq!(boost.registry_libs(), ["boost_asio"]);
     }
 }

@@ -138,6 +138,8 @@ impl<'a> BuildSession<'a> {
                         &build_flags,
                         Some(&compiler_path),
                         compiler_kind,
+                        &resolved.system_features,
+                        &resolved.registry_features,
                     )?;
                     resolved.absorb_wheel_artifacts(&artifacts);
                     wheel_artifacts.insert(root, artifacts);
@@ -309,6 +311,8 @@ impl<'a> BuildSession<'a> {
         build_flags: &[String],
         compiler_path: Option<&str>,
         compiler_kind: crate::builder::kinds::compiler_kind::CompilerKind,
+        system_features: &std::collections::HashMap<String, Vec<String>>,
+        registry_features: &std::collections::HashMap<String, Vec<String>>,
     ) -> Result<WheelArtifacts> {
         let display = format!("{} (wheel)", name);
         if let Some(pb) = &self.progress {
@@ -317,6 +321,20 @@ impl<'a> BuildSession<'a> {
         } else {
             status!("Compiling", "{}", display);
         }
+        // Merge system + registry features into a single map for the wheel build.
+        // System features take precedence on collision (they come from direct system = true deps).
+        let mut dep_features = system_features.clone();
+        for (dep, features) in registry_features {
+            dep_features
+                .entry(dep.clone())
+                .or_insert_with(Vec::new);
+            let entry = dep_features.get_mut(dep).unwrap();
+            for f in features {
+                if !entry.contains(f) {
+                    entry.push(f.clone());
+                }
+            }
+        }
         resolver.build_wheel(
             root,
             self.profile_name,
@@ -324,6 +342,7 @@ impl<'a> BuildSession<'a> {
             build_flags,
             compiler_path,
             compiler_kind,
+            &dep_features,
         )
     }
 

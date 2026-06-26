@@ -1,4 +1,5 @@
 use anyhowed::Result;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub mod bazel;
@@ -23,6 +24,8 @@ pub trait Wheel: Send + Sync {
     /// Run wheel build, return artifacts
     /// compiler_flags: flags for the compiler (-std, -O, etc.)
     /// build_flags: flags for the build system itself (-D for CMake, --define for Bazel, etc.)
+    /// dep_features: maps dep name → enabled features for CMake/Bazel component selection.
+    /// Contains both system and registry features.
     fn build(
         &self,
         build_dir: &Path,
@@ -31,6 +34,7 @@ pub trait Wheel: Send + Sync {
         build_flags: &[String],
         compiler_path: Option<&str>,
         compiler_kind: CompilerKind,
+        dep_features: &HashMap<String, Vec<String>>,
     ) -> Result<WheelArtifacts>;
     /// Check if this build system is suitable for the given directory
     fn detects(&self, root: &Path) -> bool;
@@ -48,7 +52,6 @@ pub enum WheelType {
 
 impl WheelType {
     pub fn new(root: &Path) -> Option<Self> {
-        // Create temporary instances for checking
         let cmake_wheel = cmake::CmakeWheel::new(root);
         if cmake_wheel.detects(root) {
             return Some(WheelType::Cmake(cmake_wheel));
@@ -73,6 +76,7 @@ impl WheelType {
         build_flags: &[String],
         compiler_path: Option<&str>,
         compiler_kind: CompilerKind,
+        dep_features: &HashMap<String, Vec<String>>,
     ) -> Result<WheelArtifacts> {
         match self {
             WheelType::Cmake(w) => w.build(
@@ -82,6 +86,7 @@ impl WheelType {
                 build_flags,
                 compiler_path,
                 compiler_kind,
+                dep_features,
             ),
             WheelType::Meson(w) => w.build(
                 build_dir,
@@ -90,6 +95,7 @@ impl WheelType {
                 build_flags,
                 compiler_path,
                 compiler_kind,
+                dep_features,
             ),
             WheelType::Bazel(w) => w.build(
                 build_dir,
@@ -98,6 +104,7 @@ impl WheelType {
                 build_flags,
                 compiler_path,
                 compiler_kind,
+                dep_features,
             ),
         }
     }

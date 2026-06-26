@@ -13,6 +13,8 @@ pub struct NodePayload {
     pub checksum: Option<String>,
     pub is_wheel: bool,
     pub build_flags: Vec<String>,
+    /// Features requested from a registry dependency (propagated from ResolvedPackage).
+    pub registry_features: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -39,6 +41,7 @@ impl DependencyGraph {
         checksum: Option<String>,
         is_wheel: bool,
         build_flags: Vec<String>,
+        registry_features: Vec<String>,
     ) -> Result<NodeIndex> {
         let name = config
             .package
@@ -62,6 +65,7 @@ impl DependencyGraph {
             checksum,
             is_wheel,
             build_flags,
+            registry_features,
         });
         self.node_by_name.insert(name, idx);
         Ok(idx)
@@ -92,6 +96,10 @@ impl DependencyGraph {
         let mut build_order = sorted;
         build_order.reverse();
         Ok(build_order)
+    }
+
+    pub fn graph(&self) -> &Graph<NodePayload, ()> {
+        &self.graph
     }
 
     pub fn is_visiting(&self, root: &PathBuf) -> bool {

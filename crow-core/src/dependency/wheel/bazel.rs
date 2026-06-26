@@ -2,6 +2,7 @@ use super::{get_artifacts, Wheel, WheelArtifacts};
 use crate::builder::kinds::compiler_kind::CompilerKind;
 use anyhowed::{Context, Result};
 use crow_utils::find_executable;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -61,6 +62,7 @@ impl Wheel for BazelWheel {
         build_flags: &[String],
         _compiler_path: Option<&str>,
         compiler_kind: CompilerKind,
+        _dep_features: &HashMap<String, Vec<String>>,
     ) -> Result<WheelArtifacts> {
         let out_dir = build_dir.join("bazel_wheel");
         fs::create_dir_all(&out_dir)?;

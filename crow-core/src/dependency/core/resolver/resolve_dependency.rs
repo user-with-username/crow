@@ -54,10 +54,10 @@ impl DependencyResolver {
             }
         }
 
-        let (dep_root, source_repr, checksum) = match spec {
+        let (dep_root, source_repr, checksum, features) = match spec {
             DependencySpec::Git { git, .. } => {
                 let (dep_root, rev) = GitDependencyFetcher::global().fetch(dep_name, git)?;
-                (dep_root, Some(format!("git+{git}#{rev}")), None)
+                (dep_root, Some(format!("git+{git}#{rev}")), None, Vec::new())
             }
             DependencySpec::Path { path, .. } => {
                 let candidate = if path.is_relative() {
@@ -73,17 +73,28 @@ impl DependencyResolver {
                 })?;
 
                 let path_str = canonical.to_string_lossy();
-                (PathBuf::from(normalize_path(&path_str)), None, None)
+                (
+                    PathBuf::from(normalize_path(&path_str)),
+                    None,
+                    None,
+                    Vec::new(),
+                )
             }
             DependencySpec::Registry {
                 version, registry, ..
             } => {
                 let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
-                self.resolve_from_registry(dep_name, version, registry_url, &build_flags)?
+                let (root, source, checksum) =
+                    self.resolve_from_registry(dep_name, version, registry_url, &build_flags)?;
+                let features = spec.features().to_vec();
+                (root, source, checksum, features)
             }
             DependencySpec::Version(version) => {
                 let registry_url = Environment::registry_url();
-                self.resolve_from_registry(dep_name, version, &registry_url, &build_flags)?
+                let (root, source, checksum) =
+                    self.resolve_from_registry(dep_name, version, &registry_url, &build_flags)?;
+                let features = spec.features().to_vec();
+                (root, source, checksum, features)
             }
             DependencySpec::System { .. } => {
                 bail!("system dependency should not reach resolve_dependency");
@@ -146,6 +157,8 @@ impl DependencyResolver {
             checksum,
             is_wheel,
             build_flags,
+            features,
+            auto_libs: Vec::new(),
         };
 
         let profile_cache = self
