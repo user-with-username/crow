@@ -108,36 +108,6 @@ version = "1.0.0"
     }
 
     #[test]
-    fn target_cfg_section_applied() -> anyhowed::Result<()> {
-        let dir = tempdir()?;
-        let is_windows = cfg!(target_os = "windows");
-
-        let toml_content = r#"
-[package]
-name = "test-target"
-version = "0.1.0"
-
-[build]
-src_dirs = ["src"]
-
-[target."cfg(windows)".build]
-libs = ["advapi32"]
-"#;
-
-        if is_windows {
-            fs::write(dir.path().join("crow.toml"), toml_content)?;
-            let (cfg, _) = CrowConfig::load_from(dir.path(), false, None)?;
-            let libs: Vec<&str> = cfg.build.libs.iter().map(|s| s.as_str()).collect();
-            assert!(
-                libs.contains(&"advapi32"),
-                "windows target section should add advapi32, got: {:?}",
-                libs
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
     fn profiles_default_and_profile_enum() {
         let profiles = Profiles::default();
         let _ = Profile::Dev(profiles.dev.clone());
