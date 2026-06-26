@@ -289,12 +289,7 @@ impl DependencyResolver {
         }
 
         // Collect transitive system + registry features from sub-dependencies
-        self.collect_transitive_features(
-            root_idx,
-            &mut resolved,
-            &graph,
-            &mut seen_system_libs,
-        )?;
+        self.collect_transitive_features(root_idx, &mut resolved, &graph, &mut seen_system_libs)?;
 
         for idx in build_order {
             if idx == root_idx {
@@ -429,8 +424,7 @@ impl DependencyResolver {
                             .system_features
                             .entry(dep_name_lower.clone())
                             .or_insert_with(Vec::new);
-                        let entry =
-                            resolved.system_features.get_mut(&dep_name_lower).unwrap();
+                        let entry = resolved.system_features.get_mut(&dep_name_lower).unwrap();
                         for f in &features {
                             if !entry.contains(f) {
                                 entry.push(f.clone());
@@ -454,8 +448,7 @@ impl DependencyResolver {
                             .system_libs_map
                             .entry(dep_name_lower.clone())
                             .or_insert_with(Vec::new);
-                        let entry =
-                            resolved.system_libs_map.get_mut(&dep_name_lower).unwrap();
+                        let entry = resolved.system_libs_map.get_mut(&dep_name_lower).unwrap();
                         for lib in &libs {
                             if !entry.contains(lib) {
                                 entry.push(lib.clone());
@@ -475,8 +468,7 @@ impl DependencyResolver {
                         .registry_features
                         .entry(dep_name_lower.clone())
                         .or_insert_with(Vec::new);
-                    let entry =
-                        resolved.registry_features.get_mut(&dep_name_lower).unwrap();
+                    let entry = resolved.registry_features.get_mut(&dep_name_lower).unwrap();
                     for f in &features {
                         if !entry.contains(f) {
                             entry.push(f.clone());

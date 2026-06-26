@@ -325,9 +325,7 @@ impl<'a> BuildSession<'a> {
         // System features take precedence on collision (they come from direct system = true deps).
         let mut dep_features = system_features.clone();
         for (dep, features) in registry_features {
-            dep_features
-                .entry(dep.clone())
-                .or_insert_with(Vec::new);
+            dep_features.entry(dep.clone()).or_insert_with(Vec::new);
             let entry = dep_features.get_mut(dep).unwrap();
             for f in features {
                 if !entry.contains(f) {

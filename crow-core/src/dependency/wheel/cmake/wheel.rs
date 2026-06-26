@@ -146,7 +146,6 @@ impl CmakeWheel {
         Ok(artifacts)
     }
 
-
     fn include_dirs_for_interface_targets(
         interface_targets: &[&TargetFile],
         root: &Path,
