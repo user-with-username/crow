@@ -241,15 +241,12 @@ impl Wheel for CmakeWheel {
             ));
         }
 
-        // Inject dependency features as CMake component flags
-        // e.g. boost with features ["system","filesystem"] → -DBoost_COMPONENTS=system;filesystem
         for (dep_name, features) in dep_features {
             if features.is_empty() {
                 continue;
             }
             let dep_upper = dep_name.to_ascii_uppercase();
             let components = features.join(";");
-            // Only inject if not already specified in build_flags
             let flag_key = format!("{}_COMPONENTS", dep_upper);
             let already_set = build_flags.iter().any(|f| {
                 let stripped = f.trim_start_matches("-D").trim_start_matches('-');
@@ -392,18 +389,28 @@ impl Wheel for CmakeWheel {
             }
         }
 
-        if artifacts.include_dirs.is_empty() {
-            for candidate in &[
-                self.root.join("include"),
-                self.root.join("single_include"),
-                self.root.to_path_buf(),
-                install_dir.join("include"),
-            ] {
-                if candidate.is_dir() && !artifacts.include_dirs.contains(candidate) {
-                    artifacts.include_dirs.push(candidate.clone());
-                }
+for candidate in &[
+    install_dir.join("include"),
+    self.root.to_path_buf(),
+    self.root.join("include"),
+    self.root.join("single_include"),
+] {
+    if candidate.is_dir() && !artifacts.include_dirs.contains(candidate) {
+        artifacts.include_dirs.push(candidate.clone());
+    }
+}
+
+let libs_dir = self.root.join("libs");
+if libs_dir.is_dir() {
+    if let Ok(entries) = std::fs::read_dir(libs_dir) {
+        for entry in entries.flatten() {
+            let lib_include = entry.path().join("include");
+            if lib_include.is_dir() && !artifacts.include_dirs.contains(&lib_include) {
+                artifacts.include_dirs.push(lib_include);
             }
         }
+    }
+}
 
         Ok(artifacts)
     }

@@ -101,7 +101,6 @@ impl DependencyResolver {
             }
         };
 
-        // Для зависимостей не нужно применять именованные таргеты, передаём None
         let load_result = CrowConfig::load_from(&dep_root, true, None);
         let (dep_config, is_wheel) = match load_result {
             Ok((config, _)) => (config, false),
