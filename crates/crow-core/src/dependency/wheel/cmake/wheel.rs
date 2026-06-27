@@ -389,28 +389,28 @@ impl Wheel for CmakeWheel {
             }
         }
 
-for candidate in &[
-    install_dir.join("include"),
-    self.root.to_path_buf(),
-    self.root.join("include"),
-    self.root.join("single_include"),
-] {
-    if candidate.is_dir() && !artifacts.include_dirs.contains(candidate) {
-        artifacts.include_dirs.push(candidate.clone());
-    }
-}
-
-let libs_dir = self.root.join("libs");
-if libs_dir.is_dir() {
-    if let Ok(entries) = std::fs::read_dir(libs_dir) {
-        for entry in entries.flatten() {
-            let lib_include = entry.path().join("include");
-            if lib_include.is_dir() && !artifacts.include_dirs.contains(&lib_include) {
-                artifacts.include_dirs.push(lib_include);
+        for candidate in &[
+            install_dir.join("include"),
+            self.root.to_path_buf(),
+            self.root.join("include"),
+            self.root.join("single_include"),
+        ] {
+            if candidate.is_dir() && !artifacts.include_dirs.contains(candidate) {
+                artifacts.include_dirs.push(candidate.clone());
             }
         }
-    }
-}
+
+        let libs_dir = self.root.join("libs");
+        if libs_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(libs_dir) {
+                for entry in entries.flatten() {
+                    let lib_include = entry.path().join("include");
+                    if lib_include.is_dir() && !artifacts.include_dirs.contains(&lib_include) {
+                        artifacts.include_dirs.push(lib_include);
+                    }
+                }
+            }
+        }
 
         Ok(artifacts)
     }

@@ -262,8 +262,9 @@ impl GitDependencyFetcher {
 
     fn update_submodules(&self, repo: &Repository, recursive: bool) -> Result<()> {
         let submodules = repo.submodules()?;
-        
-        let parent_remote = repo.find_remote("origin")
+
+        let parent_remote = repo
+            .find_remote("origin")
             .or_else(|_| repo.find_remote("upstream"))
             .ok();
         let parent_url = parent_remote.as_ref().and_then(|r| r.url());
@@ -273,27 +274,30 @@ impl GitDependencyFetcher {
 
             sub.init(false)
                 .with_context(|| format!("failed to init submodule '{name}'"))?;
-            
+
             let mut fetch_opts = FetchOptions::new();
             fetch_opts.depth(1);
             fetch_opts.update_fetchhead(true);
 
             let mut update_opts = SubmoduleUpdateOptions::new();
             update_opts.fetch(fetch_opts);
-            
+
             let mut cb = git2::build::CheckoutBuilder::new();
             cb.force();
             update_opts.checkout(cb);
-            
+
             if let Err(e) = sub.update(true, Some(&mut update_opts)) {
                 if e.code() == git2::ErrorCode::NotFound || e.class() == git2::ErrorClass::Odb {
-                    let sub_repo = sub.open()
-                        .with_context(|| format!("failed to open broken submodule '{name}' for manual recovery"))?;
-                    
-                    let target_id = sub.index_id()
-                        .with_context(|| format!("submodule '{name}' doesn't specify a target commit id"))?;
+                    let sub_repo = sub.open().with_context(|| {
+                        format!("failed to open broken submodule '{name}' for manual recovery")
+                    })?;
 
-                    let raw_url = sub.url()
+                    let target_id = sub.index_id().with_context(|| {
+                        format!("submodule '{name}' doesn't specify a target commit id")
+                    })?;
+
+                    let raw_url = sub
+                        .url()
                         .with_context(|| format!("submodule '{name}' has no remote URL"))?;
 
                     // resolves "../bloom.git" to "https://github.com/boostorg/bloom"
@@ -316,7 +320,7 @@ impl GitDependencyFetcher {
                         .with_context(|| format!("failed to create anonymous remote for '{name}' using URL '{absolute_url}'"))?;
 
                     let mut manual_fetch_opts = FetchOptions::new();
-                    
+
                     remote.fetch(
                         &[target_id.to_string()],
                         Some(&mut manual_fetch_opts),
@@ -326,21 +330,22 @@ impl GitDependencyFetcher {
                     let obj = sub_repo.find_object(target_id, None)?;
                     let mut manual_cb = git2::build::CheckoutBuilder::new();
                     manual_cb.force();
-                    
+
                     sub_repo.checkout_tree(&obj, Some(&mut manual_cb))?;
                     sub_repo.set_head_detached(target_id)?;
                 } else {
                     return Err(e).with_context(|| format!("failed to update submodule '{name}'"));
                 }
             }
-            
+
             if recursive {
-                let sub_repo = sub.open()
-                    .with_context(|| format!("failed to open submodule repo '{name}' for recursive update"))?;
+                let sub_repo = sub.open().with_context(|| {
+                    format!("failed to open submodule repo '{name}' for recursive update")
+                })?;
                 self.update_submodules(&sub_repo, true)?;
             }
         }
-        
+
         Ok(())
     }
 }
