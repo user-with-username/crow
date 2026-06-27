@@ -118,11 +118,11 @@ jobs:
             echo "Bumped $crate: $current -> $new_version"
           }
           
-          bump_patch "crow-utils"
-          bump_patch "crow-core"
-          bump_patch "crow-cli"
+          bump_patch "crates/crow-utils"
+          bump_patch "crates/crow-core"
+          bump_patch "crates/crow-cli"
           
-          version=$(grep -m1 '^version =' crow-cli/Cargo.toml | cut -d '"' -f2)
+          version=$(grep -m1 '^version =' crates/crow-cli/Cargo.toml | cut -d '"' -f2)
           echo "version=${version}" >> $GITHUB_OUTPUT
           echo "New version: ${version}"
           

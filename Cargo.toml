@@ -1,5 +1,5 @@
 [workspace]
-members = ["crow-core", "crow-cli", "crow-utils"]
+members = ["crates/*"]
 resolver = "2"
 
 [workspace.dependencies]
