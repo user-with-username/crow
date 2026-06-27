@@ -131,7 +131,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          git add crow-utils/Cargo.toml crow-core/Cargo.toml crow-cli/Cargo.toml
+          git add crates/crow-utils/Cargo.toml crates/crow-core/Cargo.toml crates/crow-cli/Cargo.toml
           
           if git diff --cached --quiet; then
             echo "No changes to commit"
