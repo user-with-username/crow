@@ -6,8 +6,12 @@ use toml_edit::{Document, Item, Value};
 use crate::status;
 
 pub fn add_dep(config_path: PathBuf, dep: &str, version: &str, is_dev: bool) -> Result<()> {
-    let current_dependency_type: &str = if !is_dev {"dependencies"} else { "dev-dependencies" };
-    
+    let current_dependency_type: &str = if !is_dev {
+        "dependencies"
+    } else {
+        "dev-dependencies"
+    };
+
     let content = fs::read_to_string(&config_path)
         .map_err(|_| anyhowed::anyhow!("failed to read crow.toml"))?;
 

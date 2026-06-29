@@ -45,14 +45,23 @@ impl AddCommand {
 
         let config_path = PathBuf::from("crow.toml");
 
-        add_dep(config_path, &self.args.package, &coords.version, self.args.dev)?;
+        add_dep(
+            config_path,
+            &self.args.package,
+            &coords.version,
+            self.args.dev,
+        )?;
 
         status!(
             "Adding",
             "{} v{} to {}",
             self.args.package,
             coords.version,
-            if !self.args.dev {"dependencies"} else { "dev-dependencies" }
+            if !self.args.dev {
+                "dependencies"
+            } else {
+                "dev-dependencies"
+            }
         );
 
         Ok(())
