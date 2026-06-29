@@ -16,6 +16,10 @@ pub struct AddArgs {
     /// Override registry URL
     #[arg(long)]
     pub registry: Option<String>,
+
+    /// Should package be added as a dev dependency
+    #[arg(short, long)]
+    pub dev: bool,
 }
 
 pub struct AddCommand {
@@ -41,13 +45,14 @@ impl AddCommand {
 
         let config_path = PathBuf::from("crow.toml");
 
-        add_dep(config_path, &self.args.package, &coords.version)?;
+        add_dep(config_path, &self.args.package, &coords.version, self.args.dev)?;
 
         status!(
             "Adding",
-            "{} v{} to dependencies",
+            "{} v{} to {}",
             self.args.package,
-            coords.version
+            coords.version,
+            if !self.args.dev {"dependencies"} else { "dev-dependencies" }
         );
 
         Ok(())
