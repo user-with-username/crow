@@ -8,6 +8,7 @@ Adds a dependency to your project.
 crow add fmt
 crow add fmt --version 1.0
 crow add fmt --registry https://github.com/user-with-username/crow-registry
+crow add --dev fmt 
 ```
 
 This adds the package to `crow.toml`:
@@ -29,12 +30,13 @@ fmt = "1.0"
 |------|-------|-------------|
 | `--version <ver>` | `-v` | Version requirement (e.g., `1.0`, `^2.0`, `>=1.0`) |
 | `--registry <url>` | | Override the registry URL |
+| `--dev` | | Adds dependency to the `dev-dependencies` section |
 
 ## How it works
 
 1. Resolves the package name against the registry
 2. Finds the latest compatible version (or uses the one you specified)
-3. Adds it to `[dependencies]` in `crow.toml`
+3. Adds it to `[dependencies]` or `dev-dependencies` in `crow.toml`
 
 If the package is already in your dependencies, Crow will tell you and do nothing.
 

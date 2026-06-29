@@ -49,6 +49,9 @@ openssl = { system = true, libs = ["ssl", "crypto"] }
 
 No downloading, no building. Just passes `-lssl -lcrypto` to the linker.
 
+## Dev dependencies 
+Dev dependencies will be used by crow if you build project with `test` or with `bench` profiles
+
 ## Build system integrations ("wheels")
 
 Some dependencies use CMake, Meson, or Bazel. They don't have a `crow.toml` — they have a `CMakeLists.txt`, `meson.build`, or `WORKSPACE` file instead.
