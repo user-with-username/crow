@@ -33,7 +33,8 @@ impl DependencyResolver {
             let constraint = DependencyConstraint::from_dependency_spec(spec, owner_root);
             resolver.check_dependency_conflict(profile_name, dep_name, constraint, owner_name)?;
 
-            let resolved_dep = resolver.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
+            let resolved_dep =
+                resolver.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
 
             let crate::dependency::ResolvedPackage {
                 root: canonical_root,
