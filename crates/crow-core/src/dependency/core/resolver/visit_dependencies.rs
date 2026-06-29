@@ -10,20 +10,30 @@ impl DependencyResolver {
         &mut self,
         owner_idx: NodeIndex,
         deps: &crate::config::Dependencies,
+        dev_deps: &crate::config::DevDependencies,
         owner_root: &Path,
         graph: &mut DependencyGraph,
         profile_name: &str,
         owner_name: &str,
     ) -> Result<()> {
-        for (dep_name, spec) in deps.iter() {
+        fn process_dep(
+            resolver: &mut DependencyResolver,
+            owner_idx: NodeIndex,
+            dep_name: &str,
+            spec: &crate::config::DependencySpec,
+            owner_root: &Path,
+            graph: &mut DependencyGraph,
+            profile_name: &str,
+            owner_name: &str,
+        ) -> Result<()> {
             if spec.is_system() {
-                continue;
+                return Ok(());
             }
 
             let constraint = DependencyConstraint::from_dependency_spec(spec, owner_root);
-            self.check_dependency_conflict(profile_name, dep_name, constraint, owner_name)?;
+            resolver.check_dependency_conflict(profile_name, dep_name, constraint, owner_name)?;
 
-            let resolved_dep = self.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
+            let resolved_dep = resolver.resolve_dependency(dep_name, spec, owner_root, profile_name)?;
 
             let crate::dependency::ResolvedPackage {
                 root: canonical_root,
@@ -38,6 +48,7 @@ impl DependencyResolver {
             } = resolved_dep;
 
             let sub_dependencies = config.dependencies.clone();
+            let sub_dev_dependencies = config.dev_dependencies.clone();
 
             let dep_package_name = config
                 .package
@@ -61,9 +72,10 @@ impl DependencyResolver {
             if !graph.is_visiting(&canonical_root) {
                 graph.mark_visiting(canonical_root.clone());
 
-                self.visit_dependencies(
+                resolver.visit_dependencies(
                     dep_idx,
                     &sub_dependencies,
+                    &sub_dev_dependencies,
                     &canonical_root,
                     graph,
                     profile_name,
@@ -72,7 +84,38 @@ impl DependencyResolver {
 
                 graph.unmark_visiting(&canonical_root);
             }
+
+            Ok(())
         }
+
+        for (dep_name, spec) in deps.iter() {
+            process_dep(
+                self,
+                owner_idx,
+                dep_name,
+                spec,
+                owner_root,
+                graph,
+                profile_name,
+                owner_name,
+            )?;
+        }
+
+        if profile_name == "test" || profile_name == "bench" {
+            for (dep_name, spec) in dev_deps.iter() {
+                process_dep(
+                    self,
+                    owner_idx,
+                    dep_name,
+                    spec,
+                    owner_root,
+                    graph,
+                    profile_name,
+                    owner_name,
+                )?;
+            }
+        }
+
         Ok(())
     }
 }

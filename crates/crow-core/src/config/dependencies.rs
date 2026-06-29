@@ -17,6 +17,18 @@ impl Deref for Dependencies {
     }
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(transparent)]
+pub struct DevDependencies(pub BTreeMap<String, DependencySpec>);
+
+impl Deref for DevDependencies {
+    type Target = BTreeMap<String, DependencySpec>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum DependencySpec {

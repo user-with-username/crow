@@ -131,6 +131,7 @@ impl DependencyResolver {
                     workspace: None,
                     build: BuildConfig::default(),
                     dependencies: crate::config::Dependencies::default(),
+                    dev_dependencies: crate::config::DevDependencies::default(),
                     profile: Profiles::default(),
                 };
                 (dummy_config, is_wheel)

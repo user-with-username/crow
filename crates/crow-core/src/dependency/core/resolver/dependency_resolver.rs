@@ -142,7 +142,7 @@ impl DependencyResolver {
         self.dependency_constraints.remove(profile_name);
         self.dependency_owners.remove(profile_name);
 
-        if root_config.dependencies.is_empty() {
+        if root_config.dependencies.is_empty() && root_config.dev_dependencies.is_empty() {
             return Ok(ResolvedDependencyBuild::default());
         }
 
@@ -178,6 +178,7 @@ impl DependencyResolver {
         self.visit_dependencies(
             root_idx,
             &root_config.dependencies,
+            &root_config.dev_dependencies,
             &root_dir,
             &mut graph,
             profile_name,
@@ -221,74 +222,15 @@ impl DependencyResolver {
         );
 
         for (dep_name, spec) in root_config.dependencies.iter() {
-            let dep_name_lower = dep_name.to_ascii_lowercase();
-            let features = spec.features();
+            self.process_dependency_spec(dep_name, spec, &mut resolved, &mut seen_system_libs)?;
+        }
 
-            if spec.is_system() {
-                // Collect features
-                let features_vec = features.to_vec();
-                if !features_vec.is_empty() {
-                    resolved
-                        .system_features
-                        .entry(dep_name_lower.clone())
-                        .or_insert_with(Vec::new);
-                    let entry = resolved.system_features.get_mut(&dep_name_lower).unwrap();
-                    for f in &features_vec {
-                        if !entry.contains(f) {
-                            entry.push(f.clone());
-                        }
-                    }
-                }
-
-                // Determine libs: explicit libs, or auto-generated from features
-                let libs = if spec.system_libs().is_empty() && !features.is_empty() {
-                    features
-                        .iter()
-                        .map(|f| format!("{}_{}", dep_name_lower, f.to_ascii_lowercase()))
-                        .collect::<Vec<_>>()
-                } else {
-                    spec.system_libs().to_vec()
-                };
-
-                // Store per-dep libs
-                if !libs.is_empty() {
-                    resolved
-                        .system_libs_map
-                        .entry(dep_name_lower.clone())
-                        .or_insert_with(Vec::new);
-                    let entry = resolved.system_libs_map.get_mut(&dep_name_lower).unwrap();
-                    for lib in &libs {
-                        if !entry.contains(lib) {
-                            entry.push(lib.clone());
-                        }
-                    }
-                }
-
-                // Add to flat system_libs list for linking
-                for lib in &libs {
-                    if seen_system_libs.insert(lib.clone()) {
-                        resolved.system_libs.push(lib.clone());
-                    }
-                }
-            } else if !features.is_empty() {
-                // Registry / git / path dep with features (e.g. boost from registry with asio).
-                // Features are passed to the wheel build so it can select components.
-                // Linking is handled by the wheel's own lib_names output.
-                let features_vec = features.to_vec();
-                resolved
-                    .registry_features
-                    .entry(dep_name_lower.clone())
-                    .or_insert_with(Vec::new);
-                let entry = resolved.registry_features.get_mut(&dep_name_lower).unwrap();
-                for f in &features_vec {
-                    if !entry.contains(f) {
-                        entry.push(f.clone());
-                    }
-                }
+        if profile_name == "test" || profile_name == "bench" {
+            for (dep_name, spec) in root_config.dev_dependencies.iter() {
+                self.process_dependency_spec(dep_name, spec, &mut resolved, &mut seen_system_libs)?;
             }
         }
 
-        // Collect transitive system + registry features from sub-dependencies
         self.collect_transitive_features(root_idx, &mut resolved, &graph, &mut seen_system_libs)?;
 
         for idx in build_order {
@@ -366,7 +308,75 @@ impl DependencyResolver {
         Ok(resolved)
     }
 
-    /// Walk the dependency graph and merge system + registry features from sub-dependencies upward.
+    fn process_dependency_spec(
+        &self,
+        dep_name: &str,
+        spec: &crate::config::DependencySpec,
+        resolved: &mut ResolvedDependencyBuild,
+        seen_system_libs: &mut HashSet<String>,
+    ) -> Result<()> {
+        let dep_name_lower = dep_name.to_ascii_lowercase();
+        let features = spec.features();
+
+        if spec.is_system() {
+            // Collect features
+            let features_vec = features.to_vec();
+            if !features_vec.is_empty() {
+                resolved
+                    .system_features
+                    .entry(dep_name_lower.clone())
+                    .or_insert_with(Vec::new);
+                let entry = resolved.system_features.get_mut(&dep_name_lower).unwrap();
+                for f in &features_vec {
+                    if !entry.contains(f) {
+                        entry.push(f.clone());
+                    }
+                }
+            }
+
+            let libs = if spec.system_libs().is_empty() && !features.is_empty() {
+                features
+                    .iter()
+                    .map(|f| format!("{}_{}", dep_name_lower, f.to_ascii_lowercase()))
+                    .collect::<Vec<_>>()
+            } else {
+                spec.system_libs().to_vec()
+            };
+
+            if !libs.is_empty() {
+                resolved
+                    .system_libs_map
+                    .entry(dep_name_lower.clone())
+                    .or_insert_with(Vec::new);
+                let entry = resolved.system_libs_map.get_mut(&dep_name_lower).unwrap();
+                for lib in &libs {
+                    if !entry.contains(lib) {
+                        entry.push(lib.clone());
+                    }
+                }
+            }
+
+            for lib in &libs {
+                if seen_system_libs.insert(lib.clone()) {
+                    resolved.system_libs.push(lib.clone());
+                }
+            }
+        } else if !features.is_empty() {
+            let features_vec = features.to_vec();
+            resolved
+                .registry_features
+                .entry(dep_name_lower.clone())
+                .or_insert_with(Vec::new);
+            let entry = resolved.registry_features.get_mut(&dep_name_lower).unwrap();
+            for f in &features_vec {
+                if !entry.contains(f) {
+                    entry.push(f.clone());
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn collect_transitive_features(
         &self,
         root_idx: petgraph::graph::NodeIndex,
@@ -385,7 +395,6 @@ impl DependencyResolver {
                 Some(p) => p,
                 None => continue,
             };
-            // Propagate registry features stored on the node itself (from direct deps)
             if !payload.registry_features.is_empty() {
                 let node_name = payload
                     .config
@@ -412,13 +421,11 @@ impl DependencyResolver {
                     }
                 }
             }
-            // Check sub-dependencies' system + registry deps
             for (dep_name, spec) in payload.config.dependencies.iter() {
                 let dep_name_lower = dep_name.to_ascii_lowercase();
                 let features = spec.features().to_vec();
 
                 if spec.is_system() {
-                    // Merge system features
                     if !features.is_empty() {
                         resolved
                             .system_features
@@ -432,7 +439,6 @@ impl DependencyResolver {
                         }
                     }
 
-                    // Determine libs
                     let libs = if spec.system_libs().is_empty() && !spec.features().is_empty() {
                         spec.features()
                             .iter()
@@ -442,7 +448,6 @@ impl DependencyResolver {
                         spec.system_libs().to_vec()
                     };
 
-                    // Merge per-dep libs
                     if !libs.is_empty() {
                         resolved
                             .system_libs_map
@@ -475,6 +480,13 @@ impl DependencyResolver {
                         }
                     }
                 }
+            }
+
+            // Also check dev-dependencies for test/bench profiles
+            if payload.config.package.is_some() {
+                // We need to check dev-dependencies of sub-dependencies too
+                // They are already in the graph if profile is test/bench
+                // because visit_dependencies added them
             }
         }
         Ok(())

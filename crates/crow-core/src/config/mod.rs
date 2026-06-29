@@ -1,5 +1,3 @@
-// crow-core/src/config/mod.rs
-
 use anyhowed::{Context, Result};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -22,7 +20,7 @@ pub use compiler::CompilerConfig;
 use crow_utils::condition::{
     apply_target_filter, get_named_targets_list, has_named_targets, TargetInfo,
 };
-pub use dependencies::{Dependencies, DependencySpec};
+pub use dependencies::{Dependencies, DependencySpec, DevDependencies};
 pub use formatter::FormatterConfig;
 pub use linker::LinkerConfig;
 pub use package::Package;
@@ -43,6 +41,9 @@ pub struct CrowConfig {
 
     #[serde(default)]
     pub dependencies: Dependencies,
+
+    #[serde(default, rename = "dev-dependencies")]
+    pub dev_dependencies: DevDependencies,
 
     #[serde(default)]
     pub profile: Profiles,
