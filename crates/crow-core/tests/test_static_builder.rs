@@ -49,6 +49,7 @@ mod tests {
             build: build_config,
             workspace: None,
             dependencies: Default::default(),
+            dev_dependencies: Default::default(),
             profile: Default::default(),
         };
 

@@ -16,6 +16,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: Default::default(),
+            dev_dependencies: Default::default(),
             profile: Default::default(),
         };
         let project =

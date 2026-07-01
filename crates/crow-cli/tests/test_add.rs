@@ -8,6 +8,7 @@ mod tests {
             package: "test_pkg".to_string(),
             version: None,
             registry: None,
+            dev: false,
         };
 
         assert_eq!(args.package, "test_pkg");
@@ -21,6 +22,7 @@ mod tests {
             package: "test_pkg".to_string(),
             version: Some("1.0.0".to_string()),
             registry: None,
+            dev: false,
         };
 
         assert_eq!(args.package, "test_pkg");
@@ -33,6 +35,7 @@ mod tests {
             package: "test_pkg".to_string(),
             version: None,
             registry: None,
+            dev: false,
         };
 
         let command = AddCommand::new(args);

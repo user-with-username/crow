@@ -16,6 +16,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: Dependencies::default(),
+            dev_dependencies: Default::default(),
             profile: Profiles::default(),
         }
     }
@@ -111,6 +112,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: Dependencies::default(),
+            dev_dependencies: Default::default(),
             profile: Profiles::default(),
         };
         let mut resolved = ResolvedDependencyBuild::default();
@@ -143,6 +145,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: deps,
+            dev_dependencies: Default::default(),
             profile: Profiles::default(),
         };
         let lines = format_lock_dependencies(&cfg.dependencies, &by_name);
@@ -156,6 +159,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: Dependencies::default(),
+            dev_dependencies: Default::default(),
             profile: Profiles::default(),
         };
         let resolved = ResolvedDependencyBuild::default();

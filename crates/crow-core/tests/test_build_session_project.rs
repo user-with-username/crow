@@ -17,6 +17,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: Default::default(),
+            dev_dependencies: Default::default(),
             profile: Default::default(),
         };
         Project::new(config, dir.path().to_path_buf(), "dev", None)
@@ -38,6 +39,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: Default::default(),
+            dev_dependencies: Default::default(),
             profile: Default::default(),
         };
         let project = Project::new(config, dir.path().to_path_buf(), "dev", None)?;
@@ -62,6 +64,7 @@ mod tests {
             workspace: None,
             build: BuildConfig::default(),
             dependencies: Default::default(),
+            dev_dependencies: Default::default(),
             profile: Default::default(),
         };
         let project = Project::new(config, dir.path().to_path_buf(), "dev", None)?;
