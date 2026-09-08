@@ -476,15 +476,7 @@ boost = { version = "^1.91", features = ["asio"], libs = ["boost_asio"] }
         let mut config = empty_crow_config("pkg");
         config.package = Some(Package::new("pkg", "2.1.0"));
 
-        let idx = g.add_node(
-            root,
-            config,
-            None,
-            None,
-            false,
-            vec![],
-            vec![],
-        )?;
+        let idx = g.add_node(root, config, None, None, false, vec![], vec![])?;
         assert_eq!(g.label("pkg"), Some("pkg 2.1.0".to_string()));
         Ok(())
     }
