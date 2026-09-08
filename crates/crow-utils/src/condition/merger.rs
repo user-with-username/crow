@@ -36,7 +36,6 @@ fn merge_table_into_root(root: &mut Document, section_name: &str, overlay: &Tabl
     }
 }
 
-// Проверяет, является ли ключ условным таргетом (заключен в кавычки)
 fn is_conditional_key(key: &str) -> bool {
     key.starts_with('"') && key.ends_with('"')
 }
@@ -88,7 +87,6 @@ fn apply_sections(doc: &mut Document, sections: Vec<(String, Table)>) {
     }
 }
 
-// Применяет конкретный именованный таргет
 fn apply_named_target(doc: &mut Document, target_config: &Table) {
     for (section_name, section_value) in target_config.iter() {
         match section_value.as_table() {
@@ -100,7 +98,6 @@ fn apply_named_target(doc: &mut Document, target_config: &Table) {
     }
 }
 
-// Извлекает все именованные таргеты
 fn get_named_targets(doc: &Document) -> HashMap<String, Table> {
     let mut named_targets = HashMap::new();
 
@@ -110,7 +107,6 @@ fn get_named_targets(doc: &Document) -> HashMap<String, Table> {
     };
 
     for (key, value) in target_table.iter() {
-        // Именованные таргеты - это ключи без кавычек
         if !is_conditional_key(key) {
             if let Some(section_table) = value.as_table() {
                 named_targets.insert(key.to_string(), section_table.clone());
@@ -126,13 +122,10 @@ pub fn apply_target_filter(content: &str, target_or_name: &str) -> Result<String
         .parse::<Document>()
         .map_err(|e| format!("failed to parse TOML: {}", e))?;
 
-    // Проверяем, есть ли у нас секция [target]
     let target_table = doc.get("target").and_then(|item| item.as_table());
 
     if target_table.is_some() {
-        // Если target_or_name начинается и заканчивается на кавычку - это условный таргет
         if target_or_name.starts_with('"') && target_or_name.ends_with('"') {
-            // Убираем кавычки и парсим как условие
             let condition = target_or_name.trim_matches('"');
             let fake_target_info = TargetInfo::current();
             let cond = parse_condition(condition)
@@ -143,7 +136,6 @@ pub fn apply_target_filter(content: &str, target_or_name: &str) -> Result<String
                 apply_sections(&mut doc, conditional_sections);
             }
         } else {
-            // Иначе - это именованный таргет
             let named_targets = get_named_targets(&doc);
             if let Some(target_config) = named_targets.get(target_or_name) {
                 apply_named_target(&mut doc, target_config);
