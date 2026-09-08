@@ -3,6 +3,10 @@ use clap::Args;
 use crow_core::config::Workspace;
 use crow_core::dependency::DependencyResolver;
 
+/// Displays the project's dependency tree.
+///
+/// Mirrors `cargo tree` behavior, showing dependencies in a hierarchical format
+/// with Unicode box-drawing characters and duplicate detection.
 #[derive(Args)]
 pub struct TreeArgs {
     #[arg(short, long)]
@@ -19,6 +23,10 @@ pub struct TreeArgs {
     pub no_dedupe: bool,
 }
 
+/// The `crow tree` command implementation.
+///
+/// Resolves the project's dependency graph via `DependencyResolver`
+/// and prints it using `DependencyGraph::print_tree()`.
 pub struct TreeCommand {
     args: TreeArgs,
 }

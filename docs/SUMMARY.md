@@ -24,6 +24,7 @@
 - [publish](./commands/publish.md)
 - [delete](./commands/delete.md)
 - [metadata](./commands/metadata.md)
+- [tree](./commands/tree.md)
 
 [Publishing](./publishing.md)
 
