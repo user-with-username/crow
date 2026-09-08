@@ -127,19 +127,21 @@ impl DependencyGraph {
         };
         self.graph
             .neighbors(idx)
-            .filter_map(|child_idx| self.graph.node_weight(child_idx).map(|p| {
-                p.config
-                    .package
-                    .as_ref()
-                    .map(|pkg| pkg.name.clone())
-                    .unwrap_or_else(|| {
-                        p.root
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string()
-                    })
-            }))
+            .filter_map(|child_idx| {
+                self.graph.node_weight(child_idx).map(|p| {
+                    p.config
+                        .package
+                        .as_ref()
+                        .map(|pkg| pkg.name.clone())
+                        .unwrap_or_else(|| {
+                            p.root
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string()
+                        })
+                })
+            })
             .collect()
     }
 
@@ -230,7 +232,11 @@ impl DependencyGraph {
                 prefix_str.push_str(c);
                 prefix_str.push_str("   ");
             }
-            let c = if levels_continue.last().copied().unwrap_or(false) { "├" } else { "└" };
+            let c = if levels_continue.last().copied().unwrap_or(false) {
+                "├"
+            } else {
+                "└"
+            };
             prefix_str.push_str(c);
             prefix_str.push_str("──");
             prefix_str

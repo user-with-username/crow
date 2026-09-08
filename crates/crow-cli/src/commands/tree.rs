@@ -1,7 +1,7 @@
 use anyhowed::Result;
 use clap::Args;
-use crow_core::dependency::DependencyResolver;
 use crow_core::config::Workspace;
+use crow_core::dependency::DependencyResolver;
 
 #[derive(Args)]
 pub struct TreeArgs {
