@@ -32,10 +32,9 @@ impl CompilationDatabase {
         let root_str = Self::clean_path(project.root.clone());
         let abs_file = Self::clean_path(project.root.join(file_path));
 
-        if !args.is_empty()
-            && project.compiler_kind().is_msvc() {
-                args.insert(1, "--driver-mode=cl".to_string());
-            } // looks like cringe, but it makes clangd work better
+        if !args.is_empty() && project.compiler_kind().is_msvc() {
+            args.insert(1, "--driver-mode=cl".to_string());
+        } // looks like cringe, but it makes clangd work better
 
         self.entries.push(ClangdEntry {
             directory: root_str,
