@@ -14,6 +14,7 @@ pub struct DependencyResolver {
     pub resolved_cache: HashMap<String, HashMap<String, ResolvedPackage>>,
     dependency_constraints: HashMap<String, HashMap<String, DependencyConstraint>>,
     dependency_owners: HashMap<String, HashMap<String, Vec<String>>>,
+    graph: Option<DependencyGraph>,
 }
 
 impl DependencyResolver {
@@ -28,7 +29,12 @@ impl DependencyResolver {
             resolved_cache: HashMap::new(),
             dependency_constraints: HashMap::new(),
             dependency_owners: HashMap::new(),
+            graph: None,
         }
+    }
+
+    pub fn graph(&self) -> Option<&DependencyGraph> {
+        self.graph.as_ref()
     }
 
     pub fn wheel_cache_dir(
@@ -305,6 +311,7 @@ impl DependencyResolver {
             }
         }
 
+        self.graph = Some(graph);
         resolved.max_standard = max_standard.map(|s| s.to_string());
         Ok(resolved)
     }

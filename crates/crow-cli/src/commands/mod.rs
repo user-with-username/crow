@@ -12,6 +12,7 @@ pub mod publish;
 pub mod run;
 pub mod self_update;
 pub mod test;
+pub mod tree;
 
 use anyhowed::Result;
 use clap::Subcommand;
@@ -59,6 +60,9 @@ pub enum Command {
 
     /// Format all files in the project
     Fmt(fmt::FmtArgs),
+
+    /// Display the dependency tree
+    Tree(tree::TreeArgs),
 }
 
 impl Command {
@@ -78,6 +82,7 @@ impl Command {
             Self::SelfUpdate(args) => self_update::SelfUpdateCommand::new(args).execute(),
             Self::Metadata(args) => metadata::MetadataCommand::new(args).execute(),
             Self::Fmt(args) => fmt::FmtCommand::new(args).execute(),
+            Self::Tree(args) => tree::TreeCommand::new(args).execute(),
         }
     }
 }
