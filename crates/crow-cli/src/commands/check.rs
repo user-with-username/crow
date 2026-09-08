@@ -51,10 +51,7 @@ impl CheckCommand {
 
         if members_to_check.is_empty() {
             if let Some(bin) = &self.args.bin {
-                anyhowed::bail!(
-                    "No binary package named `{}` found",
-                    bin
-                );
+                anyhowed::bail!("No binary package named `{}` found", bin);
             } else {
                 anyhowed::bail!("No packages found to check");
             }

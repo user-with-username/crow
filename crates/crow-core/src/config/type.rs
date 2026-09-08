@@ -223,8 +223,7 @@ pub struct LibraryConfig {
     pub no_builtin_libs: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum TargetType {
     #[default]
     Executable,
@@ -233,6 +232,5 @@ pub enum TargetType {
     Module,
     HeaderOnly,
 }
-
 
 crate::config::macros::type_enum!();

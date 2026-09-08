@@ -159,10 +159,9 @@ impl CompilerFlags {
 
     pub fn object_output(&mut self, path: impl Into<String>) -> &mut Self {
         let mut path = path.into();
-        if self.compiler_kind.is_msvc()
-            && path.ends_with(".o") {
-                path = path.replacen(".o", ".obj", 1);
-            }
+        if self.compiler_kind.is_msvc() && path.ends_with(".o") {
+            path = path.replacen(".o", ".obj", 1);
+        }
         self.flags.push(Flag::ObjectOutput(path));
         self
     }

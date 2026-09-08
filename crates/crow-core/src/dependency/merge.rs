@@ -39,7 +39,9 @@ pub fn format_lock_dependencies(
     dependencies: &Dependencies,
     by_name: &HashMap<String, &ResolvedPackage>,
 ) -> Vec<String> {
-    dependencies.keys().map(|dep_name| {
+    dependencies
+        .keys()
+        .map(|dep_name| {
             if let Some(dep) = by_name.get(dep_name) {
                 let mut entry = format!(
                     "{} {}",

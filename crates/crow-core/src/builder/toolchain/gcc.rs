@@ -487,14 +487,13 @@ impl GccToolchain {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 let trimmed = line.trim();
-                if !trimmed.is_empty() && trimmed != "libc.so"
-                    && trimmed.contains('/') {
-                        if let Some(parent) = PathBuf::from(trimmed).parent() {
-                            if parent.exists() && !libraries.contains(&parent.to_path_buf()) {
-                                libraries.push(parent.to_path_buf());
-                            }
+                if !trimmed.is_empty() && trimmed != "libc.so" && trimmed.contains('/') {
+                    if let Some(parent) = PathBuf::from(trimmed).parent() {
+                        if parent.exists() && !libraries.contains(&parent.to_path_buf()) {
+                            libraries.push(parent.to_path_buf());
                         }
                     }
+                }
             }
         }
 
