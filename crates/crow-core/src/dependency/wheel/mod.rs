@@ -26,6 +26,7 @@ pub trait Wheel: Send + Sync {
     /// build_flags: flags for the build system itself (-D for CMake, --define for Bazel, etc.)
     /// dep_features: maps dep name → enabled features for CMake/Bazel component selection.
     /// Contains both system and registry features.
+    #[allow(clippy::too_many_arguments)]
     fn build(
         &self,
         build_dir: &Path,
@@ -68,6 +69,7 @@ impl WheelType {
         None
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn build(
         &self,
         build_dir: &Path,
@@ -203,7 +205,7 @@ pub fn get_artifacts(
     // Define library extensions per platform.
     // MinGW/Clang on Windows use `.a` for static libraries (e.g. libfmt.a, libfmtd.a).
     #[cfg(windows)]
-    let lib_extensions = vec!["a", "lib", "dll", "dll.a"];
+    let lib_extensions = ["a", "lib", "dll", "dll.a"];
     #[cfg(target_os = "macos")]
     let lib_extensions = vec!["a", "dylib", "so"];
     #[cfg(all(not(windows), not(target_os = "macos")))]

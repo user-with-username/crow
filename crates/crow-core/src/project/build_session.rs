@@ -12,6 +12,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+#[allow(clippy::large_enum_variant)]
 enum Buildable {
     Project(Project),
     Wheel {
@@ -231,6 +232,7 @@ impl<'a> BuildSession<'a> {
         Ok(root_project)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn collect_buildable(
         &mut self,
         resolver: &DependencyResolver,
@@ -302,11 +304,12 @@ impl<'a> BuildSession<'a> {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn compile_wheel(
         &self,
         resolver: &mut DependencyResolver,
         name: &str,
-        root: &PathBuf,
+        root: &Path,
         compiler_flags: &[String],
         build_flags: &[String],
         compiler_path: Option<&str>,
@@ -325,7 +328,7 @@ impl<'a> BuildSession<'a> {
         // System features take precedence on collision (they come from direct system = true deps).
         let mut dep_features = system_features.clone();
         for (dep, features) in registry_features {
-            dep_features.entry(dep.clone()).or_insert_with(Vec::new);
+            dep_features.entry(dep.clone()).or_default();
             let entry = dep_features.get_mut(dep).unwrap();
             for f in features {
                 if !entry.contains(f) {
@@ -357,7 +360,7 @@ impl<'a> BuildSession<'a> {
         };
 
         if let Some(pb) = &self.progress {
-            pb.set_label(&format!(
+            pb.set_label(format!(
                 "{} v{}",
                 project.package.name, project.package.version
             ));

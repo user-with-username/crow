@@ -3,7 +3,7 @@ use clap::Args;
 use crow_utils::status;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 const REPO: &str = "user-with-username/crow";
 
@@ -139,7 +139,7 @@ impl SelfUpdateCommand {
         Ok(url)
     }
 
-    fn replace_binary(exe: &PathBuf, data: &[u8]) -> Result<()> {
+    fn replace_binary(exe: &Path, data: &[u8]) -> Result<()> {
         let tmp = exe.with_extension("tmp");
         fs::write(&tmp, data).context("failed to write new binary to temp file")?;
 
@@ -174,7 +174,7 @@ impl SelfUpdateCommand {
             let powershell = find_executable("powershell")?;
 
             Command::new(&powershell)
-                .args(&[
+                .args([
                     "-WindowStyle",
                     "Hidden",
                     "-ExecutionPolicy",

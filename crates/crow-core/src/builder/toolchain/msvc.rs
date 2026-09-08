@@ -23,7 +23,7 @@ impl MsvcToolchain {
         }
 
         let output = Command::new(compiler_exe)
-            .args(&["/nologo", "/?"])
+            .args(["/nologo", "/?"])
             .output()
             .ok()?;
 
@@ -56,8 +56,6 @@ impl MsvcToolchain {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let combined = format!("{}{}", stdout, stderr);
             if combined.contains("Microsoft (R) Incremental Linker") {
-                supports_msvc = true;
-            } else if output.status.success() {
                 supports_msvc = true;
             }
         }
@@ -245,7 +243,7 @@ impl MsvcToolchain {
         })?;
 
         let output = Command::new(&vswhere)
-            .args(&[
+            .args([
                 "-latest",
                 "-products",
                 "*",
@@ -277,7 +275,7 @@ impl MsvcToolchain {
                 let version = entry.file_name().to_string_lossy().to_string();
                 if latest_version
                     .as_ref()
-                    .map_or(true, |v: &String| &version > v)
+                    .is_none_or(|v: &String| &version > v)
                 {
                     latest_version = Some(version);
                 }

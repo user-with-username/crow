@@ -37,8 +37,6 @@ impl GccToolchain {
                 || combined.contains("ld64")
             {
                 supports_gcc = true;
-            } else if output.status.success() {
-                supports_gcc = true;
             }
         }
 
@@ -51,8 +49,6 @@ impl GccToolchain {
                     || combined.contains("GNU gold")
                     || combined.contains("LLD")
                 {
-                    supports_gcc = true;
-                } else if output.status.success() {
                     supports_gcc = true;
                 }
             }
@@ -356,7 +352,7 @@ impl GccToolchain {
 
     fn extract_system_includes(compiler_exe: &str) -> Result<Vec<PathBuf>> {
         let output = Command::new(compiler_exe)
-            .args(&["-E", "-x", "c++", "-", "-v"])
+            .args(["-E", "-x", "c++", "-", "-v"])
             .stdin(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
             .output()
@@ -414,7 +410,7 @@ impl GccToolchain {
 
         if libraries.is_empty() {
             if let Ok(output) = Command::new(compiler_exe)
-                .args(&["-Wl,--verbose", "-shared"])
+                .args(["-Wl,--verbose", "-shared"])
                 .stderr(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .output()
@@ -481,7 +477,7 @@ impl GccToolchain {
         }
 
         if let Ok(output) = Command::new(compiler_exe)
-            .args(&[
+            .args([
                 "-print-multiarch",
                 "-print-sysroot",
                 "-print-file-name=libc.so",
@@ -491,19 +487,18 @@ impl GccToolchain {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 let trimmed = line.trim();
-                if !trimmed.is_empty() && trimmed != "libc.so" {
-                    if trimmed.contains('/') {
+                if !trimmed.is_empty() && trimmed != "libc.so"
+                    && trimmed.contains('/') {
                         if let Some(parent) = PathBuf::from(trimmed).parent() {
                             if parent.exists() && !libraries.contains(&parent.to_path_buf()) {
                                 libraries.push(parent.to_path_buf());
                             }
                         }
                     }
-                }
             }
         }
 
-        if let Ok(output) = Command::new(compiler_exe).args(&["-dumpspecs"]).output() {
+        if let Ok(output) = Command::new(compiler_exe).args(["-dumpspecs"]).output() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
                 if line.contains("lib") && line.contains('/') {

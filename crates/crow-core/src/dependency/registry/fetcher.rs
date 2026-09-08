@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::dependency::gitty::git_ops::find_default_branch;
@@ -78,14 +78,14 @@ impl RegistryFetcher {
 
         let (_chosen_version, version_str, entry) = available
             .iter()
-            .find(|(v, _, _)| version_req.matches(&v))
+            .find(|(v, _, _)| version_req.matches(v))
             .with_context(|| {
                 let versions: Vec<String> =
                     available.iter().map(|(_, v, _)| v.to_string()).collect();
                 format!(
                     "no version of `{dep_name}` satisfies `{}` in registry `{registry_url}`\n\
                      available versions: {}",
-                    version_req.to_string(),
+                    version_req,
                     versions.join(", ")
                 )
             })?;
@@ -145,7 +145,7 @@ impl RegistryFetcher {
 
     const REGISTRY_FETCH_INTERVAL: Duration = Duration::from_secs(300);
 
-    fn registry_fetch_is_stale(registry_dir: &PathBuf) -> bool {
+    fn registry_fetch_is_stale(registry_dir: &Path) -> bool {
         let marker = registry_dir.join(".last-fetch");
         let Ok(meta) = std::fs::metadata(&marker) else {
             return true;
@@ -159,7 +159,7 @@ impl RegistryFetcher {
             .unwrap_or(true)
     }
 
-    fn touch_registry_fetch_marker(registry_dir: &PathBuf) -> Result<()> {
+    fn touch_registry_fetch_marker(registry_dir: &Path) -> Result<()> {
         std::fs::write(registry_dir.join(".last-fetch"), "")?;
         Ok(())
     }
@@ -211,7 +211,7 @@ impl RegistryFetcher {
     fn read_index(&self, repo: &Repository, dep_name: &str) -> Result<RegistryIndex> {
         let blob_path = format!("packages/{dep_name}.toml");
         let raw_bytes = self
-            .read_blob(&repo, &blob_path)
+            .read_blob(repo, &blob_path)
             .with_context(|| format!("failed to read registry index for `{dep_name}`"))?;
 
         let raw_str = std::str::from_utf8(&raw_bytes)

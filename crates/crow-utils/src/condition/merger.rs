@@ -129,7 +129,7 @@ pub fn apply_target_filter(content: &str, target_or_name: &str) -> Result<String
     // Проверяем, есть ли у нас секция [target]
     let target_table = doc.get("target").and_then(|item| item.as_table());
 
-    if let Some(_) = target_table {
+    if target_table.is_some() {
         // Если target_or_name начинается и заканчивается на кавычку - это условный таргет
         if target_or_name.starts_with('"') && target_or_name.ends_with('"') {
             // Убираем кавычки и парсим как условие

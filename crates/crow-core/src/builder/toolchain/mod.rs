@@ -47,17 +47,19 @@ fn compatible_kinds(expected: CompilerKind, detected: CompilerKind) -> bool {
     false
 }
 
+type DetectFn = fn(
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<ArchiverKind>,
+) -> Result<Box<dyn Toolchain>>;
+
 struct ToolchainType {
     name: &'static str,
     identify_compiler: fn(&str) -> Option<CompilerKind>,
     identify_linker: fn(&str) -> bool,
     is_available_on_platform: fn() -> bool,
-    detect: fn(
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<ArchiverKind>,
-    ) -> Result<Box<dyn Toolchain>>,
+    detect: DetectFn,
 }
 
 macro_rules! register_toolchain {
@@ -94,11 +96,11 @@ pub fn shared_toolchain(config: &CrowConfig) -> Result<&dyn Toolchain> {
     let tc = SHARED_TOOLCHAIN.get_or_try_init(|| {
         detect_toolchain(
             config.build.compiler.path().cloned(),
-            Some(config.build.compiler.kind().clone()),
+            Some(config.build.compiler.kind()),
             config.build.linker.path().cloned(),
-            Some(config.build.linker.kind().clone()),
+            Some(config.build.linker.kind()),
             config.build.archiver.path().cloned(),
-            Some(config.build.archiver.kind().clone()),
+            Some(config.build.archiver.kind()),
         )
     })?;
     Ok(tc.as_ref())
@@ -168,15 +170,15 @@ pub fn detect_toolchain(
                 Ok(tc) => {
                     let compiler_kind_ok = preferred_compiler_kind
                         .as_ref()
-                        .map_or(true, |k| compatible_kinds(*k, tc.compiler_kind()));
+                        .is_none_or(|k| compatible_kinds(*k, tc.compiler_kind()));
 
                     let linker_kind_ok = preferred_linker_kind
                         .as_ref()
-                        .map_or(true, |k| *k == tc.linker_kind());
+                        .is_none_or(|k| *k == tc.linker_kind());
 
                     let archiver_kind_ok = preferred_archiver_kind
                         .as_ref()
-                        .map_or(true, |k| *k == tc.archiver_kind());
+                        .is_none_or(|k| *k == tc.archiver_kind());
 
                     if compiler_kind_ok && linker_kind_ok && archiver_kind_ok {
                         working_types.push((tt, tc));

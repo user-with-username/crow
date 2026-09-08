@@ -50,9 +50,10 @@ impl DependencyResolver {
         self.cache_root.join(profile_name).join(hash)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn build_wheel(
         &self,
-        dep_root: &PathBuf,
+        dep_root: &Path,
         profile_name: &str,
         compiler_flags: &[String],
         build_flags: &[String],
@@ -98,11 +99,11 @@ impl DependencyResolver {
         let profile_constraints = self
             .dependency_constraints
             .entry(profile_name.to_string())
-            .or_insert_with(HashMap::new);
+            .or_default();
         let profile_owners = self
             .dependency_owners
             .entry(profile_name.to_string())
-            .or_insert_with(HashMap::new);
+            .or_default();
 
         if let Some(existing) = profile_constraints.get(dep_name) {
             if existing.conflicts_with(&constraint) {
@@ -124,7 +125,7 @@ impl DependencyResolver {
             profile_constraints.insert(dep_name.to_string(), constraint);
             profile_owners
                 .entry(dep_name.to_string())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(owner_name.to_string());
         }
         Ok(())
@@ -325,7 +326,7 @@ impl DependencyResolver {
                 resolved
                     .system_features
                     .entry(dep_name_lower.clone())
-                    .or_insert_with(Vec::new);
+                    .or_default();
                 let entry = resolved.system_features.get_mut(&dep_name_lower).unwrap();
                 for f in &features_vec {
                     if !entry.contains(f) {
@@ -347,7 +348,7 @@ impl DependencyResolver {
                 resolved
                     .system_libs_map
                     .entry(dep_name_lower.clone())
-                    .or_insert_with(Vec::new);
+                    .or_default();
                 let entry = resolved.system_libs_map.get_mut(&dep_name_lower).unwrap();
                 for lib in &libs {
                     if !entry.contains(lib) {
@@ -366,7 +367,7 @@ impl DependencyResolver {
             resolved
                 .registry_features
                 .entry(dep_name_lower.clone())
-                .or_insert_with(Vec::new);
+                .or_default();
             let entry = resolved.registry_features.get_mut(&dep_name_lower).unwrap();
             for f in &features_vec {
                 if !entry.contains(f) {
@@ -413,7 +414,7 @@ impl DependencyResolver {
                 resolved
                     .registry_features
                     .entry(node_name.clone())
-                    .or_insert_with(Vec::new);
+                    .or_default();
                 let entry = resolved.registry_features.get_mut(&node_name).unwrap();
                 for f in &payload.registry_features {
                     if !entry.contains(f) {
@@ -430,7 +431,7 @@ impl DependencyResolver {
                         resolved
                             .system_features
                             .entry(dep_name_lower.clone())
-                            .or_insert_with(Vec::new);
+                            .or_default();
                         let entry = resolved.system_features.get_mut(&dep_name_lower).unwrap();
                         for f in &features {
                             if !entry.contains(f) {
@@ -452,7 +453,7 @@ impl DependencyResolver {
                         resolved
                             .system_libs_map
                             .entry(dep_name_lower.clone())
-                            .or_insert_with(Vec::new);
+                            .or_default();
                         let entry = resolved.system_libs_map.get_mut(&dep_name_lower).unwrap();
                         for lib in &libs {
                             if !entry.contains(lib) {
@@ -472,7 +473,7 @@ impl DependencyResolver {
                     resolved
                         .registry_features
                         .entry(dep_name_lower.clone())
-                        .or_insert_with(Vec::new);
+                        .or_default();
                     let entry = resolved.registry_features.get_mut(&dep_name_lower).unwrap();
                     for f in &features {
                         if !entry.contains(f) {
@@ -497,5 +498,11 @@ impl DependencyResolver {
         project_type.is_static()
             || project_type.is_shared()
             || matches!(project_type, ProjectType::Lib(_))
+    }
+}
+
+impl Default for DependencyResolver {
+    fn default() -> Self {
+        Self::new()
     }
 }

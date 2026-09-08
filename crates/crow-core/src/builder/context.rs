@@ -147,7 +147,7 @@ impl<'a> CompilationContext<'a> {
         }
 
         let stdout_reader = BufReader::new(&output.stdout[..]);
-        Ok(stdout_reader.lines().filter_map(|l| l.ok()).collect())
+        Ok(stdout_reader.lines().map_while(Result::ok).collect())
     }
 
     fn _compute_hash_before_compile(&self, task: &SourceCompilationTask) -> Result<String> {

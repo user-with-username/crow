@@ -224,7 +224,9 @@ pub struct LibraryConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum TargetType {
+    #[default]
     Executable,
     StaticLibrary,
     SharedLibrary,
@@ -232,10 +234,5 @@ pub enum TargetType {
     HeaderOnly,
 }
 
-impl Default for TargetType {
-    fn default() -> Self {
-        TargetType::Executable
-    }
-}
 
 crate::config::macros::type_enum!();

@@ -28,6 +28,12 @@ impl Logger {
     }
 }
 
+impl Default for Logger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub fn get_logger() -> Logger {
     Logger::new()
 }

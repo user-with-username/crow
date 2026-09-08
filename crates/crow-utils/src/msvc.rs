@@ -61,7 +61,7 @@ pub fn determine_target_arch(compiler_path: &Path) -> String {
 fn find_vs_root() -> Result<PathBuf> {
     if let Some(vswhere) = find_vswhere() {
         let output = Command::new(&vswhere)
-            .args(&[
+            .args([
                 "-latest",
                 "-products",
                 "*",
@@ -101,7 +101,7 @@ pub fn find_latest_msvc_version(vc_tools_root: &Path) -> Result<String> {
     let entries = std::fs::read_dir(vc_tools_root).context("Failed to read VC tools directory")?;
     let mut versions = Vec::new();
     for entry in entries.flatten() {
-        if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+        if entry.file_type().is_ok_and(|ft| ft.is_dir()) {
             if let Some(version) = entry.file_name().to_str() {
                 versions.push(version.to_string());
             }
@@ -137,7 +137,7 @@ fn add_windows_sdk_paths(
     if let Ok(entries) = std::fs::read_dir(&include_root) {
         let mut sdk_versions = Vec::new();
         for entry in entries.flatten() {
-            if entry.file_type().map_or(false, |ft| ft.is_dir()) {
+            if entry.file_type().is_ok_and(|ft| ft.is_dir()) {
                 sdk_versions.push(entry.file_name().to_string_lossy().to_string());
             }
         }

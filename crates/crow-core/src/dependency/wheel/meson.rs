@@ -144,7 +144,7 @@ impl Wheel for MesonWheel {
             vec![
                 out_dir.clone(),
                 out_dir.join("lib"),
-                out_dir.join(&build_type),
+                out_dir.join(build_type),
             ],
             3,
         )?;

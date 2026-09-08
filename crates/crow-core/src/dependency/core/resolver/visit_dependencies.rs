@@ -6,6 +6,7 @@ use petgraph::graph::NodeIndex;
 use std::path::Path;
 
 impl DependencyResolver {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn visit_dependencies(
         &mut self,
         owner_idx: NodeIndex,
@@ -16,6 +17,7 @@ impl DependencyResolver {
         profile_name: &str,
         owner_name: &str,
     ) -> Result<()> {
+        #[allow(clippy::too_many_arguments)]
         fn process_dep(
             resolver: &mut DependencyResolver,
             owner_idx: NodeIndex,
@@ -44,7 +46,6 @@ impl DependencyResolver {
                 is_wheel,
                 build_flags,
                 features,
-                name: _,
                 ..
             } = resolved_dep;
 

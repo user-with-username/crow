@@ -10,7 +10,6 @@ use anyhowed::{bail, Context, Result};
 use crow_utils::environment::{Environment, DEFAULT_REGISTRY_URL};
 use crow_utils::normalize_path;
 pub use semver::VersionReq;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 impl DependencyResolver {
@@ -39,7 +38,7 @@ impl DependencyResolver {
             DependencySpec::Registry {
                 version, registry, ..
             } => {
-                let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
+                let registry_url = registry.as_deref().unwrap_or(DEFAULT_REGISTRY_URL);
                 format!("registry:{registry_url}:{dep_name}:{version}")
             }
             DependencySpec::Version(version) => {
@@ -83,7 +82,7 @@ impl DependencyResolver {
             DependencySpec::Registry {
                 version, registry, ..
             } => {
-                let registry_url = registry.as_deref().unwrap_or(&DEFAULT_REGISTRY_URL);
+                let registry_url = registry.as_deref().unwrap_or(DEFAULT_REGISTRY_URL);
                 let (root, source, checksum) =
                     self.resolve_from_registry(dep_name, version, registry_url, &build_flags)?;
                 let features = spec.features().to_vec();
@@ -164,7 +163,7 @@ impl DependencyResolver {
         let profile_cache = self
             .resolved_cache
             .entry(profile_name.to_string())
-            .or_insert_with(HashMap::new);
+            .or_default();
 
         profile_cache.insert(cache_key, resolved_pkg.clone());
 

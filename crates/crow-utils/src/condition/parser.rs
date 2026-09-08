@@ -200,16 +200,11 @@ impl Parser {
 
     fn parse_triple(&mut self) -> Result<Condition, String> {
         let mut parts = Vec::new();
-        loop {
-            match self.peek() {
-                Token::Ident(_) | Token::Str(_) => {
-                    parts.push(match self.consume() {
-                        Token::Ident(s) | Token::Str(s) => s,
-                        _ => unreachable!(),
-                    });
-                }
-                _ => break,
-            }
+        while let Token::Ident(_) | Token::Str(_) = self.peek() {
+            parts.push(match self.consume() {
+                Token::Ident(s) | Token::Str(s) => s,
+                _ => unreachable!(),
+            });
         }
         if parts.is_empty() {
             Err("expected triple or cfg expression".to_string())

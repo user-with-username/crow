@@ -24,7 +24,7 @@ impl Project {
                             && entry
                                 .path()
                                 .extension()
-                                .map_or(false, |ext| extensions.iter().any(|e| e.as_str() == ext))
+                                .is_some_and(|ext| extensions.iter().any(|e| e.as_str() == ext))
                     })
                     .map(|entry| entry.path().to_path_buf())
                     .collect::<Vec<_>>()
@@ -45,9 +45,7 @@ impl Project {
     }
 
     pub fn find_all(&self) -> Vec<PathBuf> {
-        self.find_sources_in(&vec![
-            std::env::current_dir().expect("Failed to get current dir")
-        ])
+        self.find_sources_in(&[std::env::current_dir().expect("Failed to get current dir")])
     }
 
     pub fn target_dir(&self) -> PathBuf {
