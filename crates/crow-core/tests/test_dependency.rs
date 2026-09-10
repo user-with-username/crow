@@ -447,7 +447,7 @@ boost = { version = "^1.91", features = ["asio"], libs = ["boost_asio"] }
 
     #[test]
     fn dependency_graph_label_returns_name_with_version() -> anyhowed::Result<()> {
-        let mut g = DependencyGraph::new();
+        let g = DependencyGraph::new();
         let tmp = tempdir()?;
         let root = tmp.path().join("root");
         std::fs::create_dir_all(&root)?;
