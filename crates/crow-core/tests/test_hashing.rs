@@ -101,7 +101,8 @@ mod tests {
         File::create(&src_path)?.write_all(b"#include \"utils.h\"\nint main() { return 0; }")?;
         File::create(&header_path)?.write_all(b"void helper();")?;
 
-        let hash_with_header = hash_source(&src_path, std::slice::from_ref(&header_path), "gcc", &[])?;
+        let hash_with_header =
+            hash_source(&src_path, std::slice::from_ref(&header_path), "gcc", &[])?;
         let hash_without_header = hash_source(&src_path, &[], "gcc", &[])?;
 
         assert_ne!(hash_with_header, hash_without_header);

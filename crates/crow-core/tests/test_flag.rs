@@ -453,7 +453,7 @@ mod tests {
     fn test_archiver_flag_vec_collection() {
         let flags: Vec<ArchiverFlag> = vec![
             ArchiverFlag::OutputFile("lib.a".to_string()),
-            ArchiverFlag::Object("file.o".to_string())
+            ArchiverFlag::Object("file.o".to_string()),
         ];
 
         assert_eq!(flags.len(), 2);
