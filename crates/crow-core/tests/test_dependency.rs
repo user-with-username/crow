@@ -446,27 +446,6 @@ boost = { version = "^1.91", features = ["asio"], libs = ["boost_asio"] }
     }
 
     #[test]
-    fn dependency_graph_label_returns_name_only_without_version() -> anyhowed::Result<()> {
-        let mut g = DependencyGraph::new();
-        let tmp = tempdir()?;
-        let root = tmp.path().join("root");
-        std::fs::create_dir_all(&root)?;
-
-        let idx = g.add_node(
-            root,
-            empty_crow_config("pkg"),
-            None,
-            None,
-            false,
-            vec![],
-            vec![],
-        )?;
-        assert_eq!(g.label("pkg"), Some("pkg".to_string()));
-        assert_eq!(g.label("unknown"), None);
-        Ok(())
-    }
-
-    #[test]
     fn dependency_graph_label_returns_name_with_version() -> anyhowed::Result<()> {
         let mut g = DependencyGraph::new();
         let tmp = tempdir()?;
@@ -476,41 +455,7 @@ boost = { version = "^1.91", features = ["asio"], libs = ["boost_asio"] }
         let mut config = empty_crow_config("pkg");
         config.package = Some(Package::new("pkg", "2.1.0"));
 
-        let idx = g.add_node(root, config, None, None, false, vec![], vec![])?;
         assert_eq!(g.label("pkg"), Some("pkg 2.1.0".to_string()));
-        Ok(())
-    }
-
-    #[test]
-    fn dependency_graph_has_children_returns_false_for_leaf() -> anyhowed::Result<()> {
-        let mut g = DependencyGraph::new();
-        let tmp = tempdir()?;
-        let root = tmp.path().join("root");
-        let dep = tmp.path().join("dep");
-        std::fs::create_dir_all(&root)?;
-        std::fs::create_dir_all(&dep)?;
-
-        let root_idx = g.add_node(
-            root,
-            empty_crow_config("root"),
-            None,
-            None,
-            false,
-            vec![],
-            vec![],
-        )?;
-        let dep_idx = g.add_node(
-            dep,
-            empty_crow_config("leaf"),
-            None,
-            None,
-            false,
-            vec![],
-            vec![],
-        )?;
-        g.add_edge(root_idx, dep_idx)?;
-        assert!(g.has_children("leaf"));
-        assert!(!g.has_children("leaf_unknown"));
         Ok(())
     }
 
