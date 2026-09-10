@@ -395,11 +395,11 @@ mod tests {
 
     #[test]
     fn test_update_state_fields() {
-        let mut state = BuildState::default();
-
-        state.build_hash = "new_build".to_string();
-        state.lock_hash = "new_lock".to_string();
-        state.output = Some(PathBuf::from("new_output.exe"));
+        let state = BuildState {
+            build_hash: "new_build".to_string(),
+            lock_hash: "new_lock".to_string(),
+            output: Some(PathBuf::from("new_output.exe")),
+        };
 
         assert_eq!(state.build_hash, "new_build");
         assert_eq!(state.lock_hash, "new_lock");

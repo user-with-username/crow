@@ -15,7 +15,7 @@ mod tests {
         assert_eq!(args.jobs, None);
         assert_eq!(args.bin, None);
         assert!(args.args.is_empty());
-        assert_eq!(args.release, false);
+        assert!(!args.release);
     }
 
     #[test]
@@ -35,7 +35,7 @@ mod tests {
         assert_eq!(args.jobs, Some(4));
         assert_eq!(args.bin, Some("my_bench".to_string()));
         assert_eq!(args.args.len(), 3);
-        assert_eq!(args.release, true);
+        assert!(args.release);
     }
 
     #[test]

@@ -30,10 +30,12 @@ mod tests {
     ) -> Result<Project> {
         let (compiler_kind, linker_kind, _) = toolchain_kinds_for_platform();
 
-        let mut build_config = crow_core::config::BuildConfig::default();
-        build_config.archiver = crow_core::config::ArchiverConfig::Simple(archiver_kind);
-        build_config.compiler = crow_core::config::CompilerConfig::Simple(compiler_kind);
-        build_config.linker = crow_core::config::LinkerConfig::Simple(linker_kind);
+        let build_config = crow_core::config::BuildConfig {
+            archiver: crow_core::config::ArchiverConfig::Simple(archiver_kind),
+            compiler: crow_core::config::CompilerConfig::Simple(compiler_kind),
+            linker: crow_core::config::LinkerConfig::Simple(linker_kind),
+            ..Default::default()
+        };
 
         let config = CrowConfig {
             package: Some(crow_core::config::Package {

@@ -437,10 +437,11 @@ mod tests {
 
     #[test]
     fn test_flag_vec_collection() {
-        let mut flags: Vec<Flag> = Vec::new();
-        flags.push(Flag::DebugInfo);
-        flags.push(Flag::OptimizationLevel(2));
-        flags.push(Flag::AllWarnings);
+        let flags: Vec<Flag> = vec![
+            Flag::DebugInfo,
+            Flag::OptimizationLevel(2),
+            Flag::AllWarnings,
+        ];
 
         assert_eq!(flags.len(), 3);
         assert!(matches!(flags[0], Flag::DebugInfo));
@@ -450,9 +451,10 @@ mod tests {
 
     #[test]
     fn test_archiver_flag_vec_collection() {
-        let mut flags: Vec<ArchiverFlag> = Vec::new();
-        flags.push(ArchiverFlag::OutputFile("lib.a".to_string()));
-        flags.push(ArchiverFlag::Object("file.o".to_string()));
+        let flags: Vec<ArchiverFlag> = vec![
+            ArchiverFlag::OutputFile("lib.a".to_string()),
+            ArchiverFlag::Object("file.o".to_string())
+        ];
 
         assert_eq!(flags.len(), 2);
         assert!(matches!(&flags[0], ArchiverFlag::OutputFile(_)));

@@ -84,7 +84,7 @@ mod tests {
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        let entry = create_cache("hash123", &obj.as_path());
+        let entry = create_cache("hash123", obj.as_path());
         manager.record_success(&src, entry);
 
         assert!(manager.should_compile(&src, &None, &obj));
@@ -99,7 +99,7 @@ mod tests {
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        let entry = create_cache("old_hash", &obj.as_path());
+        let entry = create_cache("old_hash", obj.as_path());
         manager.record_success(&src, entry);
 
         assert!(manager.should_compile(&src, &Some("new_hash".to_string()), &obj));
@@ -112,11 +112,11 @@ mod tests {
         let src = create_src_path(dir.path(), "main.c");
         let obj = create_obj_path(dir.path(), "main.o");
 
-        File::create(&obj.as_path()).unwrap();
+        File::create(obj.as_path()).unwrap();
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        let entry = create_cache("same_hash", &obj.as_path());
+        let entry = create_cache("same_hash", obj.as_path());
         manager.record_success(&src, entry);
 
         assert!(!manager.should_compile(&src, &Some("same_hash".to_string()), &obj));
@@ -131,7 +131,7 @@ mod tests {
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        let entry = create_cache("same_hash", &obj.as_path());
+        let entry = create_cache("same_hash", obj.as_path());
         manager.record_success(&src, entry);
 
         assert!(manager.should_compile(&src, &Some("same_hash".to_string()), &obj));
@@ -145,11 +145,11 @@ mod tests {
         let obj_saved = create_obj_path(dir.path(), "old.o");
         let obj_new = create_obj_path(dir.path(), "new.o");
 
-        File::create(&obj_new.as_path()).unwrap();
+        File::create(obj_new.as_path()).unwrap();
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        let entry = create_cache("same_hash", &obj_saved.as_path());
+        let entry = create_cache("same_hash", obj_saved.as_path());
         manager.record_success(&src, entry);
 
         assert!(manager.should_compile(&src, &Some("same_hash".to_string()), &obj_new));
@@ -164,7 +164,7 @@ mod tests {
 
         let manager = IncrementalManager::new(&cache_path, false);
 
-        let entry = create_cache("hash123", &obj.as_path());
+        let entry = create_cache("hash123", obj.as_path());
         manager.record_success(&src, entry);
 
         assert!(manager.should_compile(&src, &Some("hash123".to_string()), &obj));
@@ -180,10 +180,10 @@ mod tests {
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        let entry = create_cache("hash123", &obj.as_path());
+        let entry = create_cache("hash123", obj.as_path());
         manager.record_success(&src, entry);
 
-        File::create(&obj.as_path()).unwrap();
+        File::create(obj.as_path()).unwrap();
         assert!(!manager.should_compile(&src, &Some("hash123".to_string()), &obj));
     }
 
@@ -197,13 +197,13 @@ mod tests {
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        let entry1 = create_cache("hash123", &obj1.as_path());
+        let entry1 = create_cache("hash123", obj1.as_path());
         manager.record_success(&src, entry1);
 
-        let entry2 = create_cache("hash456", &obj2.as_path());
+        let entry2 = create_cache("hash456", obj2.as_path());
         manager.record_success(&src, entry2);
 
-        File::create(&obj2.as_path()).unwrap();
+        File::create(obj2.as_path()).unwrap();
         assert!(!manager.should_compile(&src, &Some("hash456".to_string()), &obj2));
 
         assert!(manager.should_compile(&src, &Some("hash123".to_string()), &obj1));
@@ -220,11 +220,11 @@ mod tests {
 
         let manager = IncrementalManager::new(&cache_path, true);
 
-        manager.record_success(&src1, create_cache("hash1", &obj1.as_path()));
-        manager.record_success(&src2, create_cache("hash2", &obj2.as_path()));
+        manager.record_success(&src1, create_cache("hash1", obj1.as_path()));
+        manager.record_success(&src2, create_cache("hash2", obj2.as_path()));
 
-        File::create(&obj1.as_path()).unwrap();
-        File::create(&obj2.as_path()).unwrap();
+        File::create(obj1.as_path()).unwrap();
+        File::create(obj2.as_path()).unwrap();
 
         assert!(!manager.should_compile(&src1, &Some("hash1".to_string()), &obj1));
         assert!(!manager.should_compile(&src2, &Some("hash2".to_string()), &obj2));
@@ -238,7 +238,7 @@ mod tests {
         let manager1 = IncrementalManager::new(&cache_path, true);
         let src = create_src_path(dir.path(), "main.c");
         let obj = create_obj_path(dir.path(), "main.o");
-        manager1.record_success(&src, create_cache("hash", &obj.as_path()));
+        manager1.record_success(&src, create_cache("hash", obj.as_path()));
         manager1.finalize()?;
 
         assert!(cache_path.exists());
@@ -259,13 +259,13 @@ mod tests {
         let manager = IncrementalManager::new(&cache_path, true);
         let src = create_src_path(dir.path(), "main.c");
         let obj = create_obj_path(dir.path(), "main.o");
-        manager.record_success(&src, create_cache("test_hash", &obj.as_path()));
+        manager.record_success(&src, create_cache("test_hash", obj.as_path()));
         manager.finalize()?;
 
         assert!(cache_path.exists());
 
         let new_manager = IncrementalManager::new(&cache_path, true);
-        File::create(&obj.as_path()).unwrap();
+        File::create(obj.as_path()).unwrap();
 
         assert!(!new_manager.should_compile(&src, &Some("test_hash".to_string()), &obj));
 
@@ -291,9 +291,9 @@ mod tests {
 
                 assert!(manager_clone.should_compile(&src, &Some(hash.clone()), &obj));
 
-                manager_clone.record_success(&src, create_cache(&hash, &obj.as_path()));
+                manager_clone.record_success(&src, create_cache(&hash, obj.as_path()));
 
-                File::create(&obj.as_path()).unwrap();
+                File::create(obj.as_path()).unwrap();
                 assert!(!manager_clone.should_compile(&src, &Some(hash), &obj));
             });
 
@@ -315,13 +315,13 @@ mod tests {
         let manager = IncrementalManager::new(&cache_path, true);
 
         assert!(manager.should_compile(&src, &Some("hash1".to_string()), &obj));
-        manager.record_success(&src, create_cache("hash1", &obj.as_path()));
+        manager.record_success(&src, create_cache("hash1", obj.as_path()));
 
-        File::create(&obj.as_path()).unwrap();
+        File::create(obj.as_path()).unwrap();
 
         assert!(!manager.should_compile(&src, &Some("hash1".to_string()), &obj));
 
-        std::fs::remove_file(&obj.as_path()).unwrap();
+        std::fs::remove_file(obj.as_path()).unwrap();
 
         assert!(manager.should_compile(&src, &Some("hash1".to_string()), &obj));
 

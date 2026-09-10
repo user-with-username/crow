@@ -17,50 +17,46 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn test_normalize_path_windows_remove_extended_prefix() {
-        if cfg!(windows) {
-            assert_eq!(
-                normalize_path(r"\\?\C:\Windows\System32"),
-                r"C:\Windows\System32"
-            );
-            assert_eq!(normalize_path(r"\\?\UNC\server\share"), r"\\server\share");
-            assert_eq!(normalize_path(r"\\?\C:\test\file.txt"), r"C:\test\file.txt");
-        }
+        assert_eq!(
+            normalize_path(r"\\?\C:\Windows\System32"),
+            r"C:\Windows\System32"
+        );
+        assert_eq!(normalize_path(r"\\?\UNC\server\share"), r"\\server\share");
+        assert_eq!(normalize_path(r"\\?\C:\test\file.txt"), r"C:\test\file.txt");
     }
 
     #[test]
+    #[cfg(windows)]
     fn test_normalize_path_windows_unc() {
-        if cfg!(windows) {
-            assert_eq!(normalize_path(r"UNC\server\share"), r"\\server\share");
-            assert_eq!(
-                normalize_path(r"UNC\long\path\to\file"),
-                r"\\long\path\to\file"
-            );
-        }
+        assert_eq!(normalize_path(r"UNC\server\share"), r"\\server\share");
+        assert_eq!(
+            normalize_path(r"UNC\long\path\to\file"),
+            r"\\long\path\to\file"
+        );
     }
 
     #[test]
+    #[cfg(not(windows))]
     fn test_normalize_path_unix_backslashes() {
-        if !cfg!(windows) {
-            assert_eq!(normalize_path(r"path\to\file"), "path/to/file");
-            assert_eq!(normalize_path(r"C:\windows\style"), "C:/windows/style");
-            assert_eq!(
-                normalize_path(r"back\slash\mix/here"),
-                "back/slash/mix/here"
-            );
-        }
+        assert_eq!(normalize_path(r"path\to\file"), "path/to/file");
+        assert_eq!(normalize_path(r"C:\windows\style"), "C:/windows/style");
+        assert_eq!(
+            normalize_path(r"back\slash\mix/here"),
+            "back/slash/mix/here"
+        );
     }
 
     #[test]
+    #[cfg(windows)]
     fn test_normalize_path_windows_forward_slashes() {
-        if cfg!(windows) {
-            assert_eq!(normalize_path("path/to/file"), r"path\to\file");
-            assert_eq!(normalize_path("unix/style/path"), r"unix\style\path");
-            assert_eq!(
-                normalize_path("C:/Program Files/App"),
-                r"C:\Program Files\App"
-            );
-        }
+        assert_eq!(normalize_path("path/to/file"), r"path\to\file");
+        assert_eq!(normalize_path("unix/style/path"), r"unix\style\path");
+        assert_eq!(
+            normalize_path("C:/Program Files/App"),
+            r"C:\Program Files\App"
+        );
     }
 
     #[test]
@@ -79,86 +75,38 @@ mod tests {
 
     #[test]
     fn test_fix_msvc_path_add_extension() {
-        assert_eq!(
-            fix_msvc_path("output", Some(".exe")),
-            if cfg!(windows) {
-                "output.exe"
-            } else {
-                "output.exe"
-            }
-        );
-
-        assert_eq!(
-            fix_msvc_path("file.obj", Some(".exe")),
-            if cfg!(windows) {
-                "file.exe"
-            } else {
-                "file.exe"
-            }
-        );
+        assert_eq!(fix_msvc_path("output", Some(".exe")), "output.exe");
+        assert_eq!(fix_msvc_path("file.obj", Some(".exe")), "file.exe");
     }
 
     #[test]
     fn test_fix_msvc_path_preserve_existing_extension() {
-        assert_eq!(
-            fix_msvc_path("program.exe", Some(".exe")),
-            if cfg!(windows) {
-                "program.exe"
-            } else {
-                "program.exe"
-            }
-        );
-
-        assert_eq!(
-            fix_msvc_path("library.dll", Some(".exe")),
-            if cfg!(windows) {
-                "library.exe"
-            } else {
-                "library.exe"
-            }
-        );
+        assert_eq!(fix_msvc_path("program.exe", Some(".exe")), "program.exe");
+        assert_eq!(fix_msvc_path("library.dll", Some(".exe")), "library.exe");
     }
 
     #[test]
     fn test_fix_msvc_path_multiple_dots() {
         assert_eq!(
             fix_msvc_path("archive.tar.gz", Some(".exe")),
-            if cfg!(windows) {
-                "archive.tar.exe"
-            } else {
-                "archive.tar.exe"
-            }
+            "archive.tar.exe"
         );
-
         assert_eq!(
             fix_msvc_path("file.name.with.dots.txt", Some(".exe")),
-            if cfg!(windows) {
-                "file.name.with.dots.exe"
-            } else {
-                "file.name.with.dots.exe"
-            }
+            "file.name.with.dots.exe"
         );
     }
 
     #[test]
     fn test_fix_msvc_path_no_extension() {
-        assert_eq!(
-            fix_msvc_path("myprogram", None),
-            if cfg!(windows) {
-                "myprogram"
-            } else {
-                "myprogram"
-            }
-        );
+        assert_eq!(fix_msvc_path("myprogram", None), "myprogram");
 
-        assert_eq!(
-            fix_msvc_path("path/to/program", None),
-            if cfg!(windows) {
-                "path\\to\\program"
-            } else {
-                "path/to/program"
-            }
-        );
+        let expected = if cfg!(windows) {
+            "path\\to\\program"
+        } else {
+            "path/to/program"
+        };
+        assert_eq!(fix_msvc_path("path/to/program", None), expected);
     }
 
     #[test]
@@ -171,13 +119,9 @@ mod tests {
     #[test]
     #[cfg(windows)]
     fn test_find_executable_windows_common_locations() {
-        let result = find_executable("powershell");
-        if result.is_ok() {
-            let path = result.unwrap();
-            assert!(
-                path.to_string_lossy().contains("PowerShell")
-                    || path.to_string_lossy().contains("powershell")
-            );
+        if let Ok(path) = find_executable("powershell") {
+            let s = path.to_string_lossy();
+            assert!(s.contains("PowerShell") || s.contains("powershell"));
         }
     }
 

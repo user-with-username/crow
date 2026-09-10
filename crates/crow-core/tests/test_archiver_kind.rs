@@ -2,7 +2,6 @@
 mod tests {
     use crow_core::builder::kinds::archiver_kind::ArchiverKind;
     use serde::{Deserialize, Serialize};
-    use toml;
 
     #[derive(Serialize, Deserialize)]
     struct Wrapper {
