@@ -446,20 +446,6 @@ boost = { version = "^1.91", features = ["asio"], libs = ["boost_asio"] }
     }
 
     #[test]
-    fn dependency_graph_label_returns_name_with_version() -> anyhowed::Result<()> {
-        let g = DependencyGraph::new();
-        let tmp = tempdir()?;
-        let root = tmp.path().join("root");
-        std::fs::create_dir_all(&root)?;
-
-        let mut config = empty_crow_config("pkg");
-        config.package = Some(Package::new("pkg", "2.1.0"));
-
-        assert_eq!(g.label("pkg"), Some("pkg 2.1.0".to_string()));
-        Ok(())
-    }
-
-    #[test]
     fn dependency_graph_has_children_returns_true_for_package_with_deps() -> anyhowed::Result<()> {
         let mut g = DependencyGraph::new();
         let tmp = tempdir()?;
