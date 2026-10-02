@@ -6,6 +6,7 @@ pub mod clean;
 pub mod delete;
 pub mod fmt;
 pub mod init;
+pub mod install;
 pub mod metadata;
 pub mod new;
 pub mod publish;
@@ -36,6 +37,9 @@ pub enum Command {
 
     /// Run the current project
     Run(run::RunArgs),
+
+    /// Build a package in release mode and install its binary (like `cargo install --path`)
+    Install(install::InstallArgs),
 
     /// Build and run the test binary (`test` profile; like `cargo test`)
     Test(test::TestArgs),
@@ -74,6 +78,7 @@ impl Command {
             Self::Check(args) => check::CheckCommand::new(args).execute(),
             Self::Build(args) => build::BuildCommand::new(args).execute(),
             Self::Run(args) => run::RunCommand::new(args).execute(),
+            Self::Install(args) => install::InstallCommand::new(args).execute(),
             Self::Test(args) => test::TestCommand::new(args).execute(),
             Self::Bench(args) => bench::BenchCommand::new(args).execute(),
             Self::Clean(args) => clean::CleanCommand::new(args).execute(),
