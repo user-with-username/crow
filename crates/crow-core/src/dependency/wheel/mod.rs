@@ -148,7 +148,7 @@ pub fn load_wheel_cache(
         }
 
         let install = out.join("install");
-        let artifacts = get_artifacts(
+        let mut artifacts = get_artifacts(
             dep_root,
             &out,
             vec![out.join("generated"), install.join("include")],
@@ -162,6 +162,23 @@ pub fn load_wheel_cache(
             4,
         )
         .ok()?;
+
+        // CMake File API reply is kept in the build dir, so exact include dirs
+        // and library artifacts can be restored without rebuilding.
+        if subdir == "cmake_wheel" {
+            if let Some(exact) = cmake::CmakeWheel::load_cached(&out) {
+                for dir in exact.include_dirs {
+                    if !artifacts.include_dirs.contains(&dir) {
+                        artifacts.include_dirs.push(dir);
+                    }
+                }
+                // precise target artifacts beat a blind directory walk
+                if !exact.lib_names.is_empty() {
+                    artifacts.lib_names = exact.lib_names;
+                    artifacts.lib_paths = exact.lib_paths;
+                }
+            }
+        }
 
         if !artifacts.include_dirs.is_empty() || !artifacts.lib_names.is_empty() {
             return Some(artifacts);
@@ -229,11 +246,9 @@ pub fn get_artifacts(
                 }
                 if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                     if lib_extensions.contains(&ext) {
-                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                            let lib_name = stem.trim_start_matches("lib").to_string();
-
+                        if let Some(lib_name) = link_name_from_library_file(path) {
                             if !artifacts.lib_names.contains(&lib_name) {
-                                artifacts.lib_names.push(lib_name.clone());
+                                artifacts.lib_names.push(lib_name);
 
                                 let parent = path.parent().unwrap().to_path_buf();
                                 if !artifacts.lib_paths.contains(&parent) {
@@ -257,8 +272,28 @@ pub(crate) fn should_skip_library_path(path: &Path) -> bool {
     })
 }
 
+/// Name to pass to the linker for a library file, or `None` if the file cannot
+/// be linked by name.
+///
+/// A file such as `Luau.CLI.lib.lib` has the stem `Luau.CLI.lib`, which ends in
+/// the same extension as the file itself. Once handed to the linker that name is
+/// indistinguishable from a complete file name, so it is skipped.
 pub(crate) fn link_name_from_library_file(path: &Path) -> Option<String> {
-    path.file_stem()
-        .and_then(|s| s.to_str())
-        .map(|stem| stem.trim_start_matches("lib").to_string())
+    let ext = path.extension().and_then(|e| e.to_str())?;
+    let stem = path.file_stem().and_then(|s| s.to_str())?;
+
+    let stem_ext = Path::new(stem).extension().and_then(|e| e.to_str());
+    if stem_ext.map_or(false, |e| e.eq_ignore_ascii_case(ext)) {
+        return None;
+    }
+
+    // MSVC `.lib` files are linked by their full stem; the `lib` prefix is a
+    // Unix/MinGW convention that only applies to the other extensions.
+    let name = if ext.eq_ignore_ascii_case("lib") {
+        stem
+    } else {
+        stem.strip_prefix("lib").unwrap_or(stem)
+    };
+
+    Some(name.to_string())
 }

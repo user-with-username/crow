@@ -174,6 +174,75 @@ impl CmakeWheel {
 
         dirs
     }
+
+    /// Include dirs that CMake itself uses to compile the given targets
+    /// (CMake File API: `compileGroups[].includes[]`).
+    ///
+    /// This is the source of truth for projects whose headers are not in a
+    /// top-level `include/` (e.g. one `<Module>/include` per module).
+    ///
+    /// The File API does not distinguish PUBLIC from PRIVATE include dirs, so
+    /// nothing is dropped; instead dirs named `include` are placed first so that
+    /// on a header-name clash a public-looking directory wins.
+    fn include_dirs_from_targets(targets: &[&TargetFile]) -> Vec<PathBuf> {
+        let mut dirs: Vec<PathBuf> = Vec::new();
+
+        for target in targets {
+            for group in target.compile_groups.iter().flatten() {
+                for inc in group.includes.iter().flatten() {
+                    // system includes come from imported/external deps
+                    if inc.is_system.unwrap_or(false) {
+                        continue;
+                    }
+                    let path = PathBuf::from(&inc.path);
+                    if !path.is_dir()
+                        || crate::dependency::wheel::should_skip_library_path(&path)
+                        || dirs.contains(&path)
+                    {
+                        continue;
+                    }
+                    dirs.push(path);
+                }
+            }
+        }
+
+        // stable sort: `.../include` dirs first, original order otherwise kept
+        dirs.sort_by_key(|d| {
+            !d.file_name()
+                .map(|n| n.eq_ignore_ascii_case("include"))
+                .unwrap_or(false)
+        });
+
+        dirs
+    }
+
+    /// Restore artifacts from an already configured/built `cmake_wheel` dir
+    /// using the File API reply (no rebuild needed).
+    pub fn load_cached(out_dir: &Path) -> Option<WheelArtifacts> {
+        let targets = Self::scan_all_target_files(out_dir).ok()?;
+        let libs: Vec<&TargetFile> = targets
+            .iter()
+            .filter(|t| Self::is_consumer_library_target(t))
+            .collect();
+        if libs.is_empty() {
+            return None;
+        }
+
+        let names: Vec<String> = libs.iter().map(|t| t.name.clone()).collect();
+        let mut artifacts = Self::artifacts_from_built_targets(out_dir, &names).ok()?;
+
+        for dir in Self::include_dirs_from_targets(&libs) {
+            if !artifacts.include_dirs.contains(&dir) {
+                artifacts.include_dirs.push(dir);
+            }
+        }
+
+        if artifacts.lib_names.is_empty() && artifacts.include_dirs.is_empty() {
+            None
+        } else {
+            Some(artifacts)
+        }
+    }
 }
 
 impl Wheel for CmakeWheel {
@@ -289,11 +358,13 @@ impl Wheel for CmakeWheel {
         let all_targets =
             Self::scan_all_target_files(&out_dir).context("failed to read cmake File API reply")?;
 
-        let library_target_names: Vec<String> = all_targets
+        let consumer_targets: Vec<&TargetFile> = all_targets
             .iter()
             .filter(|t| Self::is_consumer_library_target(t))
-            .map(|t| t.name.clone())
             .collect();
+
+        let library_target_names: Vec<String> =
+            consumer_targets.iter().map(|t| t.name.clone()).collect();
 
         let interface_targets: Vec<&TargetFile> = all_targets
             .iter()
@@ -386,6 +457,13 @@ impl Wheel for CmakeWheel {
                 if !artifacts.include_dirs.contains(&dir) {
                     artifacts.include_dirs.push(dir);
                 }
+            }
+        }
+
+        // Exact include dirs as CMake compiles the library targets themselves.
+        for dir in Self::include_dirs_from_targets(&consumer_targets) {
+            if !artifacts.include_dirs.contains(&dir) {
+                artifacts.include_dirs.push(dir);
             }
         }
 
