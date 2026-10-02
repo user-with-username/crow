@@ -283,7 +283,7 @@ pub(crate) fn link_name_from_library_file(path: &Path) -> Option<String> {
     let stem = path.file_stem().and_then(|s| s.to_str())?;
 
     let stem_ext = Path::new(stem).extension().and_then(|e| e.to_str());
-    if stem_ext.map_or(false, |e| e.eq_ignore_ascii_case(ext)) {
+    if stem_ext.is_some_and(|e| e.eq_ignore_ascii_case(ext)) {
         return None;
     }
 
