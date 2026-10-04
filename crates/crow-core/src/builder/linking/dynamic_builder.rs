@@ -6,12 +6,17 @@ use anyhowed::Result;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+/// Whether a raw link argument is a library (as opposed to a flag or an object).
+///
+/// Static libraries of workspace members are passed by path, and on MinGW they
+/// are named `lib<name>.lib`, so `.lib` must be recognised here as well.
+/// Otherwise they end up before the object files, where GNU `ld` drops them.
 fn is_library_link_arg(arg: &str) -> bool {
+    const LIBRARY_EXTENSIONS: [&str; 5] = [".a", ".lib", ".so", ".dylib", ".dll"];
+
     arg.starts_with("-l")
         || arg.starts_with("-L")
-        || arg.ends_with(".a")
-        || arg.ends_with(".so")
-        || arg.ends_with(".dylib")
+        || LIBRARY_EXTENSIONS.iter().any(|ext| arg.ends_with(ext))
 }
 
 /// Ok, gcc and clang require object files before `-l` flags when linking static libraries

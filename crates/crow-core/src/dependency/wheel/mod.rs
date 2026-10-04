@@ -275,17 +275,15 @@ pub(crate) fn should_skip_library_path(path: &Path) -> bool {
 /// Name to pass to the linker for a library file, or `None` if the file cannot
 /// be linked by name.
 ///
-/// A file such as `Luau.CLI.lib.lib` has the stem `Luau.CLI.lib`, which ends in
-/// the same extension as the file itself. Once handed to the linker that name is
-/// indistinguishable from a complete file name, so it is skipped.
+/// A target named `Luau.CLI.lib` produces `Luau.CLI.lib.lib` (MSVC) or
+/// `libLuau.CLI.lib.a` (MinGW/GNU). The resulting link name `Luau.CLI.lib` ends
+/// in a library extension, so once handed to the linker it is indistinguishable
+/// from a complete file name. Such libraries are skipped.
 pub(crate) fn link_name_from_library_file(path: &Path) -> Option<String> {
+    const LIB_EXTENSIONS: [&str; 5] = ["lib", "a", "so", "dll", "dylib"];
+
     let ext = path.extension().and_then(|e| e.to_str())?;
     let stem = path.file_stem().and_then(|s| s.to_str())?;
-
-    let stem_ext = Path::new(stem).extension().and_then(|e| e.to_str());
-    if stem_ext.is_some_and(|e| e.eq_ignore_ascii_case(ext)) {
-        return None;
-    }
 
     // MSVC `.lib` files are linked by their full stem; the `lib` prefix is a
     // Unix/MinGW convention that only applies to the other extensions.
@@ -294,6 +292,11 @@ pub(crate) fn link_name_from_library_file(path: &Path) -> Option<String> {
     } else {
         stem.strip_prefix("lib").unwrap_or(stem)
     };
+
+    let name_ext = Path::new(name).extension().and_then(|e| e.to_str());
+    if name_ext.is_some_and(|e| LIB_EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x))) {
+        return None;
+    }
 
     Some(name.to_string())
 }

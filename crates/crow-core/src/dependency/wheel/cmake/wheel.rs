@@ -85,7 +85,14 @@ impl CmakeWheel {
         }
         if let Some(artifacts) = &target.artifacts {
             for artifact in artifacts {
-                if crate::dependency::wheel::should_skip_library_path(Path::new(&artifact.path)) {
+                // Artifact paths from the File API are relative to the build
+                // dir, so a `tests`/`test` component anywhere in them (e.g.
+                // `tests/abi/diag/libfoo.a`) marks a test-only library.
+                let in_test_dir = Path::new(&artifact.path).components().any(|c| {
+                    c.as_os_str().eq_ignore_ascii_case("test")
+                        || c.as_os_str().eq_ignore_ascii_case("tests")
+                });
+                if in_test_dir {
                     return false;
                 }
             }
