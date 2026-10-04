@@ -13,6 +13,19 @@ impl Environment {
     pub const REGISTRY_VAR: &'static str = "CROW_REGISTRY";
     pub const HOME_VAR: &'static str = "CROW_HOME";
     pub const INSTALL_ROOT_VAR: &'static str = "CROW_INSTALL_ROOT";
+    pub const JOBS_VAR: &'static str = "CROW_JOBS";
+
+    pub fn build_jobs() -> usize {
+        env::var(Self::JOBS_VAR)
+            .ok()
+            .and_then(|v| v.trim().parse::<usize>().ok())
+            .filter(|n| *n > 0)
+            .unwrap_or_else(|| {
+                std::thread::available_parallelism()
+                    .map(|n| (n.get() / 2).max(1))
+                    .unwrap_or(1)
+            })
+    }
 
     pub fn target_dir() -> PathBuf {
         var_os(Self::TARGET_DIR_VAR)

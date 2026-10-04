@@ -3,6 +3,7 @@ use crate::builder::kinds::compiler_kind::CompilerKind;
 use crate::dependency::wheel::{get_artifacts, link_name_from_library_file, Wheel, WheelArtifacts};
 use anyhowed::{Context, Result};
 use crow_utils::find_executable;
+use crow_utils::environment::{Environment};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -381,6 +382,8 @@ impl Wheel for CmakeWheel {
         let is_header_only = library_target_names.is_empty() && !interface_targets.is_empty();
         let nothing_found = library_target_names.is_empty() && interface_targets.is_empty();
 
+        let jobs = Environment::build_jobs();
+
         for target in &library_target_names {
             let output = Command::new(&cmake_exe)
                 .arg("--build")
@@ -390,6 +393,7 @@ impl Wheel for CmakeWheel {
                 .arg("--target")
                 .arg(target)
                 .arg("--parallel")
+                .arg(jobs.to_string())
                 .stdout(Stdio::null())
                 .stderr(Stdio::piped())
                 .current_dir(&self.root)
