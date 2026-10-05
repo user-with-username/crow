@@ -8,6 +8,7 @@ mod compiler;
 mod dependencies;
 mod formatter;
 mod linker;
+mod layers;
 mod macros;
 mod package;
 pub mod profile;
@@ -18,7 +19,8 @@ pub use archiver::ArchiverConfig;
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;
 use crow_utils::condition::{
-    apply_target_filter, get_named_targets_list, has_named_targets, TargetInfo,
+    apply_config_layers, apply_target_filter, get_named_targets_list, has_named_targets,
+    TargetInfo,
 };
 pub use dependencies::{Dependencies, DependencySpec, DevDependencies};
 pub use formatter::FormatterConfig;
@@ -98,6 +100,24 @@ impl CrowConfig {
                 .with_context(|| {
                     format!(
                         "failed to process target-specific config in {}",
+                        config_path.display()
+                    )
+                })?
+        };
+
+        let layers = layers::read_layers(dir)?;
+        let processed = if layers.is_empty() {
+            processed
+        } else {
+            let target_arg = match target_name {
+                Some(target) => target.to_string(),
+                None => format!("\"{}\"", TargetInfo::current().triple),
+            };
+            apply_config_layers(&processed, &layers, &target_arg)
+                .map_err(|e| anyhowed::Error::msg(e))
+                .with_context(|| {
+                    format!(
+                        "failed to merge .crow/config.toml into {}",
                         config_path.display()
                     )
                 })?

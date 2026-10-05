@@ -152,6 +152,66 @@ pub fn apply_target_filter(content: &str, target_or_name: &str) -> Result<String
     Ok(doc.to_string())
 }
 
+const BUILD_SECTION: &str = "build";
+
+fn is_condition_expr(target_or_name: &str) -> bool {
+    target_or_name.starts_with('"') && target_or_name.ends_with('"')
+}
+
+fn build_table(doc: &Document) -> Option<Table> {
+    doc.get(BUILD_SECTION)
+        .and_then(|item| item.clone().into_table().ok())
+}
+
+fn filter_layer(content: &str, target_or_name: &str) -> Result<String, String> {
+    if !is_condition_expr(target_or_name) {
+        let mut doc = content
+            .parse::<Document>()
+            .map_err(|e| format!("failed to parse TOML: {}", e))?;
+
+        if !get_named_targets(&doc).contains_key(target_or_name) {
+            doc.remove("target");
+            return Ok(doc.to_string());
+        }
+    }
+
+    apply_target_filter(content, target_or_name)
+}
+
+pub fn apply_config_layers(
+    manifest: &str,
+    layers: &[(String, String)],
+    target_or_name: &str,
+) -> Result<String, String> {
+    let mut merged = Document::new();
+
+    for (label, raw) in layers {
+        let filtered =
+            filter_layer(raw, target_or_name).map_err(|e| format!("{}: {}", label, e))?;
+        let doc = filtered
+            .parse::<Document>()
+            .map_err(|e| format!("{}: failed to parse TOML: {}", label, e))?;
+
+        if let Some(build) = build_table(&doc) {
+            merge_table_into_root(&mut merged, BUILD_SECTION, &build);
+        }
+    }
+
+    let mut doc = manifest
+        .parse::<Document>()
+        .map_err(|e| format!("failed to parse TOML: {}", e))?;
+
+    if let Some(build) = build_table(&doc) {
+        merge_table_into_root(&mut merged, BUILD_SECTION, &build);
+    }
+
+    if let Some(build) = merged.get(BUILD_SECTION) {
+        doc.insert(BUILD_SECTION, build.clone());
+    }
+
+    Ok(doc.to_string())
+}
+
 pub fn has_named_targets(content: &str) -> bool {
     let doc = match content.parse::<Document>() {
         Ok(doc) => doc,
