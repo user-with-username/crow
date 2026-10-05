@@ -7,8 +7,8 @@ mod build;
 mod compiler;
 mod dependencies;
 mod formatter;
-mod linker;
 mod layers;
+mod linker;
 mod macros;
 mod package;
 pub mod profile;
@@ -19,8 +19,7 @@ pub use archiver::ArchiverConfig;
 pub use build::BuildConfig;
 pub use compiler::CompilerConfig;
 use crow_utils::condition::{
-    apply_config_layers, apply_target_filter, get_named_targets_list, has_named_targets,
-    TargetInfo,
+    apply_config_layers, apply_target_filter, get_named_targets_list, has_named_targets, TargetInfo,
 };
 pub use dependencies::{Dependencies, DependencySpec, DevDependencies};
 pub use formatter::FormatterConfig;
